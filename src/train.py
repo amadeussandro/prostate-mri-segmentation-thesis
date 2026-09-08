@@ -7,7 +7,7 @@ and model checkpoint persistence.
 
 import os
 from typing import Any, Dict, Optional
-from code.utils import ensure_dir, get_device, load_config, set_seed
+from src.utils import ensure_dir, get_device, load_config, set_seed
 
 
 def compute_loss(

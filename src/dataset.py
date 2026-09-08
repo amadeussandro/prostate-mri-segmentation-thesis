@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import nibabel as nib
 import numpy as np
 
-from code.preprocessing import binarize_mask, normalize_intensity, stack_modalities
+from src.preprocessing import binarize_mask, normalize_intensity, stack_modalities
 
 # Safe PyTorch import: allow module to function as standalone or torch.utils.data.Dataset
 try:
