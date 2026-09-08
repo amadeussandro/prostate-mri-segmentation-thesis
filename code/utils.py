@@ -35,7 +35,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
     # Try importing PyYAML; raise informative error if not present in environment
     try:
-        import yaml
+        import yaml  # type: ignore
     except ImportError as e:
         raise ImportError(
             "PyYAML is required to parse config files. "
@@ -65,7 +65,7 @@ def set_seed(seed: int = 42) -> None:
 
     # PyTorch seeding (handled safely if torch is not yet installed)
     try:
-        import torch
+        import torch  # type: ignore
 
         torch.manual_seed(seed)
         if torch.cuda.is_available():
@@ -95,7 +95,7 @@ def get_device(prefer_cuda: bool = True) -> str:
         return "cpu"
 
     try:
-        import torch
+        import torch  # type: ignore
 
         if torch.cuda.is_available():
             return "cuda"

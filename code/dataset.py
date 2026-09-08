@@ -11,9 +11,9 @@ import numpy as np
 
 # Safe PyTorch import: allow module to function as standalone or torch.utils.data.Dataset
 try:
-    from torch.utils.data import Dataset as BaseDataset
+    from torch.utils.data import Dataset as BaseDataset  # type: ignore
 except ImportError:
-    BaseDataset = object  # type: ignore
+    BaseDataset = object
 
 
 class Prostate2DDataset(BaseDataset):

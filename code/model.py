@@ -8,11 +8,11 @@ from typing import Any, Dict, Optional
 
 # Safe PyTorch import: allow module to import cleanly without PyTorch installed in environment
 try:
-    import torch
-    import torch.nn as nn
+    import torch  # type: ignore
+    import torch.nn as nn  # type: ignore
     BaseModule = nn.Module
 except ImportError:
-    BaseModule = object  # type: ignore
+    BaseModule = object
 
 
 class ProstateUNet2D(BaseModule):
