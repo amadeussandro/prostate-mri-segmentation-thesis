@@ -1,0 +1,55 @@
+# Configuration: Full Prostate158 Dataset Training
+# Note: Values marked [PROVISIONAL] are initial placeholders subject to empirical tuning.
+
+experiment:
+  name: "full_prostate158_train"
+  description: "Full-scale training across all Prostate158 training patients with official train/valid split"
+  output_dir: "./results/full"
+
+data:
+  # [VERIFIED]: Existing dataset path in project
+  dataset_root: "dataset/prostate158_train/train"
+  train_split_csv: "dataset/prostate158_train/train.csv"
+  valid_split_csv: "dataset/prostate158_train/valid.csv"
+
+  # All 139 patients (020 through 158) partitioned by official CSVs
+  modalities:
+    - "t2"
+    - "adc"
+    - "dwi"
+
+  target_mask: "t2_tumor_reader1.nii.gz"
+  anatomy_mask: "t2_anatomy_reader1.nii.gz"
+
+  raw_image_size: [270, 270]
+  # [PROVISIONAL]: Target crop size centered around prostate
+  crop_size: [160, 160]
+
+  # [PROVISIONAL]: Sample slices containing prostate gland
+  slice_sampling: "prostate_only"
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 3
+  out_channels: 1
+  # [PROVISIONAL]: Scaled model capacity for full dataset
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  # [PROVISIONAL]: Scaled GPU hyperparameters
+  batch_size: 32
+  learning_rate: 0.0003
+  num_epochs: 100
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "dice_bce"
+  dice_weight: 0.7
+  bce_weight: 0.3
+  early_stopping_patience: 15
+
+validation:
+  # Evaluates on the official valid.csv cohort
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"

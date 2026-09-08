@@ -1,0 +1,15 @@
+# Verified Core Dependencies for Dataset Inspection & Scaffolding
+nibabel>=5.4.0
+numpy>=2.0.0
+matplotlib>=3.10.0
+pillow>=11.0.0
+
+# Configuration & Data Handling
+pyyaml>=6.0.0
+pandas>=2.0.0
+
+# Future Deep Learning Frameworks (To be installed when training starts)
+# torch>=2.2.0
+# torchvision>=0.17.0
+# monai>=1.3.0
+

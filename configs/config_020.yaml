@@ -1,0 +1,60 @@
+# Configuration: Patient 020 Sanity Check & Pipeline Debugging
+# Note: Values marked [PROVISIONAL] are initial placeholders subject to empirical tuning.
+
+experiment:
+  name: "sanity_check_patient_020"
+  description: "Single-patient pipeline validation and sanity check using patient 020"
+  output_dir: "./results/020"
+
+data:
+  # [VERIFIED]: Existing dataset path in project
+  dataset_root: "dataset/prostate158_train/train"
+  split_csv: "dataset/prostate158_train/valid.csv"
+  patient_ids:
+    - "020"
+
+  # [VERIFIED]: Modalities verified present with matching geometry (270x270x24)
+  modalities:
+    - "t2"
+    - "adc"
+    - "dwi"
+
+  # Target segmentation mask
+  target_mask: "t2_tumor_reader1.nii.gz"
+  alternative_masks:
+    - "adc_tumor_reader1.nii.gz"
+    - "adc_tumor_reader2.nii.gz"
+  anatomy_mask: "t2_anatomy_reader1.nii.gz"
+
+  # Spatial dimensions
+  raw_image_size: [270, 270]
+  # [PROVISIONAL]: Target crop size centered around prostate
+  crop_size: [160, 160]
+
+  # Slice selection strategy: 'all', 'prostate_only', or 'tumor_only'
+  # [PROVISIONAL]: For 020 sanity check, use all slices
+  slice_sampling: "all"
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 3
+  out_channels: 1
+  # [PROVISIONAL]: Initial base channel width
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  # [PROVISIONAL]: Hyperparameters for single-patient overfitting sanity check
+  batch_size: 4
+  learning_rate: 0.001
+  num_epochs: 5
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "dice_bce"
+  dice_weight: 0.5
+  bce_weight: 0.5
+
+validation:
+  # [PROVISIONAL]: Single patient used for pipeline dry-run; no separate split
+  validation_split: 0.0

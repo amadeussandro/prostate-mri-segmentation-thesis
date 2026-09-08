@@ -1,0 +1,65 @@
+# Configuration: 10-Patient Pilot Experiment
+# Note: Values marked [PROVISIONAL] are initial placeholders subject to empirical tuning.
+
+experiment:
+  name: "pilot_10_patients"
+  description: "Pilot multi-patient training experiment on 10 patients (020-029) to assess convergence and pipeline stability"
+  output_dir: "./results/10_patients"
+
+data:
+  # [VERIFIED]: Existing dataset path in project
+  dataset_root: "dataset/prostate158_train/train"
+  split_csv: "dataset/prostate158_train/train.csv"
+  patient_ids:
+    - "020"
+    - "021"
+    - "022"
+    - "023"
+    - "024"
+    - "025"
+    - "026"
+    - "027"
+    - "028"
+    - "029"
+
+  modalities:
+    - "t2"
+    - "adc"
+    - "dwi"
+
+  target_mask: "t2_tumor_reader1.nii.gz"
+  anatomy_mask: "t2_anatomy_reader1.nii.gz"
+
+  raw_image_size: [270, 270]
+  # [PROVISIONAL]: Target crop size centered around prostate
+  crop_size: [160, 160]
+
+  # [PROVISIONAL]: Filter slices to only those containing prostate anatomy
+  slice_sampling: "prostate_only"
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 3
+  out_channels: 1
+  # [PROVISIONAL]: Channel width
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  # [PROVISIONAL]: Training hyperparameters
+  batch_size: 16
+  learning_rate: 0.0005
+  num_epochs: 30
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "dice_bce"
+  dice_weight: 0.6
+  bce_weight: 0.4
+
+validation:
+  # [PROVISIONAL]: 80/20 train/val patient split
+  validation_split: 0.2
+  val_patient_ids:
+    - "028"
+    - "029"

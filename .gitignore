@@ -1,0 +1,47 @@
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# IMPORTANT: Exclude Raw Medical Datasets from Git
+dataset/
+data/
+*.nii
+*.nii.gz
+
+# Model Weights & Training Checkpoints
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+checkpoints/
+
+# Environment Variables & Secrets
+.env
+.env.local
+*.secret
+
+# IDE & OS Specific Files
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Heavy Generated Artifacts (preserve report & sample overview in git)
+results/full/*.pt
+results/full/*.pth
+results/10_patients/*.pt
+results/10_patients/*.pth
