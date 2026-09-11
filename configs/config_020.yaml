@@ -13,6 +13,16 @@ data:
   raw_image_size: [270, 270]
   slice_sampling: "all"
 
+# Case-020 smoke-test preprocessing: target_size matches patient 020's native
+# in-plane resolution exactly, so crop/pad is a no-op for this single-patient
+# sanity check. This config is NOT the research split/config (see
+# configs/config_baseline.yaml) -- kept separate per thesis protocol.
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [270, 270]
+
 model:
   architecture: "ProstateUNet2D"
   in_channels: 1
