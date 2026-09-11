@@ -1,7 +1,7 @@
 """Training loop for 2D prostate zonal anatomy segmentation."""
 
 import os
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -299,8 +299,80 @@ def _build_train_sampler(
     )
 
 
-def run_training(config_path: str) -> None:
-    """Run a training experiment from a YAML configuration."""
+def _load_resume_checkpoint(
+    resume_from: str,
+    model: Any,
+    optimizer: Any,
+    device: str,
+    num_epochs: int,
+) -> Tuple[int, float, int]:
+    """Restore model + optimizer state from a checkpoint to resume training.
+
+    Returns (start_epoch, best_metric, checkpoint_epoch), where start_epoch is
+    checkpoint_epoch + 1 -- training continues from there, never from epoch 1.
+
+    The checkpoint format is exactly the one written by run_training: a dict
+    with "epoch", "model_state_dict", "optimizer_state_dict", "best_metric"
+    (and "config"). Backward-compatible with checkpoints carrying just those
+    keys (e.g. the Experiment-1 epoch-60 best_model.pt), and the format written
+    on resume is unchanged, so resumed checkpoints stay loadable the same way.
+
+    `weights_only=False` is required because the checkpoint embeds the config
+    dict (arbitrary Python), not just tensors.
+
+    Fails clearly (ValueError) if the checkpoint is already at or past the
+    configured total epochs, instead of silently doing nothing / retraining.
+    """
+    if not os.path.exists(resume_from):
+        raise FileNotFoundError(f"Resume checkpoint not found: {resume_from}")
+
+    checkpoint = torch.load(resume_from, map_location=device, weights_only=False)
+
+    for required_key in ("epoch", "model_state_dict", "optimizer_state_dict", "best_metric"):
+        if required_key not in checkpoint:
+            raise KeyError(
+                f"Resume checkpoint '{resume_from}' is missing required key "
+                f"'{required_key}'. Keys present: {sorted(checkpoint.keys())}"
+            )
+
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+    checkpoint_epoch = int(checkpoint["epoch"])
+    best_metric = float(checkpoint["best_metric"])
+    start_epoch = checkpoint_epoch + 1
+
+    if start_epoch > num_epochs:
+        raise ValueError(
+            f"Checkpoint epoch {checkpoint_epoch} is already >= configured total "
+            f"epochs ({num_epochs}); there is nothing to resume. Increase "
+            f"training.num_epochs for a longer run, or start a fresh run instead."
+        )
+
+    return start_epoch, best_metric, checkpoint_epoch
+
+
+def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[str, Any]:
+    """Run (or resume) a training experiment from a YAML configuration.
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the experiment YAML. Defines the split, model, optimizer,
+        epoch target, preprocessing, output_dir, etc. -- unchanged by resume.
+    resume_from : Optional[str], default=None
+        If given, path to a checkpoint (e.g. best_model.pt) whose model,
+        optimizer, and best_metric are restored; training then continues from
+        the checkpoint's stored epoch + 1 through training.num_epochs. If None
+        (the default), a fresh run starts at epoch 1 with best_metric = -inf --
+        identical to the prior behavior.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Small run summary: {"resumed", "start_epoch", "num_epochs",
+        "best_metric", "best_checkpoint"}. Callers may ignore it.
+    """
 
     config = load_config(config_path)
 
@@ -473,13 +545,40 @@ def run_training(config_path: str) -> None:
         3,
     )
 
-    best_metric = -float("inf")
     best_checkpoint = os.path.join(
         output_dir,
         "best_model.pt",
     )
 
-    for epoch in range(1, num_epochs + 1):
+    # ---------------------------------------------------------
+    # Resume (optional).
+    # A fresh run (resume_from=None) starts at epoch 1 with
+    # best_metric = -inf, exactly as before. Resuming restores
+    # model + optimizer + best_metric and continues from the
+    # checkpoint's stored epoch + 1 -- it never restarts at 1,
+    # and best_metric is never reset, so best_model.pt is still
+    # only overwritten when validation Dice improves on the
+    # restored best.
+    # ---------------------------------------------------------
+    if resume_from is not None:
+        start_epoch, best_metric, checkpoint_epoch = _load_resume_checkpoint(
+            resume_from=resume_from,
+            model=model,
+            optimizer=optimizer,
+            device=device,
+            num_epochs=num_epochs,
+        )
+        print(f"Resumed from checkpoint: {resume_from}")
+        print(
+            f"  Checkpoint epoch: {checkpoint_epoch} "
+            f"| restored best_metric: {best_metric:.6f}"
+        )
+        print(f"  Continuing from epoch {start_epoch} through {num_epochs}")
+    else:
+        start_epoch = 1
+        best_metric = -float("inf")
+
+    for epoch in range(start_epoch, num_epochs + 1):
 
         train_loss = train_one_epoch(
             model=model,
@@ -538,6 +637,14 @@ def run_training(config_path: str) -> None:
 
     print("Training completed.")
     print(f"Best checkpoint: {best_checkpoint}")
+
+    return {
+        "resumed": resume_from is not None,
+        "start_epoch": start_epoch,
+        "num_epochs": num_epochs,
+        "best_metric": best_metric,
+        "best_checkpoint": best_checkpoint,
+    }
 
 
 if __name__ == "__main__":

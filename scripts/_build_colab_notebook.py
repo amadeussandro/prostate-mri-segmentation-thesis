@@ -303,6 +303,69 @@ cells.append(code(
     "# run_training(colab_config_path)   # <-- intentionally commented out",
 ))
 
+cells.append(md(
+    "## 15. Resume Experiment 1 (recover after a Colab disconnect)",
+    "",
+    "Use this section **only** to continue an Experiment-1 run that was interrupted",
+    "(e.g. the GPU backend was reclaimed on a usage limit). It does **not** change",
+    "the experiment: same official 119/20 split, T2W-only, `t2_anatomy_reader1`,",
+    "`ProstateUNet2D` (1->3, init_features=32, dropout 0.2), 442x442 crop/pad,",
+    "per-volume normalization, AdamW lr=0.001 wd=0.0001, no scheduler, seed=42,",
+    "total epochs=100.",
+    "",
+    "`run_training(config_path, resume_from=CKPT)` restores the checkpoint's model,",
+    "optimizer, and `best_metric`, then continues from the checkpoint's stored",
+    "epoch + 1 through epoch 100 -- it never restarts at epoch 1, and `best_model.pt`",
+    "is still only overwritten when validation Dice beats the restored best.",
+    "",
+    "**Honest caveats for the thesis writeup:**",
+    "- The surviving checkpoint is `best_model.pt`, whose stored epoch is the last",
+    "  epoch that *improved* validation Dice (e.g. 60), which may be earlier than the",
+    "  last epoch actually reached before the disconnect (e.g. 64). Resuming therefore",
+    "  re-runs the few non-improving epochs after the best one. This is correct and",
+    "  safe, just not bit-identical to an uninterrupted 1..100 run.",
+    "- RNG state (sampler generator, dropout) is not stored in the checkpoint format,",
+    "  so the resumed segment is not bitwise-reproducible against an uninterrupted run.",
+    "  The experiment *design* (data, model, hyperparameters, seed) is unchanged.",
+))
+cells.append(code(
+    "import os",
+    "import torch",
+    "",
+    "RESUME_CKPT = '/content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt'",
+    "",
+    "assert os.path.exists(RESUME_CKPT), f'Checkpoint not found: {RESUME_CKPT}'",
+    "_ckpt = torch.load(RESUME_CKPT, map_location='cpu', weights_only=False)",
+    "print('Checkpoint keys:      ', sorted(_ckpt.keys()))",
+    "print('Checkpoint epoch:     ', _ckpt['epoch'])",
+    "print('Restored best_metric: ', _ckpt['best_metric'])",
+    "print(f\"Will resume at epoch {int(_ckpt['epoch']) + 1} and train through 100.\")",
+))
+cells.append(md(
+    "Prepare the same Drive-backed config used in Section 14 (idempotent -- safe to",
+    "run even if Section 14 was not run in this session), then resume. The training",
+    "call below **is active** because resuming is the intended recovery action; it",
+    "will train epochs (checkpoint_epoch + 1)..100 on the GPU.",
+))
+cells.append(code(
+    "import yaml",
+    "from src.utils import load_config",
+    "from src.train import run_training",
+    "",
+    "config = load_config('configs/config_baseline.yaml')",
+    "drive_output_dir = os.path.join(DRIVE_RESULTS_DIR, 'exp01_baseline')",
+    "os.makedirs(drive_output_dir, exist_ok=True)",
+    "config['experiment']['output_dir'] = drive_output_dir",
+    "",
+    "colab_config_path = '/content/config_baseline_colab.yaml'  # outside the repo -- never committed",
+    "with open(colab_config_path, 'w') as f:",
+    "    yaml.safe_dump(config, f)",
+    "",
+    "# Resumes from RESUME_CKPT (defined in the cell above); continues to epoch 100.",
+    "summary = run_training(colab_config_path, resume_from=RESUME_CKPT)",
+    "print(summary)",
+))
+
 notebook = {
     "cells": cells,
     "metadata": {
