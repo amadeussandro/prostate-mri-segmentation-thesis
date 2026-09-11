@@ -1,3 +1,11 @@
+# ****RETIRED / QUARANTINED**** -- superseded lesion/multimodal research direction.
+# Do NOT use for current thesis work (zonal anatomy segmentation, T2W-only).
+# Also structurally broken against current src/train.py: no `patient_ids` key,
+# so train_patient_ids resolves to an empty list (0 training samples).
+# Kept only for historical reference. See configs/config_baseline.yaml for
+# the current thesis research configuration (which DOES use the official
+# train.csv/valid.csv split correctly).
+#
 # Configuration: Full Prostate158 Dataset Training
 # Note: Values marked [PROVISIONAL] are initial placeholders subject to empirical tuning.
 

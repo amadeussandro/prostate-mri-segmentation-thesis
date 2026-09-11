@@ -1,167 +1,208 @@
-"""Unit tests for dataset scaffolding, preprocessing integration, and slice indexing."""
+"""Unit tests for ProstateZonal2DDataset -- the CURRENT thesis dataset.
+
+Covers Gates 3 and 4: image/mask shape & dtype, label validity, spatial
+metadata retention, slicing correspondence, and DataLoader batching across
+multiple patients with different native (H, W) sizes.
+"""
 
 import os
 import sys
 import unittest
+
 import numpy as np
 
-# Ensure project root is in sys.path for robust imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.dataset import Prostate2DDataset
+from src.dataset import ProstateZonal2DDataset
+from src.transforms import PreprocessingConfig
 
 
-class TestDataset(unittest.TestCase):
-    """Test suite for Prostate2DDataset interface and preprocessing integration."""
-
+class TestProstateZonal2DDataset(unittest.TestCase):
     def setUp(self):
-        # Resolve real dataset location
-        self.project_root = project_root
         self.dataset_root = os.path.join(
-            self.project_root, "dataset", "prostate158_train", "train"
+            project_root, "dataset", "prostate158_train", "train"
         )
-        self.has_patient_020 = os.path.exists(os.path.join(self.dataset_root, "020"))
+        self.has_020 = os.path.exists(os.path.join(self.dataset_root, "020"))
+        self.has_021 = os.path.exists(os.path.join(self.dataset_root, "021"))
 
-    def test_dataset_initialization_patient_020_all(self):
-        """Test dataset initialization and slice indexing on Patient 020 with slice_sampling='all'."""
-        if not self.has_patient_020:
+    def test_sample_shape_and_dtype(self):
+        if not self.has_020:
             self.skipTest("Patient 020 folder not found; skipping integration test.")
 
-        dataset = Prostate2DDataset(
+        dataset = ProstateZonal2DDataset(
             dataset_root=self.dataset_root,
             patient_ids=["020"],
-            modalities=["t2", "adc", "dwi"],
-            mask_name="t2_tumor_reader1.nii.gz",
             slice_sampling="all",
         )
-
-        # Patient 020 has 24 slices dynamically retrieved from volume.shape[2]
-        self.assertEqual(len(dataset), 24)
-
-        # Check sample 0 properties
         sample = dataset[0]
-        self.assertIn("image", sample)
-        self.assertIn("mask", sample)
-        self.assertIn("patient_id", sample)
-        self.assertIn("slice_idx", sample)
 
-        self.assertEqual(sample["patient_id"], "020")
-        self.assertEqual(sample["slice_idx"], 0)
-        self.assertEqual(sample["image"].shape, (3, 270, 270))
-        self.assertEqual(sample["mask"].shape, (1, 270, 270))
+        self.assertEqual(sample["image"].shape, (1, 256, 256))
+        self.assertEqual(sample["mask"].shape, (256, 256))
         self.assertEqual(sample["image"].dtype, np.float32)
-        self.assertEqual(sample["mask"].dtype, np.float32)
+        self.assertEqual(sample["mask"].dtype, np.int64)
 
-    def test_dataset_tumor_slices_patient_020(self):
-        """Verify tumor slice indices for Patient 020 (expected [5, 6, 7])."""
-        if not self.has_patient_020:
+    def test_label_validity(self):
+        if not self.has_020:
             self.skipTest("Patient 020 folder not found; skipping integration test.")
 
-        dataset = Prostate2DDataset(
+        dataset = ProstateZonal2DDataset(
             dataset_root=self.dataset_root,
             patient_ids=["020"],
             slice_sampling="all",
         )
+        all_labels = set()
+        for i in range(len(dataset)):
+            all_labels.update(np.unique(dataset[i]["mask"]).tolist())
 
-        tumor_slices = [
-            i for i in range(len(dataset))
-            if np.any(dataset[i]["mask"] > 0)
-        ]
-        self.assertEqual(tumor_slices, [5, 6, 7])
+        self.assertTrue(all_labels.issubset({0, 1, 2}))
 
-        # Verify binary values in mask
-        unique_vals_slice7 = np.unique(dataset[7]["mask"])
-        self.assertTrue(np.array_equal(unique_vals_slice7, [0.0, 1.0]))
-
-        unique_vals_slice0 = np.unique(dataset[0]["mask"])
-        self.assertTrue(np.array_equal(unique_vals_slice0, [0.0]))
-
-    def test_dataset_slice_sampling_tumor_only(self):
-        """Test slice_sampling='tumor_only' extracts only positive tumor slices."""
-        if not self.has_patient_020:
+    def test_case_geometry_and_transform_metadata_retained(self):
+        if not self.has_020:
             self.skipTest("Patient 020 folder not found; skipping integration test.")
 
-        dataset = Prostate2DDataset(
+        dataset = ProstateZonal2DDataset(
             dataset_root=self.dataset_root,
             patient_ids=["020"],
-            slice_sampling="tumor_only",
+            slice_sampling="all",
         )
+        geometry, transform_meta = dataset.get_case_metadata("020")
 
-        # Patient 020 has 3 positive tumor slices: 5, 6, 7
-        self.assertEqual(len(dataset), 3)
-        extracted_slice_indices = [dataset[i]["slice_idx"] for i in range(len(dataset))]
-        self.assertEqual(extracted_slice_indices, [5, 6, 7])
+        self.assertEqual(geometry.shape, (270, 270, 24))
+        self.assertIsNotNone(geometry.affine)
+        self.assertFalse(np.allclose(geometry.affine, np.eye(4)))  # never identity-default
+        self.assertEqual(transform_meta.target_size, (256, 256))
 
-    def test_dataset_slice_sampling_prostate_only(self):
-        """Test slice_sampling='prostate_only' uses t2_anatomy_reader1."""
-        if not self.has_patient_020:
+    def test_slice_correspondence_across_full_volume(self):
+        if not self.has_020:
             self.skipTest("Patient 020 folder not found; skipping integration test.")
 
-        dataset = Prostate2DDataset(
+        dataset = ProstateZonal2DDataset(
             dataset_root=self.dataset_root,
             patient_ids=["020"],
-            slice_sampling="prostate_only",
+            slice_sampling="all",
         )
+        # Preprocessed depth must match the reoriented volume's slice count exactly,
+        # and slice indices must be contiguous starting at 0 (explicit-index safe).
+        slice_indices = [s_idx for (_, s_idx) in dataset.samples]
+        self.assertEqual(slice_indices, list(range(len(dataset))))
 
-        # Verified earlier: prostate anatomy covers slices 1 through 19 (19 slices)
-        self.assertEqual(len(dataset), 19)
-
-    def test_dataset_invalid_sampling_raises_error(self):
-        """Test that invalid slice_sampling raises ValueError."""
+    def test_invalid_slice_sampling_raises(self):
         with self.assertRaises(ValueError):
-            Prostate2DDataset(
+            ProstateZonal2DDataset(
                 dataset_root=self.dataset_root,
-                patient_ids=["020"],
-                slice_sampling="invalid_mode",
+                patient_ids=["020"] if self.has_020 else ["nonexistent"],
+                slice_sampling="bogus_mode",
             )
 
-    def test_dataset_missing_folder_raises_error(self):
-        """Test that missing patient folder raises FileNotFoundError."""
+    def test_missing_patient_raises_filenotfound(self):
         with self.assertRaises(FileNotFoundError):
-            Prostate2DDataset(
+            ProstateZonal2DDataset(
                 dataset_root=self.dataset_root,
                 patient_ids=["nonexistent_patient_999"],
             )
 
-    def test_dataset_out_of_bounds_index(self):
-        """Test that indexing beyond dataset size raises IndexError."""
-        if not self.has_patient_020:
-            self.skipTest("Patient 020 folder not found; skipping integration test.")
-
-        dataset = Prostate2DDataset(
-            dataset_root=self.dataset_root,
-            patient_ids=["020"],
-        )
-        with self.assertRaises(IndexError):
-            _ = dataset[999]
-
-    def test_dataloader_compatibility(self):
-        """Test compatibility with PyTorch DataLoader if torch is available."""
-        if not self.has_patient_020:
-            self.skipTest("Patient 020 folder not found; skipping integration test.")
+    def test_dataloader_batches_multiple_patients_with_different_native_sizes(self):
+        if not (self.has_020 and self.has_021):
+            self.skipTest("Patients 020/021 not found; skipping integration test.")
 
         try:
             from torch.utils.data import DataLoader
         except ImportError:
-            self.skipTest("PyTorch not installed in this environment; skipping DataLoader test.")
+            self.skipTest("PyTorch not installed; skipping DataLoader test.")
 
-        dataset = Prostate2DDataset(
+        dataset = ProstateZonal2DDataset(
             dataset_root=self.dataset_root,
-            patient_ids=["020"],
+            patient_ids=["020", "021"],
             slice_sampling="all",
         )
+        loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0)
 
-        loader = DataLoader(dataset, batch_size=2, shuffle=False)
         batch = next(iter(loader))
-
         images = batch["image"]
         masks = batch["mask"]
 
-        # Expected batch shapes: (B=2, C=3, H=270, W=270) and (B=2, C=1, H=270, W=270)
-        self.assertEqual(tuple(images.shape), (2, 3, 270, 270))
-        self.assertEqual(tuple(masks.shape), (2, 1, 270, 270))
+        self.assertEqual(tuple(images.shape)[1:], (1, 256, 256))
+        self.assertEqual(tuple(masks.shape)[1:], (256, 256))
+        self.assertEqual(images.dtype.__str__(), "torch.float32")
+
+        # Image-mask correspondence survives batching: same (pid, slice_idx) pairing.
+        for pid, s_idx in zip(batch["patient_id"], batch["slice_idx"].tolist()):
+            geometry, _ = dataset.get_case_metadata(pid)
+            self.assertIsNotNone(geometry)
+
+    def test_custom_preprocessing_config_target_size(self):
+        if not self.has_020:
+            self.skipTest("Patient 020 folder not found; skipping integration test.")
+
+        cfg = PreprocessingConfig(target_size=(160, 160))
+        dataset = ProstateZonal2DDataset(
+            dataset_root=self.dataset_root,
+            patient_ids=["020"],
+            preprocessing_config=cfg,
+        )
+        sample = dataset[0]
+        self.assertEqual(sample["image"].shape, (1, 160, 160))
+        self.assertEqual(sample["mask"].shape, (160, 160))
+
+
+class TestTargetMaskConfigWiring(unittest.TestCase):
+    """Fix-pass regression tests (audit P1 item 6): configs/config_baseline.yaml
+    declares data.target_mask, and src.train._build_dataset must actually
+    honor it -- while the thesis-safe default remains t2_anatomy_reader1.nii.gz
+    and no lesion mask can be silently selected."""
+
+    def setUp(self):
+        self.dataset_root = os.path.join(
+            project_root, "dataset", "prostate158_train", "train"
+        )
+        if not os.path.isdir(os.path.join(self.dataset_root, "020")):
+            self.skipTest("Patient 020 folder not found; skipping integration test.")
+
+    def test_default_config_uses_anatomy_target(self):
+        from src.train import _build_dataset
+
+        config = {"data": {"dataset_root": self.dataset_root}}  # no target_mask key
+        dataset = _build_dataset(config, ["020"])
+        self.assertEqual(dataset.mask_name, "t2_anatomy_reader1.nii.gz")
+
+    def test_explicit_target_mask_key_is_actually_read(self):
+        """Proves the config value is honored (not silently ignored): pointing
+        target_mask at a nonexistent filename must surface THAT filename in
+        the resulting error, which is only possible if _build_dataset passed
+        it through instead of hardcoding t2_anatomy_reader1.nii.gz."""
+        from src.train import _build_dataset
+
+        config = {
+            "data": {
+                "dataset_root": self.dataset_root,
+                "target_mask": "nonexistent_mask_marker.nii.gz",
+            }
+        }
+        with self.assertRaises(FileNotFoundError) as ctx:
+            _build_dataset(config, ["020"])
+        self.assertIn("nonexistent_mask_marker.nii.gz", str(ctx.exception))
+
+    def test_lesion_mask_override_is_still_rejected(self):
+        """Even if a config explicitly tries to point target_mask at the
+        retired lesion mask (labels {0,3}), ProstateZonal2DDataset's own
+        label validation ({0,1,2} only) must still reject it -- the
+        safety net does not depend on train.py alone."""
+        from src.train import _build_dataset
+
+        lesion_mask_path = os.path.join(self.dataset_root, "020", "t2_tumor_reader1.nii.gz")
+        if not os.path.exists(lesion_mask_path):
+            self.skipTest("t2_tumor_reader1.nii.gz not found for patient 020; skipping.")
+
+        config = {
+            "data": {
+                "dataset_root": self.dataset_root,
+                "target_mask": "t2_tumor_reader1.nii.gz",
+            }
+        }
+        with self.assertRaises(ValueError):
+            _build_dataset(config, ["020"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,6 @@
+# UNVERIFIED — see label_mapping_report.md. Do not treat as ground truth.
+label_mapping_verified: false
+label_mapping_hypothesis:
+  1: "CG_TZ"
+  2: "PZ"
+verification_method_required: "3D Slicer visual inspection, sampled cases"

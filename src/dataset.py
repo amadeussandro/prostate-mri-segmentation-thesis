@@ -1,19 +1,30 @@
 """Dataset abstraction for Prostate MRI 2D slice extraction and batch loading.
 
-This module provides two dataset classes for Prostate MRI research:
-1. Prostate2DDataset: Legacy / exploratory multi-channel (T2, ADC, DWI) binary
-   tumor segmentation dataset.
-2. ProstateZonal2DDataset: Core thesis dataset for multi-class prostate zonal
-   anatomy segmentation (Central Gland CG/TZ + Peripheral Zone PZ) using
-   T2-weighted MRI alone.
+This module provides two dataset classes:
+
+1. Prostate2DDataset -- ****RETIRED**** (lesion / multimodal direction).
+   Multi-channel (T2, ADC, DWI) binary tumor segmentation dataset from the
+   superseded research proposal. Kept only for backward compatibility with
+   existing quarantined tests (see tests/legacy/); DO NOT use it for any
+   current thesis work. It raises a DeprecationWarning on instantiation.
+
+2. ProstateZonal2DDataset -- ****CURRENT THESIS DATASET****. Multi-class
+   prostate zonal anatomy segmentation (label 1 / label 2; see
+   results/label_mapping/label_mapping_report.md for the CG/PZ identity,
+   which is a documented hypothesis pending 3D Slicer confirmation, not
+   resolved by this code) using T2-weighted MRI alone. This is the only
+   dataset class any current pipeline code (src/train.py, scripts/*) may use.
 """
 
 import os
+import warnings
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import nibabel as nib
 import numpy as np
 
 from src.preprocessing import binarize_mask, normalize_intensity, stack_modalities
+from src.geometry import VolumeGeometry, read_geometry, verify_image_mask_geometry
+from src.transforms import CaseTransformMeta, PreprocessingConfig, preprocess_case
 
 # Safe PyTorch import: allow module to function as standalone or torch.utils.data.Dataset
 try:
@@ -23,7 +34,11 @@ except ImportError:
 
 
 class Prostate2DDataset(BaseDataset):
-    """Dataset of 2D axial slices extracted from 3D Prostate MRI volumes (Tumor Segmentation).
+    """****RETIRED**** -- lesion/multimodal dataset from the superseded proposal.
+
+    Do not use for current thesis work (zonal anatomy segmentation, T2W-only).
+    Retained only so the quarantined tests in tests/legacy/ keep documenting
+    the prior implementation state. Emits DeprecationWarning on construction.
 
     Parameters
     ----------
@@ -59,6 +74,12 @@ class Prostate2DDataset(BaseDataset):
         transform: Optional[Any] = None,
         cache_data: bool = True,
     ) -> None:
+        warnings.warn(
+            "Prostate2DDataset is RETIRED (superseded lesion/multimodal direction). "
+            "Current thesis work must use ProstateZonal2DDataset.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.dataset_root = dataset_root
         self.patient_ids = list(patient_ids)
         self.modalities = list(modalities)
@@ -257,15 +278,31 @@ class Prostate2DDataset(BaseDataset):
 
 
 class ProstateZonal2DDataset(BaseDataset):
-    """Dataset of 2D axial slices for multi-class prostate zonal anatomy segmentation.
+    """****CURRENT THESIS DATASET**** -- 2D axial slices for multi-class prostate
+    zonal anatomy segmentation.
 
-    Tailored directly to the core thesis research task: segmenting the Central Gland
-    (CG/TZ) and Peripheral Zone (PZ) from T2-weighted MRI volumes alone.
+    Tailored directly to the core thesis research task: segmenting label 1 and
+    label 2 (documented hypothesis: CG/TZ and PZ respectively -- see
+    results/label_mapping/label_mapping_report.md; NOT yet human-confirmed)
+    from T2-weighted MRI volumes alone.
 
     Target labels:
     - 0: Background
-    - 1: Anatomy Foreground Class 1
-    - 2: Anatomy Foreground Class 2
+    - 1: Anatomy Foreground Class 1 (hypothesis: CG/TZ, unverified)
+    - 2: Anatomy Foreground Class 2 (hypothesis: PZ, unverified)
+
+    Geometry and preprocessing (orientation standardization, normalization,
+    optional z-resampling, in-plane crop/pad or resize -- see
+    src/transforms.py) are applied identically to image and mask at the
+    volume level, before slicing, so that every 2D sample returned by this
+    dataset already has a fixed, consistent (H, W) across all patients (this
+    is what makes DataLoader batching across different patients possible --
+    see tests/test_dataset.py::test_dataloader_batches_multiple_patients).
+
+    Full per-case spatial metadata (original geometry + the exact transform
+    applied) is retained on `self.case_geometry` and `self.case_transform_meta`
+    (keyed by patient id) for use by src/reconstruction.py -- it is never
+    discarded.
 
     Parameters
     ----------
@@ -279,8 +316,15 @@ class ProstateZonal2DDataset(BaseDataset):
         Multi-class anatomical segmentation mask filename (values in {0, 1, 2}).
     slice_sampling : str, default='all'
         Slice filtering policy:
-        - 'all': Include all axial slices from the 3D volume.
-        - 'prostate_only': Only include slices with positive anatomy mask (mask > 0).
+        - 'all': Include all axial slices from the 3D volume. This is the
+          required setting for any evaluation population (see thesis
+          protocol: never drop empty/background slices from evaluation).
+        - 'prostate_only': Only include slices with positive anatomy mask.
+          For training-time convenience only; do NOT use for evaluation.
+    preprocessing_config : Optional[PreprocessingConfig], default=None
+        Config-driven preprocessing pipeline (src/transforms.py). Defaults to
+        PreprocessingConfig() (per-volume normalization, no z-resample,
+        crop/pad to 256x256) if not provided.
     transform : Optional[Any], default=None
         Optional transformation / augmentation callable.
     cache_data : bool, default=True
@@ -294,6 +338,7 @@ class ProstateZonal2DDataset(BaseDataset):
         image_name: str = "t2.nii.gz",
         mask_name: str = "t2_anatomy_reader1.nii.gz",
         slice_sampling: str = "all",
+        preprocessing_config: Optional[PreprocessingConfig] = None,
         transform: Optional[Any] = None,
         cache_data: bool = True,
     ) -> None:
@@ -303,6 +348,7 @@ class ProstateZonal2DDataset(BaseDataset):
         self.mask_name = mask_name
         self.transform = transform
         self.cache_data = cache_data
+        self.preprocessing_config = preprocessing_config or PreprocessingConfig()
 
         valid_samplings = ("all", "prostate_only")
         if slice_sampling not in valid_samplings:
@@ -312,8 +358,12 @@ class ProstateZonal2DDataset(BaseDataset):
             )
         self.slice_sampling = slice_sampling
 
-        # Internal in-memory cache: pid -> (normalized_t2, raw_anatomy_mask_int64)
+        # Internal in-memory cache: pid -> (normalized_t2, anatomy_mask_int64)
         self._patient_cache: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+
+        # Per-case spatial metadata, never discarded -- required for reconstruction.
+        self.case_geometry: Dict[str, VolumeGeometry] = {}
+        self.case_transform_meta: Dict[str, CaseTransformMeta] = {}
 
         # List of (patient_id, slice_index) tuples
         self.samples: List[Tuple[str, int]] = []
@@ -322,7 +372,8 @@ class ProstateZonal2DDataset(BaseDataset):
     def _load_and_validate_patient(
         self, pid: str
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Load raw T2W volume and anatomy mask, validate geometry and labels, normalize T2.
+        """Load raw T2W volume and anatomy mask, verify geometry, run the
+        preprocessing pipeline, and cache per-case spatial metadata.
 
         Parameters
         ----------
@@ -332,15 +383,15 @@ class ProstateZonal2DDataset(BaseDataset):
         Returns
         -------
         Tuple[np.ndarray, np.ndarray]
-            - Normalized 3D T2W volume: float32 array of shape (H, W, D)
-            - Multi-class 3D anatomy mask: int64 array of shape (H, W, D) with labels in {0, 1, 2}
+            - Preprocessed T2W volume: float32 array of shape (H, W, D)
+            - Preprocessed anatomy mask: int64 array of shape (H, W, D), labels in {0, 1, 2}
 
         Raises
         ------
         FileNotFoundError
             If patient directory, T2W image file, or anatomy mask file is missing.
         ValueError
-            If dimensions are not 3D, shapes/affines mismatch, or unexpected labels are present.
+            If dimensions are not 3D, geometry mismatches, or unexpected labels are present.
         """
         patient_dir = os.path.join(self.dataset_root, pid)
         if not os.path.isdir(patient_dir):
@@ -374,19 +425,13 @@ class ProstateZonal2DDataset(BaseDataset):
                 f"Anatomy mask for patient '{pid}' must be a 3D volume, got {raw_mask.ndim}D with shape {raw_mask.shape}"
             )
 
-        # 4. Validate shape consistency (H, W, D)
-        if raw_img.shape != raw_mask.shape:
-            raise ValueError(
-                f"Shape mismatch for patient '{pid}': T2W shape {raw_img.shape} vs mask shape {raw_mask.shape}"
-            )
+        # 4. Full spatial-verification checklist (shape, affine, spacing, orientation)
+        image_geometry = read_geometry(img_nii)
+        mask_geometry = read_geometry(mask_nii)
+        verify_image_mask_geometry(image_geometry, mask_geometry, atol=1e-4)
 
-        # 5. Validate affine spatial alignment (Gerbang 1: geometri harus identik)
-        if not np.allclose(img_nii.affine, mask_nii.affine, atol=1e-4):
-            raise ValueError(
-                f"Affine mismatch for patient '{pid}': T2W affine does not match anatomy mask affine."
-            )
-
-        # 6. Validate multi-class label integrity (expected subset of {0, 1, 2})
+        # 5. Validate multi-class label integrity (expected subset of {0, 1, 2}) on RAW data,
+        #    before any geometric transform is applied.
         unique_labels = np.unique(raw_mask)
         if not np.all(np.isclose(unique_labels, np.round(unique_labels))):
             raise ValueError(
@@ -401,13 +446,16 @@ class ProstateZonal2DDataset(BaseDataset):
                 f"Expected labels to be a subset of [0, 1, 2], found: {sorted(list(int_labels))}."
             )
 
-        # 7. Normalize full 3D T2W volume using existing normalize_intensity (percentile clipping + z-score)
-        norm_t2 = normalize_intensity(raw_img)
+        # 6. Run the config-driven preprocessing pipeline (orientation -> RAS,
+        #    normalization, optional z-resample, in-plane crop/pad or resize).
+        #    Image uses smooth interpolation; mask ALWAYS uses nearest-neighbour.
+        proc_t2, proc_mask, transform_meta = preprocess_case(img_nii, mask_nii, self.preprocessing_config)
 
-        # Convert mask to int64 without binarization or alteration
-        anatomy_mask_int64 = np.round(raw_mask).astype(np.int64)
+        # Never discard spatial metadata -- required for reconstruction.
+        self.case_geometry[pid] = image_geometry
+        self.case_transform_meta[pid] = transform_meta
 
-        return norm_t2, anatomy_mask_int64
+        return proc_t2, proc_mask
 
     def _get_patient_volumes(
         self, pid: str
@@ -421,6 +469,13 @@ class ProstateZonal2DDataset(BaseDataset):
             self._patient_cache[pid] = (norm_t2, anatomy_mask)
         return norm_t2, anatomy_mask
 
+    def get_case_metadata(self, pid: str) -> Tuple[VolumeGeometry, CaseTransformMeta]:
+        """Return (original_geometry, transform_meta) for a case, for reconstruction."""
+        if pid not in self.case_geometry:
+            # Force load if this case hasn't been touched yet (e.g. index built lazily).
+            self._get_patient_volumes(pid)
+        return self.case_geometry[pid], self.case_transform_meta[pid]
+
     def _build_index(self) -> None:
         """Scan patient directories, validate volumes, and build dynamic slice index."""
         for pid in self.patient_ids:
@@ -429,7 +484,7 @@ class ProstateZonal2DDataset(BaseDataset):
             if self.cache_data:
                 self._patient_cache[pid] = (norm_t2, anatomy_mask)
 
-            # Dynamic slice count from actual volume shape (z-dimension)
+            # Dynamic slice count from actual (preprocessed) volume shape (z-dimension)
             num_slices = norm_t2.shape[2]
 
             for s_idx in range(num_slices):
@@ -484,6 +539,52 @@ class ProstateZonal2DDataset(BaseDataset):
             sample = self.transform(sample)
 
         return sample
+
+    def compute_foreground_sample_weights(
+        self, foreground_class_ids: Sequence[int] = (1, 2)
+    ) -> np.ndarray:
+        """Per-sample weights for training-time foreground/background balancing
+        (Phase 3 Step 10), for use with `torch.utils.data.WeightedRandomSampler`.
+
+        This does NOT filter, delete, or otherwise alter `self.samples` --
+        the full slice population (background-only slices included) remains
+        available via `__len__`/`__getitem__` exactly as before, so this
+        dataset object can still be used, unweighted, for evaluation (which
+        per the thesis protocol must see the complete slice population).
+        Balancing is applied only by the caller, at the DataLoader level, by
+        passing these weights into a sampler for the TRAINING loader.
+
+        What is balanced and why: without this, a slice is drawn uniformly
+        at random, so patients/volumes with mostly background axial slices
+        dominate the training signal and the model can trivially minimize
+        loss by predicting background almost everywhere. Each slice here is
+        classified foreground (contains at least one voxel whose label is in
+        `foreground_class_ids`) or background-only, and weighted by inverse
+        class frequency (1/n_fg for foreground slices, 1/n_bg for
+        background-only slices) -- so a WeightedRandomSampler built from
+        these weights draws foreground and background slices with
+        approximately equal expected probability, regardless of how skewed
+        the raw slice population is.
+
+        Returns
+        -------
+        np.ndarray
+            float64 array of length len(self), aligned with self.samples order.
+        """
+        is_foreground = np.zeros(len(self.samples), dtype=bool)
+        for i, (pid, s_idx) in enumerate(self.samples):
+            _, anatomy_mask = self._get_patient_volumes(pid)
+            is_foreground[i] = bool(
+                np.isin(anatomy_mask[:, :, s_idx], list(foreground_class_ids)).any()
+            )
+
+        n_fg = int(is_foreground.sum())
+        n_bg = len(is_foreground) - n_fg
+
+        weights = np.empty(len(is_foreground), dtype=np.float64)
+        weights[is_foreground] = (1.0 / n_fg) if n_fg > 0 else 0.0
+        weights[~is_foreground] = (1.0 / n_bg) if n_bg > 0 else 0.0
+        return weights
 
 
 def load_patient_volume(patient_dir: str, file_name: str) -> np.ndarray:

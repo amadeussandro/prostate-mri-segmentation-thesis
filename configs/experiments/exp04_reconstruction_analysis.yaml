@@ -1,0 +1,20 @@
+# Experiment 4 (RQ-3) -- reconstruction & inter-slice consistency analysis.
+#
+# Observational: no manipulation, no retraining. Consumes Experiment 1's
+# reconstructed predictions (original voxel space) and:
+#   1. Confirms spatial-verification checklist items post-reconstruction
+#      (src/geometry.py::verify_original_space_compatibility).
+#   2. Computes per-slice Dice along z (already produced as a side-effect of
+#      src/evaluate.py::evaluate_patient_protocols -- "per_slice_dice").
+#   3. Computes the inter-slice inconsistency score per case, per class
+#      (src/metrics.py::inter_slice_dice_inconsistency) -- kept clearly
+#      separate from primary Dice/IoU/HD95/ASD; NOT claimed as a novel metric.
+#   4. Optional: per-region (apex/mid/base) breakdown by splitting each
+#      case's slice range into thirds before aggregating -- left as a
+#      thesis-writing-stage analysis over the already-saved per-slice values,
+#      not a separate code path.
+
+source_checkpoint: "./results/exp01_baseline/best_model.pt"  # produced by Experiment 1
+output_dir: "./results/exp04_reconstruction"
+class_ids: [0, 1, 2]
+label_mapping_status: "unverified"

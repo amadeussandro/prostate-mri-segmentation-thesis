@@ -1,0 +1,71 @@
+# Experiment 1 -- Baseline & pipeline validation (RQ-4, and part of RQ-3).
+#
+# This is the CURRENT THESIS research configuration: T2W-only, 3-class zonal
+# anatomy segmentation, official Prostate158 case-level split, fixed 2D
+# U-Net, default preprocessing. Architecture/hyperparameters/seed here are
+# the reference point that Experiment 2 (preprocessing ablation) and
+# Experiment 3 (evaluation-protocol ablation) hold fixed.
+#
+# NOTE: the official 19-case test archive was not available in this
+# environment at the time this config was written (see
+# results/label_mapping/ and the Phase-3 final report). train_csv/valid_csv
+# below use the 119/20 split that IS available; test_csv/test_dir are wired
+# in and will be picked up automatically once the test archive is obtained
+# -- no code change needed, just place the archive and point test_csv/test_dir
+# at it.
+
+experiment:
+  name: "exp01_baseline"
+  description: "2D U-Net baseline on the official Prostate158 split, T2W-only zonal anatomy segmentation"
+  output_dir: "./results/exp01_baseline"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  # test_csv: "dataset/prostate158_test/test.csv"        # not available locally yet
+  # test_dir: "dataset/prostate158_test/test"             # alternative if no CSV ships with it
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"  # never drop empty/background slices from the evaluation population
+
+# Default preprocessing (Experiment 1 reference point; see configs/experiments/
+# for the Experiment 2 ablation variants that change exactly one of these at a time).
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false          # z spacing is already a uniform 3.0mm across the whole cohort
+  spatial_mode: "crop_pad"   # zero-information-loss: target_size = max native shape in cohort
+  target_size: [442, 442]    # cohort native shapes are only {232, 270, 442}^2 -- see scripts/survey_shapes.py
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "cross_entropy"
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+# NOTE: the fields below are currently DECLARATIVE / documentation-only.
+# src/evaluate.py's functions (evaluate_cases, evaluate_patient_protocols)
+# take aggregation/space/class_ids as explicit Python arguments; nothing
+# reads this block automatically yet. Kept here so the intended protocol
+# for this experiment is written down next to it, not to imply an
+# orchestration layer exists. Wire these in only if doing so stays small.
+evaluation:
+  # Primary protocol (thesis default): per-case, original voxel space, all slices.
+  aggregation: "per_case"        # "per_case" | "per_slice" (per-slice is RQ-2 supplement only)
+  space: "original_voxel"        # "original_voxel" | "resampled" (RQ-2 supplement only)
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"  # see results/label_mapping/label_mapping_report.md

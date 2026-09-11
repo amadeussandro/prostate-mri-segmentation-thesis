@@ -1,3 +1,10 @@
+# ****RETIRED / QUARANTINED**** -- superseded lesion/multimodal research direction.
+# Do NOT use for current thesis work (zonal anatomy segmentation, T2W-only).
+# Also structurally broken against current src/train.py: val_patient_ids is a
+# subset of patient_ids, which trips the train/val overlap assertion.
+# Kept only for historical reference. See configs/config_baseline.yaml for
+# the current thesis research configuration.
+#
 # Configuration: 10-Patient Pilot Experiment
 # Note: Values marked [PROVISIONAL] are initial placeholders subject to empirical tuning.
 

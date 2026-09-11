@@ -1,0 +1,61 @@
+# Experiment 2 (RQ-1) -- preprocessing ablation, axis A: z-axis resampling ON.
+#
+# Identical to configs/config_baseline.yaml in every other respect (dataset,
+# split, architecture, hyperparameters, seed) -- ONLY z_resample differs.
+# NOTE: the Prostate158 cohort already has a uniform 3.0mm z-spacing across
+# every case (see scripts/survey_shapes.py output), so this specific toggle
+# is expected to be a near no-op on THIS dataset; it is still exercised here
+# for completeness/documentation of the ablation axis defined in the thesis
+# proposal, and because per-case spacing could in principle differ.
+
+experiment:
+  name: "exp02_a_zresample_on"
+  description: "Preprocessing ablation: z-axis resampling ON vs baseline OFF"
+  output_dir: "./results/exp02_preprocessing/a_zresample_on"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+
+preprocessing:
+  normalization: "per_volume"
+  z_resample: true            # <-- ablated axis (baseline: false)
+  target_spacing_z: 3.0
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42                    # fixed, identical to Experiment 1
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "cross_entropy"
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+# NOTE: the fields below are currently DECLARATIVE / documentation-only.
+# src/evaluate.py's functions (evaluate_cases, evaluate_patient_protocols)
+# take aggregation/space/class_ids as explicit Python arguments; nothing
+# reads this block automatically yet. Kept here so the intended protocol
+# for this experiment is written down next to it, not to imply an
+# orchestration layer exists. Wire these in only if doing so stays small.
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"

@@ -6,12 +6,41 @@ from typing import Any, Dict, Tuple
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from src.dataset import ProstateZonal2DDataset
 from src.evaluate import compute_dice, compute_iou
 from src.model import build_model
+from src.splits import load_official_split
+from src.transforms import PreprocessingConfig
 from src.utils import ensure_dir, get_device, load_config, set_seed
+
+
+def _resolve_split_ids(config: Dict[str, Any]):
+    """Resolve (train_ids, val_ids, test_ids) for this run.
+
+    If the config points at the official train.csv/valid.csv (research
+    configs, e.g. config_baseline.yaml), the official case-level 119/20/19
+    split is used. Otherwise falls back to an explicit `patient_ids` /
+    `val_patient_ids` list (used by the Case-020 smoke-test config and by
+    quarantined legacy configs) -- this path is NOT the official research
+    split and must never be used for reporting thesis results.
+    """
+    data_cfg = config.get("data", {})
+    validation_cfg = config.get("validation", {})
+
+    if "train_csv" in data_cfg and "valid_csv" in data_cfg:
+        split = load_official_split(
+            train_csv=data_cfg["train_csv"],
+            valid_csv=data_cfg["valid_csv"],
+            test_csv=data_cfg.get("test_csv"),
+            test_dir=data_cfg.get("test_dir"),
+        )
+        return split.train_ids, split.val_ids, split.test_ids
+
+    train_ids = data_cfg.get("patient_ids", [])
+    val_ids = validation_cfg.get("val_patient_ids", [])
+    return train_ids, val_ids, None
 
 
 def compute_loss(
@@ -219,13 +248,54 @@ def _build_dataset(
         "all",
     )
 
+    preprocessing_config = PreprocessingConfig.from_dict(config.get("preprocessing", {}))
+
+    # Thesis-safe default: current thesis target is t2_anatomy_reader1.nii.gz
+    # (labels {0,1,2}). `data.target_mask` is honored if a config sets it, but
+    # this can never silently select the retired lesion target -- any mask
+    # whose labels are not a subset of {0,1,2} (e.g. t2_tumor_reader1.nii.gz,
+    # labels {0,3}) is rejected by ProstateZonal2DDataset's own label
+    # validation (src/dataset.py), regardless of what this config key says.
+    mask_name = data_cfg.get("target_mask", "t2_anatomy_reader1.nii.gz")
+
     return ProstateZonal2DDataset(
         dataset_root=dataset_root,
         patient_ids=patient_ids,
         image_name="t2.nii.gz",
-        mask_name="t2_anatomy_reader1.nii.gz",
+        mask_name=mask_name,
         slice_sampling=slice_sampling,
+        preprocessing_config=preprocessing_config,
         cache_data=True,
+    )
+
+
+def _build_train_sampler(
+    train_dataset: ProstateZonal2DDataset,
+    seed: int,
+    use_weighted_sampling: bool = True,
+) -> Any:
+    """Build the TRAINING-only foreground/background-balanced sampler.
+
+    Returns a `WeightedRandomSampler` (deterministic given `seed`, via a
+    dedicated `torch.Generator`) when weighted sampling is enabled, or `None`
+    when disabled -- callers should then fall back to `shuffle=True`.
+
+    This must NEVER be used for validation/test loaders: those must see the
+    complete, unweighted slice population (per the thesis evaluation
+    protocol, which requires the full slice population to remain available
+    for evaluation -- see `ProstateZonal2DDataset.compute_foreground_sample_weights`).
+    """
+    if not use_weighted_sampling:
+        return None
+
+    weights = train_dataset.compute_foreground_sample_weights()
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    return WeightedRandomSampler(
+        weights=torch.as_tensor(weights, dtype=torch.double),
+        num_samples=len(train_dataset),
+        replacement=True,
+        generator=generator,
     )
 
 
@@ -262,19 +332,17 @@ def run_training(config_path: str) -> None:
     # Dataset
     # ---------------------------------------------------------
 
-    train_patient_ids = data_cfg.get(
-        "patient_ids",
-        [],
-    )
-
-    val_patient_ids = validation_cfg.get(
-        "val_patient_ids",
-        [],
-    )
+    train_patient_ids, val_patient_ids, test_patient_ids = _resolve_split_ids(config)
 
     if set(train_patient_ids) & set(val_patient_ids):
         raise ValueError(
             "Training and validation patient IDs overlap."
+        )
+
+    if test_patient_ids is None:
+        print(
+            "WARNING: official 19-case test set not available locally; "
+            "this run has no held-out test evaluation."
         )
 
     train_dataset = _build_dataset(
@@ -289,13 +357,21 @@ def run_training(config_path: str) -> None:
         f"Training slices: {len(train_dataset)}"
     )
 
+    # Training-time foreground/background balancing (Phase 3 Step 10). Does
+    # NOT filter any slice out of train_dataset -- it only changes sampling
+    # frequency. Enabled by default; set training.use_weighted_sampling:
+    # false in a config to fall back to plain shuffling.
+    use_weighted_sampling = training_cfg.get("use_weighted_sampling", True)
+    train_sampler = _build_train_sampler(train_dataset, seed, use_weighted_sampling)
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=training_cfg.get(
             "batch_size",
             4,
         ),
-        shuffle=True,
+        shuffle=(train_sampler is None),
+        sampler=train_sampler,
         num_workers=0,
         pin_memory=(device == "cuda"),
     )

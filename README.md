@@ -1,91 +1,91 @@
-# Deep Learning-Based 2D Prostate MRI Segmentation
+# Prostate158 Zonal Anatomy Segmentation — 2D U-Net with Spatially-Verified 3D Reconstruction
 
-## 1. Thesis Project Purpose
+> **Scope note (read first):** this project's research direction changed after
+> the initial scaffolding stage. The **current thesis** is multi-class
+> **prostate zonal anatomy segmentation** (label 1 / label 2, hypothesis:
+> CG/TZ and PZ respectively — see `results/label_mapping/label_mapping_report.md`,
+> **not yet human-confirmed**) from **T2-weighted MRI only**, on the
+> Prostate158 dataset, using a fixed 2D U-Net applied slice-by-slice with an
+> explicit, spatially-verified 2D→3D reconstruction. It is **segmentation-only**
+> — no lesion/tumor segmentation, no classification, no multi-modal input, no
+> architecture novelty, no SOTA or clinical claims. An earlier lesion/
+> multimodal (T2+ADC+DWI) proposal was superseded; its code is retained but
+> quarantined (see below), never used by the current pipeline.
 
-This thesis project investigates automated lesion segmentation in multi-parametric and bi-parametric prostate Magnetic Resonance Imaging (MRI) using deep convolutional neural networks (2D U-Net architectures). The research aims to segment clinically significant prostate cancer lesions from co-registered multi-modal MRI acquisitions (T2-weighted, ADC maps, and high b-value DWI) on the standardized **Prostate158** benchmark dataset.
+## 1. Thesis Purpose
 
----
+Measure how much **preprocessing decisions** and the **evaluation protocol**
+— independent of model architecture — move the reported Dice/IoU/HD95 numbers
+for prostate zonal segmentation on Prostate158, and provide a reproducible
+spatial-correctness verification procedure (round-trip fidelity test) for the
+2D→3D pipeline. The 2D U-Net and the 3D→2D→3D cycle are **methodological
+choices, not the contribution** — the contribution is trustworthy,
+reproducible measurement of a standard pipeline on a standard dataset.
+
+Research questions: RQ-1 preprocessing effect (Experiment 2), RQ-2
+evaluation-protocol effect + CG/PZ cross-paper contradiction (Experiment 3),
+RQ-3 reconstruction integrity + inter-slice consistency (Experiments 1 & 4),
+RQ-4 baseline replication (Experiment 1, not a novelty claim).
 
 ## 2. Project Structure
 
-The repository follows a clean, modular architecture separating configuration, data loading, preprocessing, modeling, training, and evaluation:
-
 ```
 thesis-project/
-├── code/                           # Core implementation modules
-│   ├── img-generate.py             # Exploration script for quick slice visualization
-│   ├── inspect_patient_020.py      # Automated NIfTI inspection for patient 020
-│   ├── visualize_patient_020.py    # 8-panel multi-modal visualization generator
-│   ├── dataset.py                  # 2D slice dataset loader & volume indexer
-│   ├── preprocessing.py            # Normalization, binarization, ROI cropping, channel stacking
-│   ├── model.py                    # 2D U-Net segmentation architecture definitions
-│   ├── train.py                    # Training loop, loss computation (Dice+BCE), optimizer
-│   ├── evaluate.py                 # Evaluation metrics (Dice, IoU) and prediction visualizer
-│   └── utils.py                    # Config parser, random seed setter, device manager
+├── src/                             # Core implementation (current thesis pipeline)
+│   ├── dataset.py                   # ProstateZonal2DDataset (CURRENT) + Prostate2DDataset (RETIRED, quarantined)
+│   ├── geometry.py                  # Spatial-verification authority (9-point checklist)
+│   ├── transforms.py                # Config-driven preprocessing + inverse transforms
+│   ├── reconstruction.py            # Explicit-index 2D->3D reconstruction, round-trip support
+│   ├── splits.py                    # Official case-level Prostate158 split (119/20/19)
+│   ├── metrics.py                   # Dice/IoU/HD95/ASD/precision/recall, bootstrap CI, inter-slice consistency
+│   ├── model.py                     # ProstateUNet2D (2D U-Net) + build_model()
+│   ├── train.py                     # Training loop (entry point: configs/config_baseline.yaml)
+│   ├── evaluate.py                  # Volume-level per-case evaluation + evaluation-protocol ablation support
+│   ├── preprocessing.py             # normalize_intensity (used) + legacy lesion-era helpers (unused by current path)
+│   └── utils.py                     # config/seed/device helpers
 │
-├── configs/                        # YAML experiment configuration files
-│   ├── config_020.yaml             # Single-patient sanity check & pipeline debugging
-│   ├── config_10.yaml              # 10-patient pilot training experiment
-│   └── config_full.yaml            # Full Prostate158 dataset training run
+├── scripts/                         # One-off verification / smoke-test entry points
+│   ├── verify_label_mapping.py      # Gate 2: label-value -> anatomy mapping evidence
+│   ├── smoke_test_020.py            # Gate 5: forward-only Case-020 smoke test
+│   ├── roundtrip_test.py            # Gate 8: GT round-trip fidelity (Dice must = 1.0)
+│   ├── check_baseline_config.py     # Gate 10: baseline config structural readiness (no training)
+│   └── survey_shapes.py             # cohort shape/spacing survey (informed target_size choice)
 │
-├── notebooks/                      # Thin experiment controllers and dashboards
-│   └── experiment_020.ipynb        # Interactive runner for patient 020 validation
+├── configs/
+│   ├── config_020.yaml              # Case-020 smoke-test config (NOT the research split)
+│   ├── config_baseline.yaml         # CURRENT Experiment-1 research config (official split)
+│   ├── experiments/                 # Experiment 2/3/4 ablation configs (config-driven, no training here)
+│   └── legacy/                      # RETIRED lesion/multimodal configs -- quarantined, do not use
 │
-├── results/                        # Generated reports, figures, and experiment logs
-│   ├── 020/                        # Patient 020 specific runs and outputs
-│   ├── 10_patients/                # 10-patient pilot experiment logs
-│   ├── full/                       # Full training cohort evaluation metrics
-│   ├── 020_dataset_inspection.md   # Verified inspection report for patient 020
-│   └── 020_patient_overview.png    # 8-panel verification figure for slice 7
-│
-├── tests/                          # Automated unit test suite
-│   ├── test_dataset.py             # Unit tests for dataset slice indexing & loading
-│   └── test_preprocessing.py       # Unit tests for mask binarization & normalization
-│
-├── dataset/                        # Local raw medical dataset storage (git-ignored)
-│   └── prostate158_train/          # [RAW DATASET — UNTOUCHED]
-│       ├── train/                  # Patients 020 through 158
-│       ├── train.csv               # Official training split
-│       └── valid.csv               # Official validation split
-│
-├── requirements.txt                # Python environment package dependencies
-├── README.md                       # Master thesis project documentation
-└── .gitignore                      # Git exclusion rules
+├── tests/                           # Current-thesis test suite (+ tests/legacy/ quarantine)
+├── notebooks/legacy/                # experiment_020.ipynb (RETIRED -- still references Prostate2DDataset; quarantined, not the current entry point)
+├── results/                         # label_mapping/, exp01_baseline/ .. exp04_reconstruction/, dataset_inspection
+├── dataset/                         # Local raw Prostate158 data (git-ignored, never committed)
+├── requirements.txt
+└── README.md
 ```
 
----
+## 3. Dataset
 
-## 3. Dataset Location
+- **Source:** Prostate158 (Adams et al. 2022), NIfTI, official split **119
+  train / 20 validation / 19 test** (case-level).
+- **Local availability:** the 139-case train+valid archive is present under
+  `dataset/prostate158_train/` and matches `train.csv` (119) / `valid.csv`
+  (20) exactly. **The separate 19-case test archive
+  (DOI 10.5281/zenodo.6592345) is NOT present locally** — confirmed absent by
+  filesystem search. `src/splits.py` handles this gap explicitly (warns, does
+  not fail, and will pick up the archive automatically once obtained).
+- **Files used:** `t2.nii.gz` (input, T2W only) and `t2_anatomy_reader1.nii.gz`
+  (target, labels `{0, 1, 2}`). Lesion masks and ADC/DWI volumes exist in the
+  archive but are out of scope for this thesis.
+- **Label mapping:** which integer is CG/TZ vs PZ is **not resolved by
+  assumption**. See `results/label_mapping/label_mapping_report.md` for
+  quantitative morphological evidence (exterior-contact fraction, centroid
+  distance, sampled across 15 cases spanning the full ID range) — strongly
+  and consistently pointing to **label 1 = CG/TZ, label 2 = PZ**, but this
+  remains a documented hypothesis pending 3D Slicer human confirmation.
 
-- **Local Path:** `dataset/prostate158_train/`
-- **Contents:** 139 patient cases (`020` through `158`), containing co-registered 3D volumes:
-  - `t2.nii.gz` (T2-weighted MRI)
-  - `adc.nii.gz` (Apparent Diffusion Coefficient map)
-  - `dwi.nii.gz` (High b-value Diffusion-Weighted MRI)
-  - `t2_tumor_reader1.nii.gz` (T2 lesion annotations — note label value `3.0`)
-  - `adc_tumor_reader1.nii.gz` (ADC lesion annotations — reader 1)
-  - `adc_tumor_reader2.nii.gz` (ADC lesion annotations — reader 2)
-  - `t2_anatomy_reader1.nii.gz` (Prostate zonal anatomy mask: labels 1 and 2)
-- **Partitions:** Standardized train/validation split defined in `train.csv` and `valid.csv`.
-
----
-
-## 4. Dataset Git Exclusion Policy
-
-> [!IMPORTANT]
-> The raw Prostate158 dataset is **strictly excluded from Git tracking** via `.gitignore`.
-> Large binary NIfTI files (`*.nii`, `*.nii.gz`) and medical imaging directories (`dataset/`, `data/`) must never be committed to remote version control repositories due to GitHub file size limits and medical data governance principles.
-
----
-
-## 5. Local Development Environment
-
-- **Platform:** Windows 11 / PowerShell
-- **Virtual Environment:** Dedicated local venv at `D:\1.AmadeusKuliah\Skripsi\thesis-project\.venv`
-- **Python Executable:** `.\.venv\Scripts\python.exe`
-- **Installed Packages:** `nibabel`, `numpy`, `matplotlib`, `pillow` (see `requirements.txt`).
-
-To setup the virtual environment locally:
+## 4. Environment
 
 ```powershell
 python -m venv .venv
@@ -93,79 +93,56 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
----
+CPU is sufficient for dataset verification, smoke tests, and the round-trip
+test. Full Experiment 1-4 training runs on GPU via Google Colab (see §6).
 
-## 6. Development Ecosystem & Tool Roles
+## 5. Reproducing the verification gates locally
 
-### VS Code Role
+```bash
+# Gate 2 -- label mapping evidence (writes results/label_mapping/)
+python scripts/verify_label_mapping.py
 
-- Primary development workstation.
-- Code authoring, syntax checking, refactoring, and static analysis.
-- Local debugging, unit testing (`tests/`), and single-patient sanity checks.
-- Managing Git commits, branches, and documentation.
+# Gate 5 -- Case-020 forward-only smoke test (no training)
+python scripts/smoke_test_020.py
 
-### Google Colab Role
+# Gate 8 -- round-trip fidelity test (GT mask only, no model; must print Dice=1.0)
+python scripts/roundtrip_test.py
 
-- Cloud GPU acceleration (NVIDIA T4 / A100 / V100) for deep neural network training.
-- Executing multi-patient (`config_10.yaml`) and full-cohort (`config_full.yaml`) training loops.
-- Running hyperparameter search and training iterations that exceed local hardware capabilities.
+# Gate 10 -- baseline config structural readiness (no training)
+python scripts/check_baseline_config.py
 
-### GitHub Role
-
-- Source code version control.
-- Tracking experiments, configuration changes, test suites, and documentation.
-- Collaborating and syncing code cleanly between the local VS Code workspace and Google Colab.
-
-### Google Drive Role
-
-- Persistent cloud storage for large files not tracked by Git:
-  - Compressed and extracted raw Prostate158 dataset archives.
-  - Checkpoint model weights (`*.pth`, `*.pt`).
-  - High-resolution evaluation logs and training artifacts.
-
----
-
-## 7. Planned Experiment Progression
-
-The research pipeline is designed in three structured, incremental stages:
-
-```
-┌────────────────────────────────────────────────────────┐
-│ Stage 1: Patient 020 Sanity Check                      │
-│ - Verified dataset geometry (270x270x24, LPS, 0.4x3mm) │
-│ - Solved label value 3.0 handling                      │
-│ - Verified 2D slice indexing and visualization         │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ Stage 2: 10-Patient Pilot Experiment (020 - 029)       │
-│ - Validate training loop convergence                   │
-│ - Test multi-channel 2D input (T2 + ADC + DWI)         │
-│ - Evaluate Dice / BCE loss weighting & slice sampling  │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ Stage 3: Full Training Dataset (All 139 Patients)      │
-│ - Official train.csv / valid.csv splits                │
-│ - Full GPU-accelerated training on Google Colab        │
-│ - Quantitative benchmark (Volumetric Dice, IoU, HD95)  │
-│ - Inter-reader comparison (Reader 1 vs Reader 2)       │
-└────────────────────────────────────────────────────────┘
+# Full test suite
+pytest tests/ -q
 ```
 
----
+## 6. Development / Execution Workflow
 
-## 8. Current Project Status
+```
+Claude Code / VS Code  --push-->  GitHub  --pull-->  Google Colab (GPU)
+        (edit, test,                (source of           |
+         debug locally)              truth for code)      v
+                                                    Google Drive
+                                                 (Prostate158 dataset,
+                                                  checkpoints, outputs)
+```
 
-> **Current Status:** **Patient 020 dataset inspection completed; segmentation pipeline not implemented yet.**
->
-> - **Completed:**
->   - Comprehensive inspection and statistics verification for Patient 020 (`results/020_dataset_inspection.md`).
->   - Multi-modal slice visualization and reader comparison (`results/020_patient_overview.png`).
->   - Clean, modular repository scaffolding created across `code/`, `configs/`, `notebooks/`, `results/`, and `tests/`.
->   - Scaffolding unit tests implemented and passing.
-> - **Next Phase:**
->   - Implementation of the PyTorch 2D U-Net model architecture in `code/model.py`.
->   - Implementation of the training and validation loops in `code/train.py`.
+- **VS Code / Claude Code:** all code authoring, debugging, and the local
+  gates above (environment, geometry, smoke test, round-trip test) run here
+  on CPU against a small subset of cases.
+- **GitHub:** version control and the single source of truth for code. The
+  dataset is never committed (`.gitignore` excludes `dataset/`, `*.nii*`,
+  `*.pt`, `*.pth`).
+- **Google Colab:** clones/pulls this repository, `pip install -r
+  requirements.txt`, mounts Google Drive to locate the Prostate158 data, and
+  runs the actual GPU training (`configs/config_baseline.yaml` and the
+  `configs/experiments/*.yaml` ablations). Colab is never the place source
+  code is edited.
+- **Google Drive:** stores the Prostate158 archives and, optionally,
+  checkpoints/experiment outputs too large for Git.
+
+## 7. Status
+
+See the Phase 3 implementation report (delivered in-session) for the current
+gate-by-gate status, exact remaining blockers (official test-set archive,
+final label-mapping human confirmation), and the exact commands to run the
+Case-020 smoke test and, later, the Experiment 1 baseline.

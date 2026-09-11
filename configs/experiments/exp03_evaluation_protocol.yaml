@@ -1,0 +1,55 @@
+# Experiment 3 (RQ-2) -- evaluation-protocol ablation.
+#
+# NO RETRAINING. This experiment scores ONE fixed model's predictions (the
+# best checkpoint from Experiment 1, configs/config_baseline.yaml) under
+# multiple scoring protocols, isolating the protocol as the only variable --
+# implemented in src/evaluate.py::evaluate_patient_protocols (runs the model
+# once per case, then scores the same predictions two ways) and
+# src/metrics.py::aggregate_per_slice_pooled (per-slice pooled aggregation,
+# vs the primary per-case aggregation in aggregate_case_results).
+#
+# Protocol axes compared:
+#   1. aggregation: "per_case" (primary, mean of per-case volume Dice)
+#                   vs "per_slice" (pooled across all slices of all cases --
+#                   a known biased estimator that weights patients with more
+#                   slices more heavily; this is exactly what the thesis's
+#                   Adams/Xu-vs-Nakic CG/PZ contradiction may hinge on).
+#   2. space:       "original_voxel" (primary, Strategy A: predictions are
+#                   reconstructed and inverse-transformed before scoring)
+#                   vs "resampled" (scored directly in the preprocessed grid,
+#                   no inverse transform -- Dice/IoU/precision/recall only;
+#                   HD95/ASD in mm are not meaningful in a resized grid).
+#   3. include_empty_slices: true (primary, full evaluation population) vs
+#                   false (drop background-only slices before per-slice
+#                   pooling -- a common but protocol-changing practice).
+#
+# Usage (once an Experiment-1 checkpoint exists):
+#   from src.evaluate import evaluate_patient_protocols
+#   from src.metrics import aggregate_case_results, aggregate_per_slice_pooled
+#   # ... load model from results/exp01_baseline/best_model.pt, loop test-set
+#   # cases through evaluate_patient_protocols, then compare the two
+#   # aggregations plus the resampled-space numbers.
+
+source_checkpoint: "./results/exp01_baseline/best_model.pt"  # produced by Experiment 1; does not exist until training runs
+output_dir: "./results/exp03_evaluation"
+
+protocol_variants:
+  - name: "per_case_original_voxel"        # PRIMARY thesis protocol
+    aggregation: "per_case"
+    space: "original_voxel"
+    include_empty_slices: true
+  - name: "per_slice_original_voxel"
+    aggregation: "per_slice"
+    space: "original_voxel"
+    include_empty_slices: true
+  - name: "per_slice_original_voxel_no_empty"
+    aggregation: "per_slice"
+    space: "original_voxel"
+    include_empty_slices: false
+  - name: "per_case_resampled_space"
+    aggregation: "per_case"
+    space: "resampled"
+    include_empty_slices: true
+
+class_ids: [0, 1, 2]
+label_mapping_status: "unverified"
