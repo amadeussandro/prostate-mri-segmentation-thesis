@@ -38,12 +38,22 @@ cells.append(md(
     "Run the cells in order, top to bottom.",
 ))
 
-cells.append(md("## 1. Check GPU"))
+cells.append(md(
+    "## 1. Check GPU",
+    "",
+    "`!nvidia-smi` is the standard Colab-compatible invocation -- it runs through the",
+    "notebook's shell (the same one `!nvidia-smi` on its own uses), so it doesn't",
+    "depend on `nvidia-smi` being resolvable via the Jupyter kernel process's own",
+    "`PATH` the way a plain Python `subprocess.run([...])` call would. If this ever",
+    "runs on a CPU-only runtime, `!nvidia-smi` just prints an error line below --",
+    "it won't raise a Python exception or stop the next cells from running.",
+))
 cells.append(code(
-    "import subprocess",
+    "!nvidia-smi",
+))
+cells.append(code(
     "import torch",
     "",
-    "print(subprocess.run(['nvidia-smi'], capture_output=True, text=True).stdout)",
     "print('torch:', torch.__version__)",
     "print('CUDA available:', torch.cuda.is_available())",
     "if torch.cuda.is_available():",
