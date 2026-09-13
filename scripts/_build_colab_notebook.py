@@ -474,6 +474,35 @@ cells.append(code(
     "    print('No summary yet -- run a visualization cell above first.')",
 ))
 
+cells.append(md(
+    "## 18. Audit official held-out TEST archive (READ-ONLY, no evaluation)",
+    "",
+    "**Audit/readiness check only -- no model, no inference, no metrics, no**",
+    "**training.** Runs `scripts/audit_test_archive.py`, which extracts the official",
+    "test ZIP into an isolated directory (the ZIP is left untouched), then reports:",
+    "case count + ids, per-case presence of `t2.nii.gz` and `t2_anatomy_reader1.nii.gz`,",
+    "NIfTI shape/spacing/orientation/label values, overlap against the 119 train +",
+    "20 validation cases, and whether `load_official_split` resolves exactly 19 test",
+    "ids from the extracted directory.",
+    "",
+    "This is what tells us whether the final Experiment-1 held-out test evaluation",
+    "can compute Dice/IoU/HD95/ASD (it needs `t2_anatomy_reader1` ground truth to",
+    "exist). It does NOT run the evaluation and does NOT touch the checkpoint.",
+    "",
+    "The extracted dataset and audit JSON stay on Drive and are never committed to Git.",
+))
+cells.append(code(
+    "!python scripts/audit_test_archive.py --zip /content/drive/MyDrive/THESIS_PROSTATE158/dataset/test/prostate158_test.zip --extract-dir /content/drive/MyDrive/THESIS_PROSTATE158/dataset/test/extracted --train-csv dataset/prostate158_train/train.csv --valid-csv dataset/prostate158_train/valid.csv",
+))
+cells.append(md(
+    "**Only if the audit above reports READY** (19 cases, all with T2 + ground",
+    "truth, no train/val overlap, loader resolves 19 test ids): the final",
+    "Experiment-1 held-out test evaluation is run by setting `data.test_dir` in the",
+    "config to the audit's reported case-root and running `run_evaluation` on the",
+    "held-out test split. That evaluation step is intentionally NOT included in this",
+    "notebook section -- this section is the readiness audit, not the test run.",
+))
+
 notebook = {
     "cells": cells,
     "metadata": {

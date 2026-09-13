@@ -351,6 +351,30 @@ def plot_prediction_slice(
     plt.close(fig)
 
 
+def _resolve_split_dataset_root(data_cfg: Dict[str, Any], split: str) -> str:
+    """Return the dataset root directory to use for a given split.
+
+    The official Prostate158 test cases live in a SEPARATE archive/directory
+    from the 139-case train+validation deposit. So:
+      * split == "test"  -> data.test_dir (REQUIRED; raises if unset)
+      * train / val      -> data.dataset_root (unchanged; Exp-1 behavior)
+
+    Requiring test_dir for the test split makes it impossible for a test run
+    to silently fall back to -- and accidentally read -- the train/validation
+    case directories.
+    """
+    if split == "test":
+        test_dir = data_cfg.get("test_dir")
+        if not test_dir:
+            raise ValueError(
+                "split='test' requires data.test_dir to point at the extracted, "
+                "isolated test case-root (the directory that directly contains the "
+                "19 test case folders). Refusing to fall back to the train/val "
+                "dataset_root for the held-out test set."
+            )
+        return test_dir
+    return data_cfg["dataset_root"]
+
 
 def run_evaluation(
     config_path: str,
@@ -485,12 +509,20 @@ def run_evaluation(
 
     is_official_test = split == "test"
 
+    # The official test cases live in a SEPARATE archive/directory from
+    # train/val. For the test split, require and use data.test_dir as the
+    # dataset root, so the test split can NEVER silently fall back to reading
+    # train/validation case directories. Train/val always use dataset_root,
+    # so this branch does not affect the Experiment-1 validation evaluation.
+    split_dataset_root = _resolve_split_dataset_root(data_cfg, split)
+
     print("=" * 78)
     print(f"BASELINE EVALUATION (inference only, no training)")
     print(f"  checkpoint : {checkpoint_path}")
     print(f"  ckpt epoch : {checkpoint.get('epoch', 'unknown')}  "
           f"(training-loop best metric: {checkpoint.get('best_metric', float('nan'))})")
     print(f"  split      : {split}  ({len(patient_ids)} cases)")
+    print(f"  data root  : {split_dataset_root}")
     if not is_official_test:
         print("  NOTE       : this is the VALIDATION split, NOT the official held-out "
               "19-case test set. These numbers are not final test results.")
@@ -498,7 +530,7 @@ def run_evaluation(
     print("=" * 78)
 
     dataset = ProstateZonal2DDataset(
-        dataset_root=data_cfg["dataset_root"],
+        dataset_root=split_dataset_root,
         patient_ids=patient_ids,
         image_name="t2.nii.gz",
         mask_name=data_cfg.get("target_mask", "t2_anatomy_reader1.nii.gz"),
