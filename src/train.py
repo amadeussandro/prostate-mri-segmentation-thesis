@@ -269,6 +269,45 @@ def _build_dataset(
     )
 
 
+def _ensure_global_stats(config: Dict[str, Any], train_patient_ids) -> bool:
+    """Experiment 2-B safeguard: when preprocessing.normalization == 'global'
+    and the stats are not fully supplied, compute them from the TRAINING split
+    ONLY and inject them into config['preprocessing']['global_stats'].
+
+    Returns True if stats were computed and injected, False otherwise (no-op).
+
+    Why this lives here and is gated:
+      * Gated strictly on normalization == 'global'. The Experiment-1 baseline
+        (and Exp02-A / Exp02-C) use 'per_volume' and are therefore COMPLETELY
+        untouched by this function -- it returns immediately.
+      * Stats are pooled over `train_patient_ids` only -- never validation or
+        test cases -- so no evaluation-set information leaks into normalization.
+      * Because run_training saves `config` inside the checkpoint, the resolved
+        stats travel with the checkpoint, so a later run_evaluation reuses the
+        IDENTICAL train-derived stats (no recomputation, no divergence).
+    """
+    preproc = config.get("preprocessing", {})
+    if preproc.get("normalization") != "global":
+        return False
+
+    existing = preproc.get("global_stats") or {}
+    required = ("p_low", "p_high", "mean", "std")
+    if all(existing.get(k) is not None for k in required):
+        return False  # already fully provided -- respect explicit values
+
+    from src.transforms import compute_global_intensity_stats
+
+    data_cfg = config.get("data", {})
+    stats = compute_global_intensity_stats(
+        dataset_root=data_cfg["dataset_root"],
+        case_ids=list(train_patient_ids),
+        image_name="t2.nii.gz",
+    )
+    preproc["global_stats"] = stats
+    config["preprocessing"] = preproc
+    return True
+
+
 def _build_train_sampler(
     train_dataset: ProstateZonal2DDataset,
     seed: int,
@@ -415,6 +454,18 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
         print(
             "WARNING: official 19-case test set not available locally; "
             "this run has no held-out test evaluation."
+        )
+
+    # Exp02-B: if global normalization is requested without explicit stats,
+    # derive them from the TRAINING split only (leakage-safe) and inject them
+    # so both train+val datasets and the saved checkpoint share identical stats.
+    if _ensure_global_stats(config, train_patient_ids):
+        gs = config["preprocessing"]["global_stats"]
+        print(
+            "Computed GLOBAL normalization stats from the training split only "
+            f"(n={len(train_patient_ids)}): "
+            f"mean={gs['mean']:.4f} std={gs['std']:.4f} "
+            f"p_low={gs['p_low']:.2f} p_high={gs['p_high']:.2f}"
         )
 
     train_dataset = _build_dataset(

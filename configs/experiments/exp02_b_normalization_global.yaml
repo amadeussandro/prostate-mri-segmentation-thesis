@@ -2,20 +2,14 @@
 # strategy = "global" (training-set pooled statistics) vs baseline
 # "per_volume" (each case normalized against its own intensity distribution).
 #
-# IMPORTANT: global_stats MUST be computed from the TRAINING split only
-# (src.transforms.compute_global_intensity_stats(dataset_root, train_ids)),
-# never from validation/test cases -- that would leak evaluation-set
-# information into normalization. Populate global_stats below by running:
-#   python -c "
-#   from src.splits import load_official_split
-#   from src.transforms import compute_global_intensity_stats
-#   split = load_official_split('dataset/prostate158_train/train.csv',
-#                                'dataset/prostate158_train/valid.csv')
-#   print(compute_global_intensity_stats('dataset/prostate158_train/train', split.train_ids))
-#   "
-# and paste the four resulting numbers in place of the placeholders below
-# before running this config. Left as placeholders here deliberately --
-# this repo does not fabricate a global-stats result it hasn't computed.
+# global_stats are NOT hardcoded here. When normalization == "global" and no
+# explicit stats are supplied, src/train.py::_ensure_global_stats computes them
+# from the TRAINING split ONLY (leakage-safe) and injects them into the config,
+# and they are then saved inside the checkpoint so evaluation reuses the exact
+# same train-derived stats. This is deterministic (fixed subsampling seed) and
+# removes the previous manual "paste four numbers" step. If you ever want to
+# pin specific stats, add a global_stats: {p_low, p_high, mean, std} block and
+# they will be respected instead of recomputed.
 
 experiment:
   name: "exp02_b_normalization_global"
@@ -31,11 +25,7 @@ data:
 
 preprocessing:
   normalization: "global"      # <-- ablated axis (baseline: per_volume)
-  global_stats:
-    p_low: null                # PLACEHOLDER -- compute from train split before running
-    p_high: null                # PLACEHOLDER
-    mean: null                  # PLACEHOLDER
-    std: null                   # PLACEHOLDER
+  # global_stats auto-computed from the training split (see header note).
   z_resample: false
   spatial_mode: "crop_pad"
   target_size: [442, 442]
