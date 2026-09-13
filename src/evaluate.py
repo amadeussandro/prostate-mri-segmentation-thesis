@@ -320,3 +320,222 @@ def plot_prediction_slice(
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+
+
+def run_evaluation(
+    config_path: str,
+    checkpoint_path: str,
+    output_dir: Optional[str] = None,
+    split: str = "val",
+    device: Optional[str] = None,
+    class_ids: Sequence[int] = (0, 1, 2),
+) -> Dict[str, Any]:
+    """End-to-end baseline evaluation orchestration (inference only -- NO training).
+
+    Loads a trained checkpoint, rebuilds the model and the *exact* preprocessing
+    used to train it, evaluates every case of the requested official split at
+    the volume level in original voxel space (per the thesis protocol), and
+    writes machine-readable result files (per-case CSV, cohort summary CSV +
+    JSON) to `output_dir`.
+
+    Design decisions (all to keep evaluation faithful to how the weights were
+    produced, and to avoid silently changing the evaluation):
+      * The model architecture and the preprocessing config are taken from the
+        checkpoint's own embedded `config` when present (that is literally what
+        trained these weights), falling back to `config_path` otherwise.
+      * `dataset_root`, the official split CSVs, `target_mask`, and the default
+        `output_dir` come from `config_path`.
+      * slice_sampling is FORCED to "all" -- evaluation must always see the
+        complete slice population (never drop empty/background slices), no
+        matter what the config says.
+      * Nothing here trains, fine-tunes, or mutates the checkpoint. The model is
+        put in eval() mode and run under torch.no_grad() (in evaluate_patient).
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the experiment YAML (e.g. configs/config_baseline.yaml). Supplies
+        the dataset root, official split CSVs, target mask, and default output_dir.
+    checkpoint_path : str
+        Path to the trained checkpoint (e.g. the Drive-backed Epoch-77
+        best_model.pt). Only its weights + embedded config are read.
+    output_dir : Optional[str]
+        Where to write result files. Defaults to the config's
+        experiment.output_dir.
+    split : str
+        Which official split to evaluate: "val"/"validation" (default), "test"
+        (requires the 19-case test archive -- errors clearly if absent), or
+        "train".
+    device : Optional[str]
+        Torch device string; auto-detected (cuda/mps/cpu) if None.
+    class_ids : Sequence[int]
+        Classes to score (default background + 2 anatomy classes).
+
+    Returns
+    -------
+    Dict[str, Any]
+        {"per_case_csv", "summary_csv", "summary_json", "summary",
+         "case_results", "output_dir", "metadata"}.
+    """
+    import datetime
+
+    from src.dataset import ProstateZonal2DDataset
+    from src.metrics import (
+        DEFAULT_CLASS_NAMES,
+        write_case_metrics_csv,
+        write_summary_csv,
+        write_summary_json,
+    )
+    from src.model import build_model
+    from src.splits import load_official_split
+    from src.transforms import PreprocessingConfig
+    from src.utils import ensure_dir, get_device, load_config
+
+    cfg = load_config(config_path)
+    data_cfg = cfg.get("data", {})
+
+    if device is None:
+        device = get_device()
+
+    # --- Checkpoint (weights + the config that produced them) ---
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    if "model_state_dict" not in checkpoint:
+        raise KeyError(
+            f"Checkpoint '{checkpoint_path}' has no 'model_state_dict'. "
+            f"Keys present: {sorted(checkpoint.keys())}"
+        )
+    ckpt_cfg = checkpoint.get("config", cfg)
+
+    # Rebuild the model from the checkpoint's own config so the architecture
+    # always matches the stored weights, then load the weights.
+    model = build_model(ckpt_cfg).to(device)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
+
+    # Preprocessing MUST match training exactly (same crop/pad size etc.).
+    preproc = PreprocessingConfig.from_dict(
+        ckpt_cfg.get("preprocessing", cfg.get("preprocessing", {}))
+    )
+
+    # --- Resolve the official, case-level split ---
+    if "train_csv" in data_cfg and "valid_csv" in data_cfg:
+        official = load_official_split(
+            train_csv=data_cfg["train_csv"],
+            valid_csv=data_cfg["valid_csv"],
+            test_csv=data_cfg.get("test_csv"),
+            test_dir=data_cfg.get("test_dir"),
+        )
+        split_ids_map = {
+            "train": official.train_ids,
+            "val": official.val_ids,
+            "validation": official.val_ids,
+            "test": official.test_ids,
+        }
+    else:
+        split_ids_map = {
+            "train": data_cfg.get("patient_ids", []),
+            "val": cfg.get("validation", {}).get("val_patient_ids", []),
+            "validation": cfg.get("validation", {}).get("val_patient_ids", []),
+            "test": None,
+        }
+
+    if split not in split_ids_map:
+        raise ValueError(f"Unknown split '{split}'. Choose from {sorted(split_ids_map)}.")
+
+    patient_ids = split_ids_map[split]
+    if split == "test" and not patient_ids:
+        raise ValueError(
+            "Requested split='test' but the official 19-case Prostate158 test "
+            "archive (DOI 10.5281/zenodo.6592345) is not available locally. "
+            "Point data.test_csv/test_dir at it once obtained; evaluate on the "
+            "validation split in the meantime."
+        )
+    if not patient_ids:
+        raise ValueError(f"No case IDs resolved for split='{split}'.")
+
+    is_official_test = split == "test"
+
+    print("=" * 78)
+    print(f"BASELINE EVALUATION (inference only, no training)")
+    print(f"  checkpoint : {checkpoint_path}")
+    print(f"  ckpt epoch : {checkpoint.get('epoch', 'unknown')}  "
+          f"(training-loop best metric: {checkpoint.get('best_metric', float('nan'))})")
+    print(f"  split      : {split}  ({len(patient_ids)} cases)")
+    if not is_official_test:
+        print("  NOTE       : this is the VALIDATION split, NOT the official held-out "
+              "19-case test set. These numbers are not final test results.")
+    print(f"  device     : {device}")
+    print("=" * 78)
+
+    dataset = ProstateZonal2DDataset(
+        dataset_root=data_cfg["dataset_root"],
+        patient_ids=patient_ids,
+        image_name="t2.nii.gz",
+        mask_name=data_cfg.get("target_mask", "t2_anatomy_reader1.nii.gz"),
+        slice_sampling="all",  # FORCED: evaluation must see the full slice population
+        preprocessing_config=preproc,
+        cache_data=True,
+    )
+
+    case_results, summary = evaluate_cases(
+        model, dataset, device, patient_ids=patient_ids, class_ids=class_ids
+    )
+
+    out = ensure_dir(output_dir or cfg.get("experiment", {}).get("output_dir", "./results"))
+    tag = f"eval_{split}"
+
+    metadata = {
+        "checkpoint_path": checkpoint_path,
+        "checkpoint_epoch": int(checkpoint.get("epoch", -1)),
+        "training_loop_val_metric_slice_level": float(checkpoint.get("best_metric", float("nan"))),
+        "config_path": config_path,
+        "split": split,
+        "n_cases": len(case_results),
+        "case_ids": [c.patient_id for c in case_results],
+        "is_official_held_out_test": is_official_test,
+        "class_ids": [int(c) for c in class_ids],
+        "class_names": {int(c): DEFAULT_CLASS_NAMES.get(c, str(c)) for c in class_ids},
+        "evaluation_space": "original_voxel",
+        "aggregation": "per_case",
+        "label_mapping_status": "unverified (see results/label_mapping/label_mapping_report.md)",
+        "preprocessing": {
+            "normalization": preproc.normalization,
+            "z_resample": preproc.z_resample,
+            "spatial_mode": preproc.spatial_mode,
+            "target_size": list(preproc.target_size),
+        },
+        "primary_metric": "dice (per class, per case, mean +/- SD across cases)",
+        "note": (
+            "Volume-level, original-voxel-space, per-case metrics. Distinct from "
+            "the training loop's slice-level val_dice (see "
+            "training_loop_val_metric_slice_level above)."
+        ),
+        "generated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+    per_case_csv = write_case_metrics_csv(
+        os.path.join(out, f"{tag}_per_case_metrics.csv"), case_results, class_ids
+    )
+    summary_csv = write_summary_csv(
+        os.path.join(out, f"{tag}_summary.csv"), summary, class_ids
+    )
+    summary_json = write_summary_json(
+        os.path.join(out, f"{tag}_summary.json"), summary, metadata
+    )
+
+    print(f"\nWrote:\n  {per_case_csv}\n  {summary_csv}\n  {summary_json}")
+    for c in class_ids:
+        d = summary[c]["dice"]
+        print(f"  class {c} ({DEFAULT_CLASS_NAMES.get(c, c)}): "
+              f"Dice mean={d['mean']:.4f} SD={d['std']:.4f} "
+              f"95%CI=[{d['ci95_low']:.4f}, {d['ci95_high']:.4f}] n={d['n_cases']}")
+
+    return {
+        "per_case_csv": per_case_csv,
+        "summary_csv": summary_csv,
+        "summary_json": summary_json,
+        "summary": summary,
+        "case_results": case_results,
+        "output_dir": out,
+        "metadata": metadata,
+    }
