@@ -45,3 +45,12 @@ results/full/*.pt
 results/full/*.pth
 results/10_patients/*.pt
 results/10_patients/*.pth
+
+# Generated experiment outputs (kept in the results/Drive workflow, not Git):
+# qualitative visualization figures + their summary, and evaluation CSV/JSON.
+results/**/visualizations/
+*.png
+!results/020_patient_overview.png
+results/**/eval_*_per_case_metrics.csv
+results/**/eval_*_summary.csv
+results/**/eval_*_summary.json

@@ -130,8 +130,44 @@ def evaluate_patient(
     CaseMetrics
         Per-class metrics dict for this case, in original voxel space.
     """
-    import nibabel as nib
+    pred_original, gt_original, geometry = predict_case_original_space(
+        patient_id, model, dataset, device
+    )
 
+    return evaluate_case_volume(
+        pred=pred_original,
+        gt=gt_original,
+        spacing=geometry.zooms,
+        class_ids=class_ids,
+        patient_id=patient_id,
+    )
+
+
+def predict_case_original_space(
+    patient_id: str,
+    model: Any,
+    dataset: Any,
+    device: str,
+):
+    """Run the model on every axial slice of a case and reconstruct BOTH the
+    prediction and the ground truth to original voxel space.
+
+    This is the single shared inference + 2D->3D reconstruction path used by
+    the baseline evaluation (`evaluate_patient` calls this) AND by the
+    qualitative visualization (`scripts/visualize_baseline_cases.py`), so the
+    two can never silently diverge. Inference only: `model.eval()` +
+    `torch.no_grad()`; the checkpoint, dataset, and preprocessing are never
+    modified here.
+
+    Returns
+    -------
+    (pred_original, gt_original, geometry)
+        pred_original, gt_original : int label volumes (H, W, D) in the case's
+            ORIGINAL voxel grid (preprocessing geometry inverted, source affine
+            restored) -- so they are directly comparable to each other and to
+            the on-disk T2/GT.
+        geometry : VolumeGeometry for the case (shape, affine, zooms, axcodes).
+    """
     geometry, transform_meta = dataset.get_case_metadata(patient_id)
 
     case_sample_indices = [
@@ -162,13 +198,7 @@ def evaluate_patient(
     pred_original = np.asarray(pred_nii.dataobj)
     gt_original = np.asarray(gt_nii.dataobj)
 
-    return evaluate_case_volume(
-        pred=pred_original,
-        gt=gt_original,
-        spacing=geometry.zooms,
-        class_ids=class_ids,
-        patient_id=patient_id,
-    )
+    return pred_original, gt_original, geometry
 
 
 def evaluate_patient_protocols(

@@ -426,6 +426,54 @@ cells.append(code(
     "print('\\nExperiment 1 baseline evaluation complete (validation split).')",
 ))
 
+cells.append(md(
+    "## 17. Visualize Experiment 1 baseline (qualitative, inference only)",
+    "",
+    "**Inference/visualization ONLY -- no training, no checkpoint changes.** Runs",
+    "`scripts/visualize_baseline_cases.py`, which reuses the SAME production path as",
+    "Section 16's evaluation (shared `src.evaluate.predict_case_original_space`:",
+    "checkpoint -> preprocessing -> per-slice inference -> 2D->3D reconstruction ->",
+    "original voxel space). All logic lives in `scripts/` + `src/`; this notebook",
+    "only orchestrates.",
+    "",
+    "It renders axial panels (T2 | Ground Truth | Prediction | GT/Pred overlay |",
+    "error map) for representative, central, and max-disagreement slices. Labels are",
+    "strictly **Class 1 / Class 2** -- the integer->anatomy mapping is UNVERIFIED, so",
+    "no CG/TZ/PZ names are used. This is the **validation** split, not the held-out",
+    "test set.",
+    "",
+    "Two selection modes below (run whichever you want):",
+    "- **worst/best by metrics CSV** -- data-driven, reads eval_val_per_case_metrics.csv.",
+    "- **explicit patients** -- e.g. 60 77 87 (verify against the CSV first).",
+    "",
+    "Figures + `summary/visualization_summary.json` are written under the Drive",
+    "results dir and are intentionally NOT committed to Git (see .gitignore).",
+))
+cells.append(code(
+    "# Data-driven selection: worst 3 and best 3 validation cases by mean foreground Dice.",
+    "!python scripts/visualize_baseline_cases.py --config configs/config_baseline.yaml --checkpoint /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt --metrics-csv /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/eval_val_per_case_metrics.csv --output-dir /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/visualizations --split val --mode worst --n 3",
+    "!python scripts/visualize_baseline_cases.py --config configs/config_baseline.yaml --checkpoint /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt --metrics-csv /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/eval_val_per_case_metrics.csv --output-dir /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/visualizations --split val --mode best --n 3",
+))
+cells.append(code(
+    "# Explicit patients (optional). Verify these ids exist in the metrics CSV first.",
+    "!python scripts/visualize_baseline_cases.py --config configs/config_baseline.yaml --checkpoint /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt --metrics-csv /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/eval_val_per_case_metrics.csv --output-dir /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/visualizations --split val --patients 60 77 87",
+))
+cells.append(code(
+    "# Peek at the generated visualization summary.",
+    "import json, os",
+    "_summary = '/content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/visualizations/summary/visualization_summary.json'",
+    "if os.path.exists(_summary):",
+    "    with open(_summary) as f:",
+    "        _payload = json.load(f)",
+    "    print('split:', _payload['split'], '| held-out test?', _payload['is_official_held_out_test'])",
+    "    print('label mapping:', _payload['label_mapping_status'])",
+    "    for _c in _payload['cases']:",
+    "        print(f\"  patient {_c['patient_id']}: slices {_c['selected_slice_indices']} \"",
+    "              f\"-> {len(_c['figures'])} figure(s)\")",
+    "else:",
+    "    print('No summary yet -- run a visualization cell above first.')",
+))
+
 notebook = {
     "cells": cells,
     "metadata": {
