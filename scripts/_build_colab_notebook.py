@@ -306,6 +306,14 @@ cells.append(code(
 cells.append(md(
     "## 15. Resume Experiment 1 (recover after a Colab disconnect)",
     "",
+    "> ### SKIP FOR CURRENT WORKFLOW",
+    ">",
+    "> **Do not run Section 15.** Experiment 1 training is already finished/stopped,",
+    "> and the workflow has moved on to **evaluation (Section 16)**. This section is",
+    "> retained only as documentation of the resume/recovery mechanism for future",
+    "> reference. Running it would *resume training*, which is not what we want now.",
+    "> Go straight to **Section 16. Evaluate Experiment 1 baseline**.",
+    "",
     "Use this section **only** to continue an Experiment-1 run that was interrupted",
     "(e.g. the GPU backend was reclaimed on a usage limit). It does **not** change",
     "the experiment: same official 119/20 split, T2W-only, `t2_anatomy_reader1`,",
@@ -364,6 +372,58 @@ cells.append(code(
     "# Resumes from RESUME_CKPT (defined in the cell above); continues to epoch 100.",
     "summary = run_training(colab_config_path, resume_from=RESUME_CKPT)",
     "print(summary)",
+))
+
+cells.append(md(
+    "## 16. Evaluate Experiment 1 baseline",
+    "",
+    "**This section is inference/evaluation ONLY -- it does not train, resume, or",
+    "modify the checkpoint.** It runs the existing evaluation entry point",
+    "`scripts/run_evaluation.py` (finalized in commit 94b2a8e) against the best",
+    "checkpoint from the stopped Experiment-1 run. All evaluation logic lives in",
+    "`src/evaluate.py` / `src/metrics.py`; this notebook only orchestrates the call.",
+    "",
+    "It evaluates the **official 20-case VALIDATION split** (`--split val`). The",
+    "official 19-case held-out test archive is not available locally, so we do NOT",
+    "substitute it -- run_evaluation would refuse a held-out-test request anyway,",
+    "and these validation numbers are explicitly not final test results.",
+    "",
+    "Evaluation is volume-level, per-case, in original voxel space (the thesis",
+    "protocol): checkpoint -> 2D inference -> 2D->3D reconstruction -> inverse",
+    "preprocessing -> per-case Dice / IoU / HD95 / ASD / precision / recall, with",
+    "mean +/- SD and bootstrap CI.",
+    "",
+    "Expected output files written to the Drive results directory:",
+    "- `eval_val_per_case_metrics.csv`",
+    "- `eval_val_summary.csv`",
+    "- `eval_val_summary.json`",
+))
+cells.append(code(
+    "import os",
+    "",
+    "EVAL_CONFIG = 'configs/config_baseline.yaml'",
+    "EVAL_CHECKPOINT = '/content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt'",
+    "EVAL_OUTPUT_DIR = '/content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline'",
+    "EVAL_SPLIT = 'val'  # 20-case validation split; NOT the (unavailable) held-out test set",
+    "",
+    "print('Experiment 1 baseline evaluation (inference only -- no training):')",
+    "print('  config     :', EVAL_CONFIG)",
+    "print('  checkpoint :', EVAL_CHECKPOINT)",
+    "print('  output dir :', EVAL_OUTPUT_DIR)",
+    "print('  split      :', EVAL_SPLIT)",
+    "assert os.path.exists(EVAL_CHECKPOINT), f'Checkpoint not found: {EVAL_CHECKPOINT}'",
+))
+cells.append(code(
+    "# Single-line shell command (literal paths) -- matches Sections 8/10-13 and",
+    "# avoids any dependency on multi-line `!` handling or `{var}` expansion.",
+    "!python scripts/run_evaluation.py --config configs/config_baseline.yaml --checkpoint /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt --output-dir /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline --split val",
+))
+cells.append(code(
+    "# Confirm the expected result files exist after evaluation.",
+    "for _fname in ('eval_val_per_case_metrics.csv', 'eval_val_summary.csv', 'eval_val_summary.json'):",
+    "    _fpath = os.path.join(EVAL_OUTPUT_DIR, _fname)",
+    "    print(('OK  ' if os.path.exists(_fpath) else 'MISSING '), _fpath)",
+    "print('\\nExperiment 1 baseline evaluation complete (validation split).')",
 ))
 
 notebook = {
