@@ -10,6 +10,7 @@ primary; slice-level is only ever a supplement (see Experiment 3 / RQ-2).
 
 import os
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+import nibabel as nib
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -143,14 +144,52 @@ def evaluate_patient(
     )
 
 
+def load_original_space_ground_truth(
+    dataset: Any,
+    patient_id: str,
+    geometry: Any,
+) -> np.ndarray:
+    """Load the UNTOUCHED, on-disk anatomy mask for a case as the ground truth
+    for original-voxel-space evaluation.
+
+    Why not reconstruct the GT from the preprocessed slices?
+    -------------------------------------------------------
+    Reconstructing the GT by inverting the preprocessing sends the ground truth
+    through the SAME lossy transform as the prediction. For the baseline /
+    crop_pad pipeline that inverse is exact (round-trip Dice = 1.0, see
+    scripts/roundtrip_test.py), so it makes no difference. But for the
+    Experiment 2-C `resize` arm the transform is deliberately lossy and NOT
+    pixel-exact -- round-tripping the GT would degrade it identically to the
+    prediction, so preprocessing errors partially cancel and the resize arm
+    scores optimistically. That confounds the RQ-1 preprocessing ablation.
+
+    Comparing every arm's reconstructed prediction against the identical,
+    untouched original-space mask keeps the comparison fair: crop_pad is
+    unaffected (its round-trip GT already equals this), and resize is scored
+    honestly against the true anatomy in original voxel space.
+
+    The on-disk mask is already in the case's original voxel grid and array
+    order (the same grid `reconstruct_case_to_original_space` restores the
+    prediction to), so the two are directly comparable.
+    """
+    mask_path = os.path.join(dataset.dataset_root, patient_id, dataset.mask_name)
+    gt = np.round(nib.load(mask_path).get_fdata()).astype(np.int64)
+    if tuple(gt.shape) != tuple(geometry.shape):
+        raise ValueError(
+            f"Untouched ground-truth mask shape {gt.shape} for patient "
+            f"'{patient_id}' does not match the case geometry {geometry.shape}."
+        )
+    return gt
+
+
 def predict_case_original_space(
     patient_id: str,
     model: Any,
     dataset: Any,
     device: str,
 ):
-    """Run the model on every axial slice of a case and reconstruct BOTH the
-    prediction and the ground truth to original voxel space.
+    """Run the model on every axial slice of a case, reconstruct the prediction
+    to original voxel space, and pair it with the untouched original-space GT.
 
     This is the single shared inference + 2D->3D reconstruction path used by
     the baseline evaluation (`evaluate_patient` calls this) AND by the
@@ -159,13 +198,21 @@ def predict_case_original_space(
     `torch.no_grad()`; the checkpoint, dataset, and preprocessing are never
     modified here.
 
+    The ground truth is the UNTOUCHED on-disk anatomy mask (see
+    `load_original_space_ground_truth`), NOT the preprocessed mask
+    inverse-transformed back -- so lossy preprocessing (Exp02-C resize) cannot
+    inflate the score by degrading prediction and GT identically. For the
+    lossless crop_pad baseline the two are bit-identical, so Experiment-1
+    numbers are unchanged.
+
     Returns
     -------
     (pred_original, gt_original, geometry)
-        pred_original, gt_original : int label volumes (H, W, D) in the case's
-            ORIGINAL voxel grid (preprocessing geometry inverted, source affine
-            restored) -- so they are directly comparable to each other and to
-            the on-disk T2/GT.
+        pred_original : int label volume (H, W, D) -- the model prediction
+            reconstructed and inverse-transformed to the case's ORIGINAL voxel
+            grid (source affine restored).
+        gt_original : int label volume (H, W, D) -- the untouched on-disk
+            anatomy mask in that same original voxel grid.
         geometry : VolumeGeometry for the case (shape, affine, zooms, axcodes).
     """
     geometry, transform_meta = dataset.get_case_metadata(patient_id)
@@ -178,7 +225,6 @@ def predict_case_original_space(
 
     model.eval()
     pred_slices: List[np.ndarray] = []
-    gt_slices: List[np.ndarray] = []
     slice_indices: List[int] = []
 
     with torch.no_grad():
@@ -189,14 +235,12 @@ def predict_case_original_space(
             pred = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy().astype(np.int64)
 
             pred_slices.append(pred)
-            gt_slices.append(sample["mask"])
             slice_indices.append(sample["slice_idx"])
 
     pred_nii = reconstruct_case_to_original_space(pred_slices, slice_indices, transform_meta, geometry)
-    gt_nii = reconstruct_case_to_original_space(gt_slices, slice_indices, transform_meta, geometry)
-
     pred_original = np.asarray(pred_nii.dataobj)
-    gt_original = np.asarray(gt_nii.dataobj)
+
+    gt_original = load_original_space_ground_truth(dataset, patient_id, geometry)
 
     return pred_original, gt_original, geometry
 
@@ -241,11 +285,13 @@ def evaluate_patient_protocols(
             gt_slices.append(sample["mask"])
             slice_indices.append(sample["slice_idx"])
 
-    # Protocol A (primary): reconstruct + invert to original voxel space.
+    # Protocol A (primary): reconstruct + invert the PREDICTION to original
+    # voxel space, and score it against the UNTOUCHED on-disk GT (never the
+    # preprocessed mask round-tripped back -- see load_original_space_ground_truth
+    # for why: a lossy resize round-trip would otherwise inflate this arm).
     pred_nii = reconstruct_case_to_original_space(pred_slices, slice_indices, transform_meta, geometry)
-    gt_nii = reconstruct_case_to_original_space(gt_slices, slice_indices, transform_meta, geometry)
     pred_original = np.asarray(pred_nii.dataobj)
-    gt_original = np.asarray(gt_nii.dataobj)
+    gt_original = load_original_space_ground_truth(dataset, patient_id, geometry)
 
     original_metrics = evaluate_case_volume(
         pred_original, gt_original, spacing=geometry.zooms, class_ids=class_ids, patient_id=patient_id,
@@ -558,6 +604,7 @@ def run_evaluation(
         "class_ids": [int(c) for c in class_ids],
         "class_names": {int(c): DEFAULT_CLASS_NAMES.get(c, str(c)) for c in class_ids},
         "evaluation_space": "original_voxel",
+        "ground_truth_source": "original_on_disk_mask_untouched",
         "aggregation": "per_case",
         "label_mapping_status": "unverified (see results/label_mapping/label_mapping_report.md)",
         "preprocessing": {
