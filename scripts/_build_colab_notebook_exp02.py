@@ -154,18 +154,62 @@ cells.append(code(
 cells.append(md("## 5. Install requirements"))
 cells.append(code("!pip install -q -r requirements.txt"))
 
-# ---- 6. Link dataset ----
+# ---- 6. Link dataset (with optional local runtime cache) ----
 cells.append(md(
-    "## 6. Link the Drive dataset into the repository",
+    "## 6. Link the dataset into the repository (optional local runtime cache)",
     "",
     "Every config uses a path relative to the repo root",
     "(`dataset_root: \"dataset/prostate158_train/train\"`), and `dataset/` is",
     "git-ignored -- never present in a fresh clone. One symlink makes the existing",
-    "relative paths resolve to the real data on Drive; no config or source file is",
-    "edited.",
+    "relative paths resolve to the real data; no config or source file is edited.",
+    "",
+    "**Optional runtime speedup (`USE_LOCAL_DATASET_CACHE`).** Reading NIfTI",
+    "straight from the Drive FUSE mount is slow and flaky, and the dataset is fully",
+    "loaded + preprocessed into RAM once at the start of every `run_training`",
+    "(including every resume). Copying the dataset ONCE to fast local Colab storage",
+    "(`/content/local_dataset`) and pointing the symlink there makes that one-time",
+    "startup read fast and reliable. This is a pure runtime optimization:",
+    "",
+    "- The dataset **content is not modified** (a plain recursive copy; Drive stays",
+    "  the persistent source, read-only here).",
+    "- The **official train/validation split is unchanged** -- the same `train.csv`/",
+    "  `valid.csv` and case folders are copied verbatim.",
+    "- **Checkpoints/results still go to Google Drive** (Section 3's",
+    "  `results/exp02_preprocessing/<arm>/`), never to `/content` -- only the",
+    "  read-only dataset is cached locally. `/content` is wiped on a timeout, which",
+    "  is fine for a re-copyable dataset but would be fatal for checkpoints.",
+    "",
+    "Set `USE_LOCAL_DATASET_CACHE = False` to read directly from Drive (the prior",
+    "behavior).",
 ))
 cells.append(code(
+    "import shutil, subprocess",
+    "",
+    "USE_LOCAL_DATASET_CACHE = True  # set False to read NIfTI directly from Drive",
+    "LOCAL_DATASET_DIR = '/content/local_dataset'",
+    "",
     "assert os.path.isdir(DRIVE_DATASET_DIR), f'Dataset not found on Drive at {DRIVE_DATASET_DIR}'",
+    "",
+    "def _count_case_dirs(root):",
+    "    train_dir = os.path.join(root, 'prostate158_train', 'train')",
+    "    return len([d for d in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, d))]) if os.path.isdir(train_dir) else 0",
+    "",
+    "if USE_LOCAL_DATASET_CACHE:",
+    "    drive_n = _count_case_dirs(DRIVE_DATASET_DIR)",
+    "    local_n = _count_case_dirs(LOCAL_DATASET_DIR)",
+    "    if local_n >= drive_n and drive_n > 0:",
+    "        print(f'Local dataset cache already present ({local_n} case dirs) -- skipping copy.')",
+    "    else:",
+    "        print(f'Copying dataset Drive -> {LOCAL_DATASET_DIR} (one-time; {drive_n} case dirs)...')",
+    "        os.makedirs(LOCAL_DATASET_DIR, exist_ok=True)",
+    "        # rsync is fast + resumable on Colab; fall back to shutil.copytree.",
+    "        rc = subprocess.run(['rsync', '-a', DRIVE_DATASET_DIR.rstrip('/') + '/', LOCAL_DATASET_DIR.rstrip('/') + '/']).returncode",
+    "        if rc != 0:",
+    "            shutil.copytree(DRIVE_DATASET_DIR, LOCAL_DATASET_DIR, dirs_exist_ok=True)",
+    "        print(f'Local cache ready: {_count_case_dirs(LOCAL_DATASET_DIR)} case dirs.')",
+    "    DATASET_SRC = LOCAL_DATASET_DIR",
+    "else:",
+    "    DATASET_SRC = DRIVE_DATASET_DIR",
     "",
     "link_path = os.path.join(REPO_DIR, 'dataset')",
     "if os.path.islink(link_path):",
@@ -173,7 +217,7 @@ cells.append(code(
     "elif os.path.exists(link_path):",
     "    raise RuntimeError(f'{link_path} exists and is not a symlink -- refusing to overwrite.')",
     "",
-    "os.symlink(DRIVE_DATASET_DIR, link_path)",
+    "os.symlink(DATASET_SRC, link_path)",
     "print('Linked:', link_path, '->', os.readlink(link_path))",
     "",
     "expected_t2 = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train', '020', 't2.nii.gz')",
@@ -321,6 +365,26 @@ cells.append(code(
     "          f'scheduler={_info[\"has_scheduler_state\"]} rng={_info[\"has_rng_state\"]}')",
     "print('-' * 62)",
     "print('Inspection only -- no training was started; no checkpoint was modified.')",
+))
+
+# ---- 10c. Throughput benchmark (optional, measurement only) ----
+cells.append(md(
+    "## 10c. Throughput benchmark (optional -- measurement only, no full training)",
+    "",
+    "Profiles where per-step wall-clock goes on THIS T4, using the real pipeline",
+    "(`scripts/benchmark_training.py`): dataset build (one-time), pure data loading,",
+    "per-stage train step (data / host->device / forward / backward / optimizer),",
+    "validation, checkpoint save, and an extrapolated per-epoch estimate. It also",
+    "sweeps `num_workers` and (measurement only) times AMP vs FP32 and",
+    "`cudnn.benchmark` on/off so any speed-up is evidence-based.",
+    "",
+    "It trains nothing to convergence, writes only to a temp dir, and does not touch",
+    "any real checkpoint. AMP and `cudnn.benchmark` are reported but NOT enabled --",
+    "they change numerics vs the FP32 Exp01 baseline, so switching them on is a",
+    "supervisor-level decision, not a silent default.",
+))
+cells.append(code(
+    "!python scripts/benchmark_training.py --config configs/experiments/exp02_a_zresample_on.yaml --train-batches 30 --val-batches 20 --num-workers-sweep 0,2,4 --measure-amp --measure-cudnn-benchmark",
 ))
 
 # ---- STOP divider ----

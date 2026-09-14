@@ -79,11 +79,45 @@ def _move_batch_to_device(
     batch: Dict[str, Any],
     device: str,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Move image and mask tensors from a dataset batch to the target device."""
-    images = batch["image"].float().to(device)
-    masks = batch["mask"].long().to(device)
+    """Move image and mask tensors from a dataset batch to the target device.
+
+    `non_blocking=True` only has an effect when the source tensors are in pinned
+    memory (DataLoader pin_memory=True, used for CUDA) -- it overlaps the host->
+    device copy with compute. It is a NO-OP for CPU/non-pinned tensors and does
+    NOT change any value that is transferred, so it is numerically identical to a
+    blocking copy; it only affects transfer scheduling.
+    """
+    non_blocking = device == "cuda"
+    images = batch["image"].float().to(device, non_blocking=non_blocking)
+    masks = batch["mask"].long().to(device, non_blocking=non_blocking)
 
     return images, masks
+
+
+def _dataloader_perf_kwargs(training_cfg: Dict[str, Any], device: str) -> Dict[str, Any]:
+    """Build performance-only DataLoader kwargs from the config, with defaults
+    that EXACTLY preserve the historical behavior (num_workers=0, pin_memory on
+    CUDA). These knobs never change which samples are drawn, their order, or
+    their values -- the WeightedRandomSampler's seeded generator and the
+    deterministic dataset decide all of that -- so they cannot affect the
+    scientific result. They only affect how batches are fetched/overlapped.
+
+    Recognized optional `training:` keys (all default to the prior behavior, so
+    an unchanged config trains identically to before):
+      - num_workers (int, default 0)
+      - pin_memory (bool, default: device == 'cuda')
+      - persistent_workers (bool, default: num_workers > 0)
+      - prefetch_factor (int, default 4; only applied when num_workers > 0)
+    """
+    num_workers = int(training_cfg.get("num_workers", 0))
+    pin_memory = bool(training_cfg.get("pin_memory", device == "cuda"))
+    kwargs: Dict[str, Any] = {"num_workers": num_workers, "pin_memory": pin_memory}
+    if num_workers > 0:
+        kwargs["persistent_workers"] = bool(
+            training_cfg.get("persistent_workers", True)
+        )
+        kwargs["prefetch_factor"] = int(training_cfg.get("prefetch_factor", 4))
+    return kwargs
 
 
 def train_one_epoch(
@@ -657,6 +691,8 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
     use_weighted_sampling = training_cfg.get("use_weighted_sampling", True)
     train_sampler = _build_train_sampler(train_dataset, seed, use_weighted_sampling)
 
+    loader_perf_kwargs = _dataloader_perf_kwargs(training_cfg, device)
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=training_cfg.get(
@@ -665,8 +701,7 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
         ),
         shuffle=(train_sampler is None),
         sampler=train_sampler,
-        num_workers=0,
-        pin_memory=(device == "cuda"),
+        **loader_perf_kwargs,
     )
 
     val_loader = None
@@ -691,8 +726,7 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
                 4,
             ),
             shuffle=False,
-            num_workers=0,
-            pin_memory=(device == "cuda"),
+            **loader_perf_kwargs,
         )
 
     # ---------------------------------------------------------
