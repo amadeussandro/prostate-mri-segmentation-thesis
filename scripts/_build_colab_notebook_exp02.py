@@ -66,11 +66,17 @@ cells.append(md(
     "- Google Drive: stores the dataset, checkpoints, and results. **Never in GitHub.**",
     "- Each arm's checkpoint and results go under `results/exp02_preprocessing/<arm>/`",
     "  (mirrored on Drive).",
+    "- **Resume-safe for T4 timeouts.** Each arm's training cell auto-detects its",
+    "  Drive checkpoint: if none exists it starts fresh at epoch 1; if one exists it",
+    "  resumes from `epoch+1` (never restarting at epoch 1) and skips training",
+    "  entirely once the checkpoint reaches 100 epochs. Just rerun the same cell",
+    "  after a disconnect. Decision logic lives in `src/train.py` (orchestration-only",
+    "  notebook).",
     "- **The official 19-case held-out TEST set is untouched during variant selection.**",
     "  This notebook evaluates the VALIDATION split only; held-out test is deferred",
     "  until after a variant is chosen (a separate, one-time step, as in Exp01).",
     "",
-    "Run the readiness cells (1-10) in order. The per-arm training/validation cells",
+    "Run the readiness cells (1-10b) in order. The per-arm training/validation cells",
     "(11 onward) are clearly separated -- run them only after readiness is green.",
 ))
 
@@ -269,6 +275,54 @@ cells.append(md(
 ))
 cells.append(code("!python -m pytest tests/test_original_space_gt.py -v"))
 
+# ---- 10b. Checkpoint / safepoint inspection (inspection only) ----
+cells.append(md(
+    "## 10b. Checkpoint / safepoint inspection (inspection only -- does NOT train)",
+    "",
+    "T4 sessions can time out mid-run, so each arm trains to a Drive-backed",
+    "`best_model.pt` and is **resume-safe**: rerunning an arm's training cell",
+    "auto-detects its checkpoint and continues from `epoch+1` instead of",
+    "restarting at epoch 1. This cell reports, per arm, whether a checkpoint",
+    "exists and whether it is resumable -- using the read-only",
+    "`src.train.inspect_checkpoint` / `plan_training_run` helpers. It starts no",
+    "training and never modifies a checkpoint.",
+    "",
+    "Checkpoint format (verified): `epoch`, `model_state_dict`,",
+    "`optimizer_state_dict`, `best_metric`, `config`. There is **no LR scheduler**",
+    "in this experiment (nothing to restore), and RNG state is intentionally not",
+    "persisted -- the fixed `seed=42` preserves the experiment design; a resumed",
+    "run is not bit-identical to an uninterrupted one but is scientifically",
+    "equivalent for this controlled ablation.",
+))
+cells.append(code(
+    "import os",
+    "from src.train import inspect_checkpoint, plan_training_run",
+    "",
+    "print('EXP02 CHECKPOINT STATUS')",
+    "print('-' * 62)",
+    "for _key, _arm in EXP02_ARMS.items():",
+    "    _ckpt = os.path.join(DRIVE_EXP02_DIR, _arm['name'], 'best_model.pt')",
+    "    _info = inspect_checkpoint(_ckpt)",
+    "    _plan = plan_training_run(_ckpt, num_epochs=100)",
+    "    if not _info['exists']:",
+    "        print(f'{_key} | NONE  | -            | -                | READY FOR FRESH RUN')",
+    "        continue",
+    "    _size_mb = (_info['size_bytes'] or 0) / 1e6",
+    "    if _plan['action'] == 'corrupt':",
+    "        print(f'{_key} | FOUND | UNUSABLE -- {_info[\"error\"]}')",
+    "        print(f'    path {_ckpt} ({_size_mb:.1f} MB) -- NOT modified/deleted')",
+    "        continue",
+    "    _status = {'resume': 'RESUMABLE', 'already_complete': 'ALREADY COMPLETE'}.get(_plan['action'], _plan['action'].upper())",
+    "    _best = _info['best_metric']",
+    "    _best_str = f'{_best:.6f}' if isinstance(_best, (int, float)) else str(_best)",
+    "    print(f'{_key} | FOUND | epoch {_info[\"epoch\"]}/100 | best Dice {_best_str} | {_status}')",
+    "    print(f'    path {_ckpt} ({_size_mb:.1f} MB)')",
+    "    print(f'    model={_info[\"has_model_state\"]} optim={_info[\"has_optimizer_state\"]} '",
+    "          f'scheduler={_info[\"has_scheduler_state\"]} rng={_info[\"has_rng_state\"]}')",
+    "print('-' * 62)",
+    "print('Inspection only -- no training was started; no checkpoint was modified.')",
+))
+
 # ---- STOP divider ----
 cells.append(md(
     "---",
@@ -277,6 +331,11 @@ cells.append(md(
     "Each arm has its own **training** cell and **validation-evaluation** cell, run",
     "independently. Do NOT \"Run all\" from here: run one arm's training cell, let it",
     "finish (100 epochs), run that arm's evaluation cell, then move to the next arm.",
+    "",
+    "**If a T4 session times out mid-training, just rerun that same arm's training",
+    "cell** -- it auto-detects the Drive checkpoint and resumes from `epoch+1` (it",
+    "prints `RESUMING` and the epoch it continues from). Cell 10b shows each arm's",
+    "current checkpoint status first.",
     "",
     "Every training cell redirects `experiment.output_dir` to Drive",
     "(`results/exp02_preprocessing/<arm>/`) via a throwaway config written OUTSIDE the",
@@ -290,7 +349,7 @@ cells.append(md(
 ))
 
 
-def _training_cell(arm_key, letter_note=""):
+def _training_cell(arm_key):
     arm = EXP02_ARMS_PY[arm_key]
     name = arm["name"]
     cfg = arm["config"]
@@ -298,26 +357,50 @@ def _training_cell(arm_key, letter_note=""):
     return code(
         "import os, yaml",
         "from src.utils import load_config",
-        "from src.train import run_training",
+        "from src.train import run_training, plan_training_run",
         "",
         f"ARM = '{arm_key}'  # {name}",
         f"ARM_CONFIG = '{cfg}'",
         f"ARM_OUTPUT_DIR = os.path.join(DRIVE_EXP02_DIR, '{name}')",
+        "ARM_CHECKPOINT = os.path.join(ARM_OUTPUT_DIR, 'best_model.pt')",
         f"COLAB_CONFIG_PATH = '{colab_cfg}'  # outside the repo -- never committed",
         "",
+        "# Requirement: checkpoints/results MUST live on Google Drive, never on",
+        "# ephemeral Colab storage (which is wiped on a timeout/cooldown).",
+        "assert ARM_OUTPUT_DIR.startswith('/content/drive/'), f'Output dir must be on Drive: {ARM_OUTPUT_DIR}'",
         "os.makedirs(ARM_OUTPUT_DIR, exist_ok=True)",
+        "",
+        "# Build the Drive-backed throwaway config (committed configs stay untouched).",
         "config = load_config(ARM_CONFIG)",
         "config['experiment']['output_dir'] = ARM_OUTPUT_DIR  # redirect checkpoints/results to Drive",
+        "NUM_EPOCHS = int(config['training']['num_epochs'])  # 100 (unchanged)",
         "with open(COLAB_CONFIG_PATH, 'w') as f:",
         "    yaml.safe_dump(config, f)",
         "",
-        "print(f'Training Exp02-{ARM} ({ARM_CONFIG})')",
+        "# Decide fresh vs resume vs already-complete vs corrupt. All decision logic",
+        "# lives in src/train.py::plan_training_run; the resume mechanics live in",
+        "# run_training/_load_resume_checkpoint. This cell only orchestrates.",
+        "plan = plan_training_run(ARM_CHECKPOINT, num_epochs=NUM_EPOCHS)",
+        "banner = {'resume': 'RESUMING', 'fresh': 'FRESH START'}.get(plan['action'], plan['action'].upper())",
+        "print('=' * 62)",
+        "print(f'EXP02-{ARM} training  |  {banner}')",
+        "print('=' * 62)",
+        "print(plan['message'])",
         "print('  output_dir ->', ARM_OUTPUT_DIR)",
         "print('  preprocessing ->', config.get('preprocessing'))",
+        "print('-' * 62)",
         "",
-        "# Runs 100 epochs on the GPU, saving best_model.pt into ARM_OUTPUT_DIR.",
-        "summary = run_training(COLAB_CONFIG_PATH)",
-        "print(summary)",
+        "if plan['action'] == 'fresh':",
+        "    summary = run_training(COLAB_CONFIG_PATH)",
+        "    print(summary)",
+        "elif plan['action'] == 'resume':",
+        "    # resume_from restores model+optimizer+best_metric and continues at epoch+1.",
+        "    summary = run_training(COLAB_CONFIG_PATH, resume_from=ARM_CHECKPOINT)",
+        "    print(summary)",
+        "elif plan['action'] == 'already_complete':",
+        "    print(f'Nothing to train -- skip to the Exp02-{ARM} validation-evaluation cell.')",
+        "else:  # 'corrupt' -- fail clearly; do NOT start fresh, do NOT delete the checkpoint.",
+        "    raise RuntimeError(plan['message'])",
     )
 
 

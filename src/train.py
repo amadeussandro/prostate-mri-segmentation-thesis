@@ -391,6 +391,176 @@ def _load_resume_checkpoint(
     return start_epoch, best_metric, checkpoint_epoch
 
 
+def inspect_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
+    """Read-only inspection of a training checkpoint, for orchestration/recovery.
+
+    NEVER trains, mutates, or deletes the checkpoint -- it only `torch.load`s it
+    (map_location='cpu') and reports what it stores. Safe to call on a
+    Drive-backed checkpoint before deciding whether to resume. Never raises: a
+    missing file, or an unreadable (corrupted/truncated) or structurally
+    incompatible one, is reported through the returned dict, not an exception.
+
+    Returns a dict with keys:
+      exists, path, size_bytes, readable, error,
+      epoch, best_metric,
+      has_model_state, has_optimizer_state, has_scheduler_state, has_rng_state,
+      resumable
+
+    Note on `has_scheduler_state` / `has_rng_state`: the training design uses no
+    LR scheduler, and RNG state is intentionally not persisted (the fixed seed
+    preserves the experiment design; see run_training). Both are therefore
+    expected to be False for this project's checkpoints -- they are reported for
+    transparency, not because they are required for a safe resume.
+    """
+    info: Dict[str, Any] = {
+        "exists": False,
+        "path": checkpoint_path,
+        "size_bytes": None,
+        "readable": False,
+        "error": None,
+        "epoch": None,
+        "best_metric": None,
+        "has_model_state": False,
+        "has_optimizer_state": False,
+        "has_scheduler_state": False,
+        "has_rng_state": False,
+        "resumable": False,
+    }
+
+    if not checkpoint_path or not os.path.exists(checkpoint_path):
+        return info
+
+    info["exists"] = True
+    try:
+        info["size_bytes"] = os.path.getsize(checkpoint_path)
+    except OSError:
+        info["size_bytes"] = None
+
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    except Exception as exc:  # corrupted / truncated / unpicklable
+        info["error"] = f"{type(exc).__name__}: {exc}"
+        return info
+
+    if not isinstance(checkpoint, dict):
+        info["error"] = f"Checkpoint is not a dict (got {type(checkpoint).__name__})."
+        return info
+
+    info["readable"] = True
+    info["epoch"] = checkpoint.get("epoch")
+    info["best_metric"] = checkpoint.get("best_metric")
+    info["has_model_state"] = "model_state_dict" in checkpoint
+    info["has_optimizer_state"] = "optimizer_state_dict" in checkpoint
+    info["has_scheduler_state"] = "scheduler_state_dict" in checkpoint
+    info["has_rng_state"] = any("rng" in str(k).lower() for k in checkpoint.keys())
+
+    required = ("epoch", "model_state_dict", "optimizer_state_dict", "best_metric")
+    missing = [k for k in required if k not in checkpoint]
+    if missing:
+        info["error"] = f"Missing required key(s): {missing}"
+    elif not isinstance(info["epoch"], int):
+        info["error"] = f"'epoch' is not an int (got {type(info['epoch']).__name__})."
+    else:
+        info["resumable"] = True
+
+    return info
+
+
+def plan_training_run(checkpoint_path: str, num_epochs: int) -> Dict[str, Any]:
+    """Decide -- WITHOUT training or mutating anything -- whether an arm should
+    start fresh, resume, is already complete, or has an unusable checkpoint, and
+    build a human-readable log message.
+
+    This is pure orchestration/recovery logic; the actual resume mechanics still
+    live in `_load_resume_checkpoint` / `run_training`. A Colab (or any) caller
+    uses `action` to choose between `run_training(config)` and
+    `run_training(config, resume_from=checkpoint_path)` -- so the notebook never
+    duplicates training logic.
+
+    `action` is one of:
+      "fresh"            -- no checkpoint present; start at epoch 1.
+      "resume"           -- checkpoint at epoch < num_epochs; continue at epoch+1.
+      "already_complete" -- checkpoint epoch >= num_epochs; do NOT train again.
+      "corrupt"          -- checkpoint exists but is unreadable/incompatible;
+                            fail clearly, do NOT start fresh, do NOT delete it.
+    """
+    info = inspect_checkpoint(checkpoint_path)
+
+    if not info["exists"]:
+        return {
+            "action": "fresh",
+            "resume_from": None,
+            "checkpoint_epoch": None,
+            "best_metric": None,
+            "start_epoch": 1,
+            "num_epochs": num_epochs,
+            "checkpoint_info": info,
+            "message": (
+                "No checkpoint found.\n"
+                f"Starting fresh from epoch 1/{num_epochs}."
+            ),
+        }
+
+    if not info["resumable"]:
+        reason = info["error"] or "unreadable checkpoint"
+        return {
+            "action": "corrupt",
+            "resume_from": None,
+            "checkpoint_epoch": info["epoch"],
+            "best_metric": info["best_metric"],
+            "start_epoch": None,
+            "num_epochs": num_epochs,
+            "checkpoint_info": info,
+            "message": (
+                "Existing checkpoint detected but NOT usable:\n"
+                f"{checkpoint_path}\n"
+                f"Reason: {reason}\n"
+                "Refusing to start fresh (that would risk discarding a real run). "
+                "The checkpoint has NOT been modified or deleted -- investigate or "
+                "restore a good checkpoint before retrying."
+            ),
+        }
+
+    epoch = int(info["epoch"])
+    if epoch >= num_epochs:
+        return {
+            "action": "already_complete",
+            "resume_from": None,
+            "checkpoint_epoch": epoch,
+            "best_metric": info["best_metric"],
+            "start_epoch": None,
+            "num_epochs": num_epochs,
+            "checkpoint_info": info,
+            "message": (
+                "Existing checkpoint detected:\n"
+                f"{checkpoint_path}\n"
+                f"Checkpoint epoch: {epoch} (>= {num_epochs}).\n"
+                "Training already complete for this arm -- NOT retraining. "
+                "Proceed to this arm's validation-evaluation cell."
+            ),
+        }
+
+    best = info["best_metric"]
+    best_str = f"{best:.6f}" if isinstance(best, (int, float)) else str(best)
+    return {
+        "action": "resume",
+        "resume_from": checkpoint_path,
+        "checkpoint_epoch": epoch,
+        "best_metric": best,
+        "start_epoch": epoch + 1,
+        "num_epochs": num_epochs,
+        "checkpoint_info": info,
+        "message": (
+            "Existing checkpoint detected:\n"
+            f"{checkpoint_path}\n"
+            "Resume requested.\n"
+            f"Checkpoint epoch: {epoch}\n"
+            f"Best validation Dice: {best_str}\n"
+            f"Continuing from epoch {epoch + 1}/{num_epochs}."
+        ),
+    }
+
+
 def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[str, Any]:
     """Run (or resume) a training experiment from a YAML configuration.
 
