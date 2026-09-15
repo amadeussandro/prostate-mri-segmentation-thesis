@@ -1,0 +1,62 @@
+# AMP PILOT -- AMP arm (mixed precision).
+#
+# Purpose: a small, isolated, controlled FP32-vs-AMP comparison to decide whether
+# mixed precision changes segmentation results enough to be a confound in the
+# Experiment-2 preprocessing ablation. This is NOT an official experiment and it
+# writes ONLY under results/pilot_amp/ -- never results/exp01_baseline/ or
+# results/exp02_preprocessing/.
+#
+# IDENTICAL to configs/experiments/pilot_amp_fp32.yaml in EVERY scientific
+# setting (t2 -> t2_anatomy_reader1, official split, 2D U-Net 1->3, per-volume
+# normalization, crop/pad 442, AdamW lr=1e-3 wd=1e-4, cross_entropy, batch 8,
+# seed 42, 15 epochs). The ONLY differences are training.amp (true here) and the
+# isolated output_dir. Nothing else is tuned to "make AMP work".
+#
+# AMP affects TRAINING only (autocast + GradScaler); validation/evaluation runs
+# in FP32. AMP is effective on CUDA only; on CPU it is a harmless near no-op.
+
+experiment:
+  name: "pilot_amp_amp"
+  description: "AMP pilot arm: mixed-precision training, Exp01 default preprocessing, 15 epochs"
+  output_dir: "./results/pilot_amp/amp"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 15
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "cross_entropy"
+  amp: true                  # <-- pilot treatment (mixed precision); ONLY difference vs the FP32 arm
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"

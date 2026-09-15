@@ -1,0 +1,60 @@
+# AMP PILOT -- FP32 arm (control).
+#
+# Purpose: a small, isolated, controlled FP32-vs-AMP comparison to decide whether
+# mixed precision changes segmentation results enough to be a confound in the
+# Experiment-2 preprocessing ablation. This is NOT an official experiment and it
+# writes ONLY under results/pilot_amp/ -- never results/exp01_baseline/ or
+# results/exp02_preprocessing/.
+#
+# Every scientific setting is identical to the Experiment-1 baseline default
+# preprocessing (t2 -> t2_anatomy_reader1, official split, 2D U-Net 1->3,
+# per-volume normalization, crop/pad 442, AdamW lr=1e-3 wd=1e-4, cross_entropy,
+# batch 8, seed 42). The ONLY difference between this and pilot_amp_amp.yaml is
+# training.amp (false here, true there) -- and the isolated output_dir. Epochs
+# are capped at 15 for a fast pilot; nothing else is tuned.
+
+experiment:
+  name: "pilot_amp_fp32"
+  description: "AMP pilot control arm: FP32 training, Exp01 default preprocessing, 15 epochs"
+  output_dir: "./results/pilot_amp/fp32"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 15
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "cross_entropy"
+  amp: false                 # <-- pilot control (FP32)
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"

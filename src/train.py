@@ -126,29 +126,48 @@ def train_one_epoch(
     optimizer: Any,
     device: str,
     loss_type: str = "cross_entropy",
+    use_amp: bool = False,
+    scaler: Any = None,
 ) -> float:
-    """Execute one training epoch."""
+    """Execute one training epoch.
+
+    AMP (mixed precision) is OPT-IN and off by default. When `use_amp` is False
+    (the default, and every existing FP32 experiment) the loop below is the
+    exact original FP32 path -- no autocast, no GradScaler -- so FP32 behavior is
+    byte-for-byte unchanged. When `use_amp` is True, the forward pass runs under
+    `torch.autocast` and the backward/step go through the provided GradScaler.
+    AMP is a training-only speedup for the pilot; evaluation/inference stays FP32.
+    """
 
     model.train()
 
     total_loss = 0.0
     total_samples = 0
 
+    autocast_device = "cuda" if device == "cuda" else "cpu"
+
     for batch in dataloader:
         images, masks = _move_batch_to_device(batch, device)
 
         optimizer.zero_grad(set_to_none=True)
 
-        predictions = model(images)
-
-        loss = compute_loss(
-            predictions,
-            masks,
-            loss_type=loss_type,
-        )
-
-        loss.backward()
-        optimizer.step()
+        if use_amp and scaler is not None:
+            with torch.autocast(device_type=autocast_device, enabled=True):
+                predictions = model(images)
+                loss = compute_loss(predictions, masks, loss_type=loss_type)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            # Original FP32 path -- unchanged.
+            predictions = model(images)
+            loss = compute_loss(
+                predictions,
+                masks,
+                loss_type=loss_type,
+            )
+            loss.backward()
+            optimizer.step()
 
         batch_size = images.size(0)
 
@@ -215,6 +234,10 @@ def validate(
 
     dice_values = []
     iou_values = []
+    # Per-class slice-level Dice, accumulated separately for reporting ONLY --
+    # this does not feed the primary `dice` mean used for checkpoint selection,
+    # so it cannot change which epoch is saved as best.
+    per_class_dice_values: Dict[int, list] = {c: [] for c in range(1, num_classes)}
 
     with torch.no_grad():
         for batch in dataloader:
@@ -242,6 +265,14 @@ def validate(
             dice_values.append(dice)
             iou_values.append(iou)
 
+            predicted_classes = torch.argmax(predictions, dim=1)
+            for class_id in range(1, num_classes):
+                pred_mask = (predicted_classes == class_id).cpu().numpy()
+                true_mask = (masks == class_id).cpu().numpy()
+                if not pred_mask.any() and not true_mask.any():
+                    continue  # class absent from both: skip (same rule as the mean)
+                per_class_dice_values[class_id].append(compute_dice(pred_mask, true_mask))
+
     average_loss = (
         total_loss / total_samples
         if total_samples > 0
@@ -260,10 +291,16 @@ def validate(
         else 0.0
     )
 
+    per_class_dice = {
+        class_id: (float(np.mean(vals)) if vals else 0.0)
+        for class_id, vals in per_class_dice_values.items()
+    }
+
     return {
         "loss": average_loss,
         "dice": mean_dice,
         "iou": mean_iou,
+        "per_class_dice": per_class_dice,
     }
 
 
@@ -378,6 +415,7 @@ def _load_resume_checkpoint(
     optimizer: Any,
     device: str,
     num_epochs: int,
+    scaler: Any = None,
 ) -> Tuple[int, float, int]:
     """Restore model + optimizer state from a checkpoint to resume training.
 
@@ -389,6 +427,13 @@ def _load_resume_checkpoint(
     (and "config"). Backward-compatible with checkpoints carrying just those
     keys (e.g. the Experiment-1 epoch-60 best_model.pt), and the format written
     on resume is unchanged, so resumed checkpoints stay loadable the same way.
+
+    AMP resume (optional, pilot only): if `scaler` is provided AND the checkpoint
+    carries a "scaler_state_dict" (only AMP-mode runs write one), the GradScaler
+    state is restored so mixed-precision resume is correct. An FP32 checkpoint
+    (no such key) loads exactly as before -- `scaler` is simply left fresh -- so
+    all existing FP32 checkpoints remain fully loadable and AMP fields are never
+    required.
 
     `weights_only=False` is required because the checkpoint embeds the config
     dict (arbitrary Python), not just tensors.
@@ -410,6 +455,8 @@ def _load_resume_checkpoint(
 
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    if scaler is not None and checkpoint.get("scaler_state_dict") is not None:
+        scaler.load_state_dict(checkpoint["scaler_state_dict"])
 
     checkpoint_epoch = int(checkpoint["epoch"])
     best_metric = float(checkpoint["best_metric"])
@@ -457,6 +504,7 @@ def inspect_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
         "has_model_state": False,
         "has_optimizer_state": False,
         "has_scheduler_state": False,
+        "has_scaler_state": False,
         "has_rng_state": False,
         "resumable": False,
     }
@@ -486,6 +534,7 @@ def inspect_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
     info["has_model_state"] = "model_state_dict" in checkpoint
     info["has_optimizer_state"] = "optimizer_state_dict" in checkpoint
     info["has_scheduler_state"] = "scheduler_state_dict" in checkpoint
+    info["has_scaler_state"] = "scaler_state_dict" in checkpoint
     info["has_rng_state"] = any("rng" in str(k).lower() for k in checkpoint.keys())
 
     required = ("epoch", "model_state_dict", "optimizer_state_dict", "best_metric")
@@ -595,7 +644,11 @@ def plan_training_run(checkpoint_path: str, num_epochs: int) -> Dict[str, Any]:
     }
 
 
-def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[str, Any]:
+def run_training(
+    config_path: str,
+    resume_from: Optional[str] = None,
+    history_path: Optional[str] = None,
+) -> Dict[str, Any]:
     """Run (or resume) a training experiment from a YAML configuration.
 
     Parameters
@@ -609,13 +662,24 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
         the checkpoint's stored epoch + 1 through training.num_epochs. If None
         (the default), a fresh run starts at epoch 1 with best_metric = -inf --
         identical to the prior behavior.
+    history_path : Optional[str], default=None
+        If given, per-epoch metrics (train loss, val loss, val Dice, per-class
+        val Dice, epoch runtime seconds) are appended to this JSON file. Purely
+        additive telemetry for the AMP pilot; None (the default) means no history
+        file is written, so Exp01/Exp02 behavior is unchanged.
+
+    Mixed precision (AMP) is opt-in via `training.amp: true` in the config and is
+    OFF by default; every FP32 config trains exactly as before. AMP affects
+    training only -- validation/evaluation stays FP32.
 
     Returns
     -------
     Dict[str, Any]
         Small run summary: {"resumed", "start_epoch", "num_epochs",
-        "best_metric", "best_checkpoint"}. Callers may ignore it.
+        "best_metric", "best_checkpoint", "amp"}. Callers may ignore it.
     """
+    import json
+    import time
 
     config = load_config(config_path)
 
@@ -628,6 +692,17 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
     set_seed(seed)
 
     device = get_device()
+
+    # Mixed precision: OPT-IN, off by default. Only truly active on CUDA; a
+    # GradScaler is created only in AMP mode and its state is checkpointed so
+    # AMP resume is correct. FP32 runs never create a scaler and never write a
+    # scaler_state_dict, so their checkpoints are byte-compatible with before.
+    use_amp = bool(training_cfg.get("amp", False))
+    scaler = torch.amp.GradScaler(enabled=(use_amp and device == "cuda")) if use_amp else None
+    if use_amp:
+        print(f"AMP (mixed precision) ENABLED for TRAINING "
+              f"(effective on CUDA only; device={device}). Evaluation stays FP32.")
+    epoch_history = []
 
     output_dir = ensure_dir(
         config.get(
@@ -822,6 +897,7 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
             optimizer=optimizer,
             device=device,
             num_epochs=num_epochs,
+            scaler=scaler,
         )
         print(f"Resumed from checkpoint: {resume_from}")
         print(
@@ -835,12 +911,16 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
 
     for epoch in range(start_epoch, num_epochs + 1):
 
+        epoch_start = time.perf_counter()
+
         train_loss = train_one_epoch(
             model=model,
             dataloader=train_loader,
             optimizer=optimizer,
             device=device,
             loss_type=loss_type,
+            use_amp=use_amp,
+            scaler=scaler,
         )
 
         print(
@@ -848,6 +928,7 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
             f"- train_loss: {train_loss:.6f}"
         )
 
+        val_metrics = None
         if val_loader is not None:
 
             val_metrics = validate(
@@ -871,24 +952,54 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
             # there is no validation set.
             current_metric = -train_loss
 
+        epoch_seconds = time.perf_counter() - epoch_start
+
+        # Per-epoch telemetry (only materialized if history_path is given).
+        epoch_history.append({
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": (val_metrics["loss"] if val_metrics else None),
+            "val_dice": (val_metrics["dice"] if val_metrics else None),
+            "val_iou": (val_metrics["iou"] if val_metrics else None),
+            "val_per_class_dice": (
+                {str(k): v for k, v in val_metrics.get("per_class_dice", {}).items()}
+                if val_metrics else None
+            ),
+            "epoch_seconds": epoch_seconds,
+            "amp": use_amp,
+        })
+
         if current_metric > best_metric:
 
             best_metric = current_metric
 
-            torch.save(
-                {
-                    "epoch": epoch,
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "best_metric": best_metric,
-                    "config": config,
-                },
-                best_checkpoint,
-            )
+            checkpoint_payload = {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "best_metric": best_metric,
+                "config": config,
+            }
+            # Only AMP runs persist scaler state -- FP32 checkpoints stay in the
+            # exact prior 5-key format (backward-compatible on load).
+            if use_amp and scaler is not None:
+                checkpoint_payload["scaler_state_dict"] = scaler.state_dict()
+
+            torch.save(checkpoint_payload, best_checkpoint)
 
             print(
                 f"  Saved best checkpoint: {best_checkpoint}"
             )
+
+        # Persist the running history each epoch so a timeout still leaves a
+        # usable partial record (atomic-ish: written whole each time).
+        if history_path is not None:
+            with open(history_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {"amp": use_amp, "device": device, "num_epochs": num_epochs,
+                     "epochs": epoch_history},
+                    f, indent=2,
+                )
 
     print("Training completed.")
     print(f"Best checkpoint: {best_checkpoint}")
@@ -899,6 +1010,7 @@ def run_training(config_path: str, resume_from: Optional[str] = None) -> Dict[st
         "num_epochs": num_epochs,
         "best_metric": best_metric,
         "best_checkpoint": best_checkpoint,
+        "amp": use_amp,
     }
 
 
