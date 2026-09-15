@@ -16,7 +16,7 @@
 experiment:
   name: "pilot_amp_fp32"
   description: "AMP pilot control arm: FP32 training, Exp01 default preprocessing, 15 epochs"
-  output_dir: "./results/pilot_amp/fp32"
+  output_dir: "/content/drive/MyDrive/THESIS_PROSTATE158/results/pilot_amp/fp32"
 
 data:
   dataset_root: "dataset/prostate158_train/train"

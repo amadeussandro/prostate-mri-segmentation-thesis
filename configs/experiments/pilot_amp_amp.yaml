@@ -18,7 +18,7 @@
 experiment:
   name: "pilot_amp_amp"
   description: "AMP pilot arm: mixed-precision training, Exp01 default preprocessing, 15 epochs"
-  output_dir: "./results/pilot_amp/amp"
+  output_dir: "/content/drive/MyDrive/THESIS_PROSTATE158/results/pilot_amp/amp"
 
 data:
   dataset_root: "dataset/prostate158_train/train"
