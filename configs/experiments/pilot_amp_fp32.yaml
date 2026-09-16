@@ -15,8 +15,9 @@
 
 experiment:
   name: "pilot_amp_fp32"
-  description: "AMP pilot control arm: FP32 training, Exp01 default preprocessing, 15 epochs"
-  output_dir: "/content/drive/MyDrive/THESIS_PROSTATE158/results/pilot_amp/fp32"
+  description: "AMP pilot control arm: FP32 training, Exp01 default preprocessing, 10 epochs"
+  # v2 directory: a CLEAN pilot, separate from the damaged results/pilot_amp/fp32.
+  output_dir: "/content/drive/MyDrive/THESIS_PROSTATE158/results/pilot_amp_v2/fp32"
 
 data:
   dataset_root: "dataset/prostate158_train/train"
@@ -41,7 +42,7 @@ model:
 training:
   batch_size: 8
   learning_rate: 0.001
-  num_epochs: 15
+  num_epochs: 10
   seed: 42
   optimizer: "AdamW"
   weight_decay: 0.0001

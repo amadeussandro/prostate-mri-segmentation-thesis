@@ -56,7 +56,7 @@ results/**/eval_*_summary.csv
 results/**/eval_*_summary.json
 
 # AMP pilot run artifacts (generated at runtime on Drive/Colab, not committed).
-# The results/pilot_amp/<arm>/ directories themselves are kept via .gitkeep.
-results/pilot_amp/**/pilot_history.json
-results/pilot_amp/**/runtime_info.json
-results/pilot_amp/**/config_snapshot.yaml
+# The results/pilot_amp*/<arm>/ directories themselves are kept via .gitkeep.
+results/pilot_amp*/**/pilot_history.json
+results/pilot_amp*/**/runtime_info.json
+results/pilot_amp*/**/config_snapshot.yaml

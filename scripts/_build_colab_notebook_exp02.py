@@ -1,15 +1,37 @@
-"""One-off generator for notebooks/prostate158_experiment_02_colab.ipynb.
+"""Generator for notebooks/prostate158_experiment_02_colab.ipynb.
 
-Not part of any pipeline gate. Run once locally to (re)build the Experiment 2
-(preprocessing ablation, RQ-1) orchestration notebook as valid nbformat4 JSON,
-so cell content doesn't have to be hand-escaped. Mirrors the structure and
-conventions of scripts/_build_colab_notebook.py (Experiment 1). Safe to delete
-after the notebook exists; kept only for reproducible edits.
+Run locally to (re)build the FINAL Colab orchestration notebook as valid
+nbformat4 JSON (so cell content need not be hand-escaped). The notebook is
+ORCHESTRATION ONLY -- every substantive step calls existing src/ modules or
+scripts/*.py entry points; the repo on GitHub stays the single source of truth.
 
-The notebook is ORCHESTRATION ONLY: every substantive step calls existing
-src/ modules or scripts/*.py entry points. Only preprocessing varies across the
-three arms; model, optimizer, loss, seed, official split, target mask, slicing,
-and the evaluation definition are held exactly as audited (Exp01 baseline).
+Structure (NOT designed for "Run All" -- run cells deliberately, top to bottom;
+training cells are independently executable and resume-safe from Drive):
+   1  GPU / environment check
+   2  Google Drive mount
+   3  Repository clone / pull
+   4  Dependency installation
+   5  Dataset source setup (optional local runtime cache)
+   6  Dataset integrity validation (FILE level, not dir count)
+   7  Repository / commit verification
+   8  Scientific control checks
+   9  Geometry / round-trip verification
+   10 Checkpoint safety inspection (pilot + official)
+   11 FP32 pilot (10 epochs)
+   12 AMP pilot (10 epochs)
+   13 FP32 vs AMP comparison
+   14 Explicit decision point (no auto-decision)
+   15 Official Exp01 (locked baseline) -- status only
+   16 Exp01 evaluation
+   17 Exp02-A training + evaluation
+   18 Exp02-B training + evaluation
+   19 Exp02-C training + evaluation
+   20 Final result collection
+
+Only preprocessing varies across the official Exp02 arms; model, optimizer,
+loss, seed, split, target mask, slicing, and evaluation are held exactly as
+audited. Precision (FP32/AMP) is a manual decision from the pilot -- never
+auto-selected here.
 """
 import json
 import os
@@ -29,184 +51,106 @@ def code(*lines):
     }
 
 
+# Official Exp02 arms -- REAL committed config names / output dirs (unchanged).
+EXP02_ARMS = {
+    "A": {"name": "a_zresample_on", "config": "configs/experiments/exp02_a_zresample_on.yaml"},
+    "B": {"name": "b_normalization_global", "config": "configs/experiments/exp02_b_normalization_global.yaml"},
+    "C": {"name": "c_spatial_resize", "config": "configs/experiments/exp02_c_spatial_resize.yaml"},
+}
+
 cells = []
 
+# ===================================================================== HEADER
 cells.append(md(
-    "# Prostate158 Zonal Segmentation -- Experiment 2 (Preprocessing Ablation, RQ-1) Colab Orchestration",
+    "# Prostate158 Zonal Segmentation -- Final Colab Orchestration",
     "",
-    "**This notebook is orchestration only.** It contains no pipeline logic --",
-    "every substantive step calls the existing `src/` modules or `scripts/*.py`",
-    "entry points from the repository, which remains the single source of truth on",
-    "GitHub.",
+    "**Orchestration only.** Every substantive step calls existing `src/` modules",
+    "or `scripts/*.py`; the GitHub repo is the single source of truth. This notebook",
+    "takes you through: environment + dataset verification -> a short **FP32-vs-AMP",
+    "pilot** -> a precision **decision** you make from the evidence -> the official",
+    "**100-epoch** experiments.",
     "",
-    "**Research question (RQ-1):** what is the effect of preprocessing decisions on",
-    "volume-level segmentation performance when model architecture and",
-    "hyperparameters are kept constant?",
+    "### How to run this notebook",
+    "- **Do NOT \"Run All\".** Run cells deliberately, top to bottom.",
+    "- Training cells are **independently executable and resume-safe**: each inspects",
+    "  its Drive checkpoint first and RESUMES from `epoch+1` -- it never silently",
+    "  restarts at epoch 1 or overwrites an existing checkpoint. If Colab times out,",
+    "  just rerun the same training cell.",
+    "- **Pilot vs official outputs are fully separated.** Pilot -> `results/pilot_amp_v2/`;",
+    "  official -> `results/exp01_baseline/` and `results/exp02_preprocessing/<arm>/`.",
+    "- **Precision is NOT auto-selected.** The pilot only presents evidence; you choose",
+    "  FP32 or AMP for the official experiments (Section 14).",
     "",
-    "**Controlled ablation -- ONLY preprocessing varies.** Held fixed at the Exp01",
-    "baseline values (see `configs/config_baseline.yaml`): ProstateUNet2D",
-    "(1->3, init_features=32, dropout 0.2), cross_entropy, AdamW lr=0.001 wd=1e-4,",
-    "batch_size=8, num_epochs=100, seed=42, official 119/20 split, target mask",
-    "`t2_anatomy_reader1`, axial slicing, and the evaluation definition (volume-level,",
-    "per-case, original voxel space). `tests/test_exp02_configs.py` asserts this.",
-    "",
-    "| Arm | Config | Ablated preprocessing factor |",
-    "|---|---|---|",
-    "| **A** | `configs/experiments/exp02_a_zresample_on.yaml` | z-axis resampling ON (baseline: OFF) |",
-    "| **B** | `configs/experiments/exp02_b_normalization_global.yaml` | global train-only normalization (baseline: per-volume) |",
-    "| **C** | `configs/experiments/exp02_c_spatial_resize.yaml` | resize 256x256 (baseline: crop/pad 442x442) |",
-    "",
-    "> **Note on Arm A.** The Prostate158 cohort already has a uniform ~3.0 mm",
-    "> z-spacing, so z-resampling to 3.0 mm is expected to be a *near no-op* on THIS",
-    "> dataset. This is preserved deliberately: it documents the ablation axis defined",
-    "> in the thesis proposal, and per-case spacing could in principle differ. The",
-    "> z-resampling target is intentionally NOT redesigned around this cohort.",
-    "",
-    "- GitHub: source of truth for code (this repo).",
-    "- Google Drive: stores the dataset, checkpoints, and results. **Never in GitHub.**",
-    "- Each arm's checkpoint and results go under `results/exp02_preprocessing/<arm>/`",
-    "  (mirrored on Drive).",
-    "- **Resume-safe for T4 timeouts.** Each arm's training cell auto-detects its",
-    "  Drive checkpoint: if none exists it starts fresh at epoch 1; if one exists it",
-    "  resumes from `epoch+1` (never restarting at epoch 1) and skips training",
-    "  entirely once the checkpoint reaches 100 epochs. Just rerun the same cell",
-    "  after a disconnect. Decision logic lives in `src/train.py` (orchestration-only",
-    "  notebook).",
-    "- **The official 19-case held-out TEST set is untouched during variant selection.**",
-    "  This notebook evaluates the VALIDATION split only; held-out test is deferred",
-    "  until after a variant is chosen (a separate, one-time step, as in Exp01).",
-    "",
-    "Run the readiness cells (1-10b) in order. The per-arm training/validation cells",
-    "(11 onward) are clearly separated -- run them only after readiness is green.",
+    "> Scientific pipeline (unchanged): dataset -> preprocessing -> 3D->2D axial",
+    "> slicing -> 2D U-Net -> inference -> 2D->3D reconstruction -> spatial",
+    "> verification -> original-space volume evaluation. Spatial verification and the",
+    "> round-trip gate (Section 9) must pass before trusting any training result.",
 ))
 
-# ---- 1. GPU ----
-cells.append(md(
-    "## 1. Check GPU",
-    "",
-    "`!nvidia-smi` runs through the notebook shell; on a CPU-only runtime it just",
-    "prints an error line and does not stop later cells.",
-))
+# ===================================================================== 1 GPU
+cells.append(md("## 1. GPU / environment check"))
 cells.append(code("!nvidia-smi"))
 cells.append(code(
     "import torch",
-    "",
     "print('torch:', torch.__version__)",
     "print('CUDA available:', torch.cuda.is_available())",
     "if torch.cuda.is_available():",
     "    print('GPU:', torch.cuda.get_device_name(0))",
 ))
 
-# ---- 2. Drive ----
+# ===================================================================== 2 DRIVE
 cells.append(md("## 2. Mount Google Drive"))
-cells.append(code(
-    "from google.colab import drive",
-    "",
-    "drive.mount('/content/drive')",
-))
+cells.append(code("from google.colab import drive", "drive.mount('/content/drive')"))
 
-# ---- 3. Paths ----
+# ===================================================================== 3 CLONE
 cells.append(md(
-    "## 3. Define paths",
+    "## 3. Clone / pull the repository",
     "",
-    "Adjust `DRIVE_ROOT` only if your dataset lives somewhere other than",
-    "`/content/drive/MyDrive/THESIS_PROSTATE158`.",
+    "The committed repo is authoritative. A fresh clone always has the correct",
+    "pipeline code (do NOT rely on any locally-edited copy).",
 ))
 cells.append(code(
-    "import os",
-    "",
+    "import os, subprocess",
     "REPO_URL = 'https://github.com/amadeussandro/prostate-mri-segmentation-thesis.git'",
     "REPO_DIR = '/content/thesis-project'",
-    "",
-    "DRIVE_ROOT = '/content/drive/MyDrive/THESIS_PROSTATE158'",
-    "DRIVE_DATASET_DIR = os.path.join(DRIVE_ROOT, 'dataset')",
-    "DRIVE_RESULTS_DIR = os.path.join(DRIVE_ROOT, 'results')",
-    "",
-    "# Experiment 2 results live under results/exp02_preprocessing/<arm>/ (on Drive).",
-    "DRIVE_EXP02_DIR = os.path.join(DRIVE_RESULTS_DIR, 'exp02_preprocessing')",
-    "EXP02_ARMS = {",
-    "    'A': {'name': 'a_zresample_on',        'config': 'configs/experiments/exp02_a_zresample_on.yaml'},",
-    "    'B': {'name': 'b_normalization_global','config': 'configs/experiments/exp02_b_normalization_global.yaml'},",
-    "    'C': {'name': 'c_spatial_resize',      'config': 'configs/experiments/exp02_c_spatial_resize.yaml'},",
-    "}",
-    "",
-    "print('Repo dir:         ', REPO_DIR)",
-    "print('Drive dataset dir:', DRIVE_DATASET_DIR)",
-    "print('Drive results dir:', DRIVE_RESULTS_DIR)",
-    "print('Drive exp02 dir:  ', DRIVE_EXP02_DIR)",
-))
-
-# ---- 4. Clone/pull ----
-cells.append(md("## 4. Clone or pull the GitHub repository"))
-cells.append(code(
-    "import subprocess",
-    "",
     "if not os.path.isdir(REPO_DIR):",
     "    subprocess.run(['git', 'clone', REPO_URL, REPO_DIR], check=True)",
-    "",
     "os.chdir(REPO_DIR)",
     "subprocess.run(['git', 'checkout', 'main'], check=True)",
     "subprocess.run(['git', 'pull', 'origin', 'main'], check=True)",
     "subprocess.run(['git', 'log', '-1', '--oneline'], check=True)",
 ))
 
-# ---- 5. Requirements ----
-cells.append(md("## 5. Install requirements"))
+# ===================================================================== 4 DEPS
+cells.append(md("## 4. Install dependencies"))
 cells.append(code("!pip install -q -r requirements.txt"))
 
-# ---- 6. Link dataset (with optional local runtime cache) ----
+# ===================================================================== 5 DATA SRC
 cells.append(md(
-    "## 6. Link the dataset into the repository (optional local runtime cache)",
+    "## 5. Dataset source setup (optional local runtime cache)",
     "",
-    "Every config uses a path relative to the repo root",
-    "(`dataset_root: \"dataset/prostate158_train/train\"`), and `dataset/` is",
-    "git-ignored -- never present in a fresh clone. One symlink makes the existing",
-    "relative paths resolve to the real data; no config or source file is edited.",
-    "",
-    "**Optional runtime speedup (`USE_LOCAL_DATASET_CACHE`).** Reading NIfTI",
-    "straight from the Drive FUSE mount is slow and flaky, and the dataset is fully",
-    "loaded + preprocessed into RAM once at the start of every `run_training`",
-    "(including every resume). Copying the dataset ONCE to fast local Colab storage",
-    "(`/content/local_dataset`) and pointing the symlink there makes that one-time",
-    "startup read fast and reliable. This is a pure runtime optimization:",
-    "",
-    "- The dataset **content is not modified** (a plain recursive copy; Drive stays",
-    "  the persistent source, read-only here).",
-    "- The **official train/validation split is unchanged** -- the same `train.csv`/",
-    "  `valid.csv` and case folders are copied verbatim.",
-    "- **Checkpoints/results still go to Google Drive** (Section 3's",
-    "  `results/exp02_preprocessing/<arm>/`), never to `/content` -- only the",
-    "  read-only dataset is cached locally. `/content` is wiped on a timeout, which",
-    "  is fine for a re-copyable dataset but would be fatal for checkpoints.",
-    "",
-    "Set `USE_LOCAL_DATASET_CACHE = False` to read directly from Drive (the prior",
-    "behavior).",
+    "Configs use the repo-relative path `dataset/prostate158_train/train`. A symlink",
+    "makes that resolve to the real data. `USE_LOCAL_DATASET_CACHE=True` first copies",
+    "the dataset ONCE from Drive to fast local `/content` storage (Drive stays the",
+    "read-only source; **checkpoints/results always go to Drive**). Integrity is",
+    "validated at FILE level in Section 6 -- not by directory count.",
 ))
 cells.append(code(
-    "import shutil, subprocess",
-    "",
-    "USE_LOCAL_DATASET_CACHE = True  # set False to read NIfTI directly from Drive",
+    "import os, shutil, subprocess",
+    "DRIVE_ROOT = '/content/drive/MyDrive/THESIS_PROSTATE158'",
+    "DRIVE_DATASET_DIR = os.path.join(DRIVE_ROOT, 'dataset')",
+    "DRIVE_RESULTS_DIR = os.path.join(DRIVE_ROOT, 'results')",
     "LOCAL_DATASET_DIR = '/content/local_dataset'",
+    "USE_LOCAL_DATASET_CACHE = True   # set False to read NIfTI directly from Drive",
     "",
-    "assert os.path.isdir(DRIVE_DATASET_DIR), f'Dataset not found on Drive at {DRIVE_DATASET_DIR}'",
-    "",
-    "def _count_case_dirs(root):",
-    "    train_dir = os.path.join(root, 'prostate158_train', 'train')",
-    "    return len([d for d in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, d))]) if os.path.isdir(train_dir) else 0",
-    "",
+    "assert os.path.isdir(DRIVE_DATASET_DIR), f'Dataset not found on Drive: {DRIVE_DATASET_DIR}'",
     "if USE_LOCAL_DATASET_CACHE:",
-    "    drive_n = _count_case_dirs(DRIVE_DATASET_DIR)",
-    "    local_n = _count_case_dirs(LOCAL_DATASET_DIR)",
-    "    if local_n >= drive_n and drive_n > 0:",
-    "        print(f'Local dataset cache already present ({local_n} case dirs) -- skipping copy.')",
-    "    else:",
-    "        print(f'Copying dataset Drive -> {LOCAL_DATASET_DIR} (one-time; {drive_n} case dirs)...')",
-    "        os.makedirs(LOCAL_DATASET_DIR, exist_ok=True)",
-    "        # rsync is fast + resumable on Colab; fall back to shutil.copytree.",
-    "        rc = subprocess.run(['rsync', '-a', DRIVE_DATASET_DIR.rstrip('/') + '/', LOCAL_DATASET_DIR.rstrip('/') + '/']).returncode",
-    "        if rc != 0:",
-    "            shutil.copytree(DRIVE_DATASET_DIR, LOCAL_DATASET_DIR, dirs_exist_ok=True)",
-    "        print(f'Local cache ready: {_count_case_dirs(LOCAL_DATASET_DIR)} case dirs.')",
+    "    os.makedirs(LOCAL_DATASET_DIR, exist_ok=True)",
+    "    print('Syncing dataset Drive -> local (rsync -a; safe to re-run)...')",
+    "    rc = subprocess.run(['rsync', '-a', DRIVE_DATASET_DIR.rstrip('/') + '/',",
+    "                         LOCAL_DATASET_DIR.rstrip('/') + '/']).returncode",
+    "    if rc != 0:",
+    "        shutil.copytree(DRIVE_DATASET_DIR, LOCAL_DATASET_DIR, dirs_exist_ok=True)",
     "    DATASET_SRC = LOCAL_DATASET_DIR",
     "else:",
     "    DATASET_SRC = DRIVE_DATASET_DIR",
@@ -216,378 +160,430 @@ cells.append(code(
     "    os.remove(link_path)",
     "elif os.path.exists(link_path):",
     "    raise RuntimeError(f'{link_path} exists and is not a symlink -- refusing to overwrite.')",
-    "",
     "os.symlink(DATASET_SRC, link_path)",
-    "print('Linked:', link_path, '->', os.readlink(link_path))",
+    "print('Linked', link_path, '->', os.readlink(link_path))",
     "",
-    "expected_t2 = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train', '020', 't2.nii.gz')",
-    "expected_mask = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train', '020', 't2_anatomy_reader1.nii.gz')",
-    "print('t2.nii.gz found:               ', os.path.exists(expected_t2))",
-    "print('t2_anatomy_reader1.nii.gz found:', os.path.exists(expected_mask))",
+    "# Official Exp02 arms (real committed config names / output dirs). Used by later cells.",
+    "EXP02_ARMS = {",
+    "    'A': {'name': 'a_zresample_on',         'config': 'configs/experiments/exp02_a_zresample_on.yaml'},",
+    "    'B': {'name': 'b_normalization_global', 'config': 'configs/experiments/exp02_b_normalization_global.yaml'},",
+    "    'C': {'name': 'c_spatial_resize',       'config': 'configs/experiments/exp02_c_spatial_resize.yaml'},",
+    "}",
 ))
 
-# ---- 7. Inventory ----
+# ===================================================================== 6 INTEGRITY
 cells.append(md(
-    "## 7. Inventory check: how much of the official split is on Drive",
+    "## 6. Dataset integrity validation (FILE level)",
     "",
-    "The official split is 119 train / 20 validation cases (`src/splits.py`). This",
-    "reports coverage up front instead of failing later with a confusing",
-    "`FileNotFoundError`. Experiment 2 trains on the SAME split as Exp01.",
+    "A cache can have the right NUMBER of case folders yet be missing or have empty",
+    "NIfTI files. This verifies every official train+val case actually has non-empty",
+    "`t2.nii.gz` and `t2_anatomy_reader1.nii.gz`, plus the split CSVs",
+    "(`src.data_integrity.verify_dataset_cache`). If incomplete, it reports exactly",
+    "what is missing, rebuilds from the authoritative Drive dataset, and re-verifies.",
+    "**Do not run training until this reports OK.**",
 ))
 cells.append(code(
-    "import pandas as pd",
-    "",
-    "train_csv = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train.csv')",
-    "valid_csv = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'valid.csv')",
-    "train_root = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train')",
-    "",
-    "if os.path.exists(train_csv) and os.path.exists(valid_csv):",
-    "    train_ids = [str(int(v)).zfill(3) for v in pd.read_csv(train_csv)['ID']]",
-    "    val_ids = [str(int(v)).zfill(3) for v in pd.read_csv(valid_csv)['ID']]",
-    "    all_ids = train_ids + val_ids",
-    "    present = [pid for pid in all_ids if os.path.isdir(os.path.join(train_root, pid))]",
-    "    missing = [pid for pid in all_ids if pid not in present]",
-    "    print(f'Official split: {len(train_ids)} train + {len(val_ids)} val = {len(all_ids)} cases')",
-    "    print(f'Present on Drive: {len(present)}/{len(all_ids)}')",
-    "    if missing:",
-    "        preview = missing[:10]",
-    "        print(f'Missing ({len(missing)}): {preview}{\"...\" if len(missing) > 10 else \"\"}')",
-    "else:",
-    "    print('train.csv/valid.csv not found under the Drive dataset -- cannot check coverage.')",
-))
-
-# ---- 8. Verify configs + matrix ----
-cells.append(md(
-    "## 8. Verify all three Exp02 configs (scientific-control gate)",
-    "",
-    "`tests/test_exp02_configs.py` asserts that each arm differs from the Exp01",
-    "baseline in EXACTLY its intended preprocessing factor and nothing else (model,",
-    "optimizer, lr, seed, epochs, batch size, split, target mask, loss, slice",
-    "sampling all identical), that no test split is referenced, that seeds equal 42,",
-    "that each arm's output dir is isolated under `results/exp02_preprocessing/`, and",
-    "that Arm B's global stats are auto-derived from the TRAIN split only (no leakage).",
-))
-cells.append(code("!python -m pytest tests/test_exp02_configs.py -v"))
-cells.append(md(
-    "Print the ablation matrix directly from the configs so the single varying factor",
-    "per arm is visible at a glance (baseline column included for reference).",
-))
-cells.append(code(
-    "import sys",
+    "import sys, subprocess, shutil",
     "sys.path.insert(0, REPO_DIR)",
-    "from src.utils import load_config",
+    "from src.data_integrity import verify_dataset_cache, format_cache_report",
     "",
-    "def _preproc(path):",
-    "    p = load_config(path).get('preprocessing', {})",
-    "    return {",
-    "        'normalization': p.get('normalization'),",
-    "        'z_resample': p.get('z_resample'),",
-    "        'spatial_mode': p.get('spatial_mode'),",
-    "        'target_size': p.get('target_size'),",
-    "    }",
+    "DS_ROOT = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train')",
+    "TRAIN_CSV = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'train.csv')",
+    "VALID_CSV = os.path.join(REPO_DIR, 'dataset', 'prostate158_train', 'valid.csv')",
     "",
-    "rows = {'baseline (Exp01)': _preproc('configs/config_baseline.yaml')}",
-    "for key, arm in EXP02_ARMS.items():",
-    "    rows[f'Exp02-{key} ({arm[\"name\"]})'] = _preproc(arm['config'])",
+    "report = verify_dataset_cache(DS_ROOT, TRAIN_CSV, VALID_CSV)",
+    "print(format_cache_report(report))",
     "",
-    "matrix = pd.DataFrame(rows).T[['normalization', 'z_resample', 'spatial_mode', 'target_size']]",
-    "print(matrix.to_string())",
+    "if not report['ok'] and USE_LOCAL_DATASET_CACHE:",
+    "    print('\\nLocal cache INCOMPLETE -> rebuilding from Drive (rsync) and re-verifying...')",
+    "    rc = subprocess.run(['rsync', '-a', DRIVE_DATASET_DIR.rstrip('/') + '/',",
+    "                         LOCAL_DATASET_DIR.rstrip('/') + '/']).returncode",
+    "    if rc != 0:",
+    "        shutil.copytree(DRIVE_DATASET_DIR, LOCAL_DATASET_DIR, dirs_exist_ok=True)",
+    "    report = verify_dataset_cache(DS_ROOT, TRAIN_CSV, VALID_CSV)",
+    "    print(format_cache_report(report))",
+    "",
+    "DATASET_OK = bool(report['ok'])",
+    "assert DATASET_OK, 'Dataset cache is INCOMPLETE -- fix before training (see report above).'",
+    "print('\\nDataset integrity: OK -- training cells are allowed.')",
 ))
 
-# ---- 9. Geometry round-trip gate ----
+# ===================================================================== 7 COMMIT
+cells.append(md("## 7. Repository / commit verification"))
+cells.append(code(
+    "import subprocess",
+    "print('HEAD commit:')",
+    "subprocess.run(['git', '-C', REPO_DIR, 'log', '-1', '--oneline'], check=True)",
+    "print('Status (should be clean in a fresh clone):')",
+    "subprocess.run(['git', '-C', REPO_DIR, 'status', '--short'], check=True)",
+))
+
+# ===================================================================== 8 CONTROLS
 cells.append(md(
-    "## 9. Round-trip fidelity gate (geometry, no model)",
+    "## 8. Scientific control checks",
     "",
-    "`scripts/roundtrip_test.py` must report Dice = 1.0 exactly for every class on the",
-    "crop/pad suites -- this is the geometry-correctness gate the crop/pad arms",
-    "(baseline, A, B) depend on. The `resize` arm (C) is deliberately NOT pixel-exact,",
-    "which is why evaluation compares against the untouched on-disk ground truth",
-    "(next cell), not a round-tripped mask.",
+    "Asserts the Exp02 arms differ from the Exp01 baseline in exactly their intended",
+    "preprocessing factor (nothing else), that pilot configs differ only by AMP, and",
+    "that official experiments are 100 epochs / pilot is 10.",
+))
+cells.append(code(
+    "# -k 'not Integration' keeps this verification cell training-free (it skips the",
+    "# 1-epoch run_training integration test in tests/test_amp_pilot.py).",
+    "!python -m pytest tests/test_exp02_configs.py tests/test_amp_pilot.py -q -k \"not Integration\"",
+))
+cells.append(code(
+    "from src.utils import load_config",
+    "import pandas as pd",
+    "def _p(path):",
+    "    p = load_config(path).get('preprocessing', {})",
+    "    return {'normalization': p.get('normalization'), 'z_resample': p.get('z_resample'),",
+    "            'spatial_mode': p.get('spatial_mode'), 'target_size': p.get('target_size')}",
+    "rows = {'baseline (Exp01)': _p('configs/config_baseline.yaml')}",
+    "for k, a in EXP02_ARMS.items():",
+    "    rows[f'Exp02-{k}'] = _p(a['config'])",
+    "print(pd.DataFrame(rows).T[['normalization','z_resample','spatial_mode','target_size']].to_string())",
+))
+
+# ===================================================================== 9 GEOMETRY
+cells.append(md(
+    "## 9. Geometry / round-trip verification",
+    "",
+    "The flagship spatial gate: crop/pad round-trips ground truth to Dice = 1.0",
+    "(no model). Also runs the evaluation-fairness guard (predictions scored against",
+    "the untouched on-disk GT). **Both must pass before any training result is",
+    "trusted.**",
 ))
 cells.append(code("!python scripts/roundtrip_test.py"))
+cells.append(code("!python -m pytest tests/test_original_space_gt.py -q"))
 
-# ---- 10. Evaluation-fairness guard ----
+# ===================================================================== 10 CKPT INSPECT
 cells.append(md(
-    "## 10. Evaluation-fairness guard (untouched original-space GT)",
+    "## 10. Checkpoint safety inspection (pilot + official)",
     "",
-    "`tests/test_original_space_gt.py` proves the primary protocol scores every arm's",
-    "prediction against the IDENTICAL, untouched on-disk mask in original voxel space:",
-    "crop/pad round-trips bit-for-bit (so Exp01 numbers are unchanged), the `resize`",
-    "round-trip is lossy, and the evaluated GT is the untouched mask under BOTH arms.",
-    "This prevents the lossy resize arm from being scored optimistically -- essential",
-    "for a fair RQ-1 comparison.",
-))
-cells.append(code("!python -m pytest tests/test_original_space_gt.py -v"))
-
-# ---- 10b. Checkpoint / safepoint inspection (inspection only) ----
-cells.append(md(
-    "## 10b. Checkpoint / safepoint inspection (inspection only -- does NOT train)",
-    "",
-    "T4 sessions can time out mid-run, so each arm trains to a Drive-backed",
-    "`best_model.pt` and is **resume-safe**: rerunning an arm's training cell",
-    "auto-detects its checkpoint and continues from `epoch+1` instead of",
-    "restarting at epoch 1. This cell reports, per arm, whether a checkpoint",
-    "exists and whether it is resumable -- using the read-only",
-    "`src.train.inspect_checkpoint` / `plan_training_run` helpers. It starts no",
-    "training and never modifies a checkpoint.",
-    "",
-    "Checkpoint format (verified): `epoch`, `model_state_dict`,",
-    "`optimizer_state_dict`, `best_metric`, `config`. There is **no LR scheduler**",
-    "in this experiment (nothing to restore), and RNG state is intentionally not",
-    "persisted -- the fixed `seed=42` preserves the experiment design; a resumed",
-    "run is not bit-identical to an uninterrupted one but is scientifically",
-    "equivalent for this controlled ablation.",
+    "Read-only status for every pilot and official checkpoint on Drive, using",
+    "`src.train.inspect_checkpoint` / `plan_training_run`. Starts no training and",
+    "modifies nothing. Shows whether each arm would start FRESH, RESUME (and at which",
+    "epoch), is ALREADY COMPLETE, or has an UNUSABLE checkpoint.",
 ))
 cells.append(code(
-    "import os",
     "from src.train import inspect_checkpoint, plan_training_run",
     "",
-    "print('EXP02 CHECKPOINT STATUS')",
-    "print('-' * 62)",
-    "for _key, _arm in EXP02_ARMS.items():",
-    "    _ckpt = os.path.join(DRIVE_EXP02_DIR, _arm['name'], 'best_model.pt')",
-    "    _info = inspect_checkpoint(_ckpt)",
-    "    _plan = plan_training_run(_ckpt, num_epochs=100)",
-    "    if not _info['exists']:",
-    "        print(f'{_key} | NONE  | -            | -                | READY FOR FRESH RUN')",
-    "        continue",
-    "    _size_mb = (_info['size_bytes'] or 0) / 1e6",
-    "    if _plan['action'] == 'corrupt':",
-    "        print(f'{_key} | FOUND | UNUSABLE -- {_info[\"error\"]}')",
-    "        print(f'    path {_ckpt} ({_size_mb:.1f} MB) -- NOT modified/deleted')",
-    "        continue",
-    "    _status = {'resume': 'RESUMABLE', 'already_complete': 'ALREADY COMPLETE'}.get(_plan['action'], _plan['action'].upper())",
-    "    _best = _info['best_metric']",
-    "    _best_str = f'{_best:.6f}' if isinstance(_best, (int, float)) else str(_best)",
-    "    print(f'{_key} | FOUND | epoch {_info[\"epoch\"]}/100 | best Dice {_best_str} | {_status}')",
-    "    print(f'    path {_ckpt} ({_size_mb:.1f} MB)')",
-    "    print(f'    model={_info[\"has_model_state\"]} optim={_info[\"has_optimizer_state\"]} '",
-    "          f'scheduler={_info[\"has_scheduler_state\"]} rng={_info[\"has_rng_state\"]}')",
-    "print('-' * 62)",
-    "print('Inspection only -- no training was started; no checkpoint was modified.')",
+    "PILOT = {'PILOT-FP32 (10ep)': ('results/pilot_amp_v2/fp32', 10),",
+    "         'PILOT-AMP  (10ep)': ('results/pilot_amp_v2/amp', 10)}",
+    "OFFICIAL = {'EXP01 (100ep, LOCKED)': ('results/exp01_baseline', 100),",
+    "            'EXP02-A (100ep)': ('results/exp02_preprocessing/a_zresample_on', 100),",
+    "            'EXP02-B (100ep)': ('results/exp02_preprocessing/b_normalization_global', 100),",
+    "            'EXP02-C (100ep)': ('results/exp02_preprocessing/c_spatial_resize', 100)}",
+    "",
+    "def _row(label, subdir, num_epochs):",
+    "    ckpt = os.path.join(DRIVE_RESULTS_DIR, os.path.relpath(subdir, 'results'), 'best_model.pt')",
+    "    info = inspect_checkpoint(ckpt)",
+    "    if not info['exists']:",
+    "        print(f'{label:26s} | NONE          | READY FOR FRESH RUN'); return",
+    "    plan = plan_training_run(ckpt, num_epochs)",
+    "    status = {'resume':'RESUMABLE','already_complete':'ALREADY COMPLETE',",
+    "              'corrupt':'UNUSABLE','fresh':'FRESH'}.get(plan['action'], plan['action'])",
+    "    nxt = f\" -> next epoch {plan['start_epoch']}\" if plan['action']=='resume' else ''",
+    "    best = info['best_metric']; best = f'{best:.6f}' if isinstance(best,(int,float)) else best",
+    "    print(f'{label:26s} | epoch {info[\"epoch\"]}/{num_epochs} best {best} | {status}{nxt}')",
+    "",
+    "print('== PILOT =='); [ _row(l, s, n) for l,(s,n) in PILOT.items() ]",
+    "print('== OFFICIAL =='); [ _row(l, s, n) for l,(s,n) in OFFICIAL.items() ]",
+    "print('\\nInspection only -- nothing was trained or modified.')",
 ))
 
-# ---- 10c. Throughput benchmark (optional, measurement only) ----
+# ===================================================================== 11 FP32 PILOT
 cells.append(md(
-    "## 10c. Throughput benchmark (optional -- measurement only, no full training)",
+    "## 11. FP32 pilot -- 10 epochs (`results/pilot_amp_v2/fp32`)",
     "",
-    "Profiles where per-step wall-clock goes on THIS T4, using the real pipeline",
-    "(`scripts/benchmark_training.py`): dataset build (one-time), pure data loading,",
-    "per-stage train step (data / host->device / forward / backward / optimizer),",
-    "validation, checkpoint save, and an extrapolated per-epoch estimate. It also",
-    "sweeps `num_workers` and (measurement only) times AMP vs FP32 and",
-    "`cudnn.benchmark` on/off so any speed-up is evidence-based.",
+    "Runs the checkpoint-safe pilot runner. It prints a status block (FRESH / RESUME)",
+    "BEFORE training and can never silently overwrite an existing checkpoint. Rerun",
+    "this same cell after a timeout to resume. Trains FP32, then runs the FINAL FP32",
+    "volume-level validation evaluation (all 20 patients).",
     "",
-    "It trains nothing to convergence, writes only to a temp dir, and does not touch",
-    "any real checkpoint. AMP and `cudnn.benchmark` are reported but NOT enabled --",
-    "they change numerics vs the FP32 Exp01 baseline, so switching them on is a",
-    "supervisor-level decision, not a silent default.",
+    "The pilot configs already point `experiment.output_dir` at Drive",
+    "(`.../pilot_amp_v2/fp32`), so no redirect is needed.",
 ))
 cells.append(code(
-    "!python scripts/benchmark_training.py --config configs/experiments/exp02_a_zresample_on.yaml --train-batches 30 --val-batches 20 --num-workers-sweep 0,2,4 --measure-amp --measure-cudnn-benchmark",
+    "!python scripts/run_amp_pilot.py --config configs/experiments/pilot_amp_fp32.yaml",
 ))
 
-# ---- STOP divider ----
+# ===================================================================== 12 AMP PILOT
 cells.append(md(
-    "---",
-    "# ⛔ TRAINING BELOW -- run only after cells 1-10 are green",
+    "## 12. AMP pilot -- 10 epochs (`results/pilot_amp_v2/amp`)",
     "",
-    "Each arm has its own **training** cell and **validation-evaluation** cell, run",
-    "independently. Do NOT \"Run all\" from here: run one arm's training cell, let it",
-    "finish (100 epochs), run that arm's evaluation cell, then move to the next arm.",
-    "",
-    "**If a T4 session times out mid-training, just rerun that same arm's training",
-    "cell** -- it auto-detects the Drive checkpoint and resumes from `epoch+1` (it",
-    "prints `RESUMING` and the epoch it continues from). Cell 10b shows each arm's",
-    "current checkpoint status first.",
-    "",
-    "Every training cell redirects `experiment.output_dir` to Drive",
-    "(`results/exp02_preprocessing/<arm>/`) via a throwaway config written OUTSIDE the",
-    "repo (never committed) -- the committed configs are unchanged. Training uses the",
-    "arm's config verbatim, so all controlled factors stay fixed; only preprocessing",
-    "differs. Checkpoints survive a Colab reset because they land on Drive.",
-    "",
-    "**The official 19-case held-out TEST set is NOT evaluated here.** Variant",
-    "selection uses the validation split only; held-out test is a separate one-time",
-    "step performed after a variant is chosen.",
+    "Identical to the FP32 pilot in every scientific setting except `amp: true`",
+    "(mixed-precision TRAINING only; evaluation stays FP32). Same checkpoint safety.",
+))
+cells.append(code(
+    "!python scripts/run_amp_pilot.py --config configs/experiments/pilot_amp_amp.yaml",
 ))
 
+# ===================================================================== 13 COMPARISON
+cells.append(md(
+    "## 13. FP32 vs AMP comparison",
+    "",
+    "Reads each arm's `pilot_history.json` (per-epoch loss / val Dice / per-class Dice",
+    "/ runtime) and `eval_val_summary.csv` (volume-level Dice / IoU / HD95 / ASD), then",
+    "builds a comparison table + plots and the FP32-AMP differences. Missing metrics",
+    "are reported as **unavailable** -- nothing is fabricated. This cell does NOT pick",
+    "a winner.",
+))
+cells.append(code(
+    "import os, json",
+    "import pandas as pd",
+    "import matplotlib.pyplot as plt",
+    "",
+    "ARMS = {'FP32': os.path.join(DRIVE_RESULTS_DIR, 'pilot_amp_v2', 'fp32'),",
+    "        'AMP':  os.path.join(DRIVE_RESULTS_DIR, 'pilot_amp_v2', 'amp')}",
+    "",
+    "def _load_history(d):",
+    "    p = os.path.join(d, 'pilot_history.json')",
+    "    if not os.path.exists(p): return None",
+    "    with open(p) as f: return json.load(f)",
+    "",
+    "def _load_eval(d):",
+    "    p = os.path.join(d, 'eval_val_summary.csv')",
+    "    if not os.path.exists(p): return None",
+    "    return pd.read_csv(p)",
+    "",
+    "def _na(x): return 'unavailable' if x is None else x",
+    "",
+    "hist = {k: _load_history(v) for k, v in ARMS.items()}",
+    "ev = {k: _load_eval(v) for k, v in ARMS.items()}",
+    "",
+    "summary_rows = []",
+    "for arm in ('FP32', 'AMP'):",
+    "    h = hist[arm]; e = ev[arm]",
+    "    row = {'arm': arm}",
+    "    if h and h.get('epochs'):",
+    "        eps = h['epochs']",
+    "        dices = [x.get('val_dice') for x in eps if x.get('val_dice') is not None]",
+    "        secs = [x.get('epoch_seconds') for x in eps if x.get('epoch_seconds') is not None]",
+    "        row['epochs_done'] = len(eps)",
+    "        row['best_val_dice'] = round(max(dices), 6) if dices else 'unavailable'",
+    "        row['final_val_dice'] = round(dices[-1], 6) if dices else 'unavailable'",
+    "        row['total_runtime_s'] = round(sum(secs), 1) if secs else 'unavailable'",
+    "        row['runtime_per_epoch_s'] = round(sum(secs)/len(secs), 1) if secs else 'unavailable'",
+    "        pcd = eps[-1].get('val_per_class_dice')",
+    "        row['final_per_class_dice'] = pcd if pcd else 'unavailable'",
+    "    else:",
+    "        row.update({'epochs_done':'unavailable','best_val_dice':'unavailable',",
+    "                    'final_val_dice':'unavailable','total_runtime_s':'unavailable',",
+    "                    'runtime_per_epoch_s':'unavailable','final_per_class_dice':'unavailable'})",
+    "    if e is not None:",
+    "        d = e[e['metric']=='dice']",
+    "        for _, r in d.iterrows():",
+    "            if int(r['class_id']) in (1,2):",
+    "                row[f'vol_dice_c{int(r[\"class_id\"])}'] = round(float(r['mean']), 6)",
+    "        for metric in ('iou','hd95_mm','asd_mm'):",
+    "            mm = e[e['metric']==metric]",
+    "            for _, r in mm.iterrows():",
+    "                if int(r['class_id']) in (1,2):",
+    "                    row[f'{metric}_c{int(r[\"class_id\"])}'] = round(float(r['mean']), 4)",
+    "    summary_rows.append(row)",
+    "",
+    "tbl = pd.DataFrame(summary_rows).set_index('arm')",
+    "print('=== FP32 vs AMP pilot comparison ==='); print(tbl.T.to_string())",
+    "",
+    "# FP32-AMP numeric differences where both available.",
+    "print('\\n=== FP32 - AMP differences (numeric fields) ===')",
+    "for col in tbl.columns:",
+    "    a, b = tbl.loc['FP32', col], tbl.loc['AMP', col]",
+    "    if isinstance(a, (int, float)) and isinstance(b, (int, float)):",
+    "        print(f'  {col}: {a - b:+.6f}')",
+    "",
+    "# Plots (skip cleanly if a history is unavailable).",
+    "if hist['FP32'] and hist['AMP']:",
+    "    fig, ax = plt.subplots(1, 3, figsize=(16, 4))",
+    "    for arm in ('FP32','AMP'):",
+    "        eps = hist[arm]['epochs']",
+    "        xs = [e['epoch'] for e in eps]",
+    "        ax[0].plot(xs, [e.get('train_loss') for e in eps], marker='o', label=arm)",
+    "        ax[1].plot(xs, [e.get('val_dice') for e in eps], marker='o', label=arm)",
+    "        ax[2].plot(xs, [e.get('epoch_seconds') for e in eps], marker='o', label=arm)",
+    "    ax[0].set_title('train loss'); ax[1].set_title('val Dice'); ax[2].set_title('epoch seconds')",
+    "    for a in ax: a.set_xlabel('epoch'); a.legend(); a.grid(alpha=0.3)",
+    "    plt.tight_layout(); plt.show()",
+    "else:",
+    "    print('\\n(plots skipped -- run both pilot arms first)')",
+))
 
-def _training_cell(arm_key):
-    arm = EXP02_ARMS_PY[arm_key]
-    name = arm["name"]
-    cfg = arm["config"]
-    colab_cfg = f"/content/config_exp02_{arm_key.lower()}_colab.yaml"
+# ===================================================================== 14 DECISION
+cells.append(md(
+    "## 14. Explicit decision point -- YOU choose the precision",
+    "",
+    "**This notebook does not choose for you.** Review Section 13 and decide whether",
+    "AMP is acceptable, weighing:",
+    "",
+    "- **Consistency:** are AMP's best/final val Dice, per-class Dice, and volume-level",
+    "  Dice/IoU/HD95/ASD close enough to FP32 that precision would not confound the",
+    "  Exp02 preprocessing comparison?",
+    "- **Benefit:** is AMP's runtime/epoch meaningfully lower (prior T4 benchmark",
+    "  ~2.45x faster)?",
+    "",
+    "> **Methodological caution (important).** The official **Exp01 baseline is FP32**",
+    "> and locked. If you choose **AMP** for the official Exp02 arms, precision differs",
+    "> between Exp01 (FP32) and Exp02 (AMP) and becomes an *uncontrolled confound* for",
+    "> any Exp01-vs-Exp02 comparison. To use AMP officially you must EITHER keep all",
+    "> compared experiments on the same precision (e.g. re-run the FP32 baseline under",
+    "> AMP, or restrict comparisons to within-Exp02) OR keep everything FP32. Decide",
+    "> this with your supervisor before enabling AMP officially.",
+    "",
+    "Record your decision below. The official training cells (17-19) read `training.amp`",
+    "from the committed Exp02 configs, which are **`amp: false`**. To run official Exp02",
+    "under AMP you must set `training.amp: true` in all three `configs/experiments/",
+    "exp02_*.yaml` (a deliberate, committed change) so all arms share one precision.",
+))
+cells.append(code(
+    "CHOSEN_PRECISION = None   # <-- set to 'fp32' or 'amp' AFTER reviewing Section 13",
+    "assert CHOSEN_PRECISION in (None, 'fp32', 'amp')",
+    "if CHOSEN_PRECISION is None:",
+    "    print('No precision chosen yet. Review Section 13, then set CHOSEN_PRECISION.')",
+    "else:",
+    "    print('You chose:', CHOSEN_PRECISION)",
+    "    print('Official Exp02 configs currently have training.amp = false (FP32).')",
+    "    if CHOSEN_PRECISION == 'amp':",
+    "        print('To run official Exp02 under AMP, set training.amp: true in ALL THREE')",
+    "        print('configs/experiments/exp02_*.yaml and mind the Exp01 FP32 confound above.')",
+))
+
+# ===================================================================== 15 EXP01 STATUS
+cells.append(md(
+    "## 15. Official Exp01 baseline -- status only (LOCKED, already trained)",
+    "",
+    "Exp01 is the **already-trained, officially-evaluated FP32 baseline** (best epoch",
+    "77). It must remain untouched. This cell only reports its checkpoint status and",
+    "**refuses to retrain** if a checkpoint exists, so the locked baseline can never be",
+    "resumed/overwritten from here. (A from-scratch Exp01 reproduction would require a",
+    "brand-new, empty output directory -- not this one.)",
+))
+cells.append(code(
+    "from src.train import inspect_checkpoint",
+    "EXP01_DIR = os.path.join(DRIVE_RESULTS_DIR, 'exp01_baseline')",
+    "EXP01_CKPT = os.path.join(EXP01_DIR, 'best_model.pt')",
+    "info = inspect_checkpoint(EXP01_CKPT)",
+    "if info['exists']:",
+    "    print(f\"Exp01 checkpoint FOUND: epoch {info['epoch']} best {info['best_metric']}\")",
+    "    print('LOCKED baseline -- NOT retraining. Proceed to Section 16 (evaluation).')",
+    "else:",
+    "    print('No Exp01 checkpoint on Drive. Exp01 is the official baseline; retrain only')",
+    "    print('deliberately into a clean dir with configs/config_baseline.yaml if truly needed.')",
+))
+
+# ===================================================================== 16 EXP01 EVAL
+cells.append(md(
+    "## 16. Exp01 evaluation (inference only, FP32)",
+    "",
+    "Volume-level, per-case, original-voxel-space validation evaluation of the locked",
+    "Exp01 checkpoint. Inference only -- never trains or modifies the checkpoint.",
+))
+cells.append(code(
+    "EXP01_DIR = os.path.join(DRIVE_RESULTS_DIR, 'exp01_baseline')",
+    "EXP01_CKPT = os.path.join(EXP01_DIR, 'best_model.pt')",
+    "assert os.path.exists(EXP01_CKPT), f'Exp01 checkpoint not found: {EXP01_CKPT}'",
+    "!python scripts/run_evaluation.py --config configs/config_baseline.yaml --checkpoint \"{EXP01_CKPT}\" --output-dir \"{EXP01_DIR}\" --split val",
+))
+
+# ============================================== 17-19 OFFICIAL EXP02 ARMS
+def _official_train_md(letter, name, factor):
+    return md(
+        f"## {{sec}}. Exp02-{letter} training + evaluation -- {factor}",
+        "",
+        f"Official 100-epoch arm (`results/exp02_preprocessing/{name}/`). Resume-safe:",
+        "prints FRESH/RESUME status first and continues from `epoch+1` if a checkpoint",
+        "exists -- never restarts at 1, never silently overwrites. Rerun the training",
+        "cell after a timeout. Output is redirected to Drive; the committed config is",
+        "untouched. Precision follows the committed config (`amp: false` = FP32) unless",
+        "you deliberately changed it per Section 14.",
+    )
+
+
+def _official_train_code(letter, name, config):
+    colab_cfg = f"/content/config_exp02_{letter.lower()}.yaml"
     return code(
         "import os, yaml",
         "from src.utils import load_config",
         "from src.train import run_training, plan_training_run",
         "",
-        f"ARM = '{arm_key}'  # {name}",
-        f"ARM_CONFIG = '{cfg}'",
-        f"ARM_OUTPUT_DIR = os.path.join(DRIVE_EXP02_DIR, '{name}')",
-        "ARM_CHECKPOINT = os.path.join(ARM_OUTPUT_DIR, 'best_model.pt')",
-        f"COLAB_CONFIG_PATH = '{colab_cfg}'  # outside the repo -- never committed",
-        "",
-        "# Requirement: checkpoints/results MUST live on Google Drive, never on",
-        "# ephemeral Colab storage (which is wiped on a timeout/cooldown).",
-        "assert ARM_OUTPUT_DIR.startswith('/content/drive/'), f'Output dir must be on Drive: {ARM_OUTPUT_DIR}'",
+        f"ARM_CONFIG = '{config}'",
+        f"ARM_OUTPUT_DIR = os.path.join(DRIVE_RESULTS_DIR, 'exp02_preprocessing', '{name}')",
         "os.makedirs(ARM_OUTPUT_DIR, exist_ok=True)",
+        "ARM_CKPT = os.path.join(ARM_OUTPUT_DIR, 'best_model.pt')",
+        f"COLAB_CFG = '{colab_cfg}'",
         "",
-        "# Build the Drive-backed throwaway config (committed configs stay untouched).",
-        "config = load_config(ARM_CONFIG)",
-        "config['experiment']['output_dir'] = ARM_OUTPUT_DIR  # redirect checkpoints/results to Drive",
-        "NUM_EPOCHS = int(config['training']['num_epochs'])  # 100 (unchanged)",
-        "with open(COLAB_CONFIG_PATH, 'w') as f:",
-        "    yaml.safe_dump(config, f)",
+        "assert ARM_OUTPUT_DIR.startswith('/content/drive/'), 'Official outputs must be on Drive.'",
+        "cfg = load_config(ARM_CONFIG)",
+        "cfg['experiment']['output_dir'] = ARM_OUTPUT_DIR   # redirect to Drive; committed config untouched",
+        "NUM = int(cfg['training']['num_epochs'])           # 100 (unchanged)",
+        "with open(COLAB_CFG, 'w') as f: yaml.safe_dump(cfg, f)",
         "",
-        "# Decide fresh vs resume vs already-complete vs corrupt. All decision logic",
-        "# lives in src/train.py::plan_training_run; the resume mechanics live in",
-        "# run_training/_load_resume_checkpoint. This cell only orchestrates.",
-        "plan = plan_training_run(ARM_CHECKPOINT, num_epochs=NUM_EPOCHS)",
-        "banner = {'resume': 'RESUMING', 'fresh': 'FRESH START'}.get(plan['action'], plan['action'].upper())",
-        "print('=' * 62)",
-        "print(f'EXP02-{ARM} training  |  {banner}')",
-        "print('=' * 62)",
-        "print(plan['message'])",
-        "print('  output_dir ->', ARM_OUTPUT_DIR)",
-        "print('  preprocessing ->', config.get('preprocessing'))",
-        "print('-' * 62)",
+        "plan = plan_training_run(ARM_CKPT, NUM)",
+        "banner = {'resume':'RESUME','fresh':'FRESH'}.get(plan['action'], plan['action'].upper())",
+        f"print('=' * 60); print(f'EXP02-{letter} (100ep, amp=' + str(cfg['training'].get('amp', False)) + ')  |  ' + banner)",
+        "print('Output:', ARM_OUTPUT_DIR); print(plan['message']); print('=' * 60)",
         "",
         "if plan['action'] == 'fresh':",
-        "    summary = run_training(COLAB_CONFIG_PATH)",
-        "    print(summary)",
+        "    print(run_training(COLAB_CFG))",
         "elif plan['action'] == 'resume':",
-        "    # resume_from restores model+optimizer+best_metric and continues at epoch+1.",
-        "    summary = run_training(COLAB_CONFIG_PATH, resume_from=ARM_CHECKPOINT)",
-        "    print(summary)",
+        "    print(run_training(COLAB_CFG, resume_from=ARM_CKPT))",
         "elif plan['action'] == 'already_complete':",
-        "    print(f'Nothing to train -- skip to the Exp02-{ARM} validation-evaluation cell.')",
-        "else:  # 'corrupt' -- fail clearly; do NOT start fresh, do NOT delete the checkpoint.",
+        f"    print('Exp02-{letter} already complete -- skip to its evaluation cell below.')",
+        "else:",
         "    raise RuntimeError(plan['message'])",
     )
 
 
-def _eval_cell(arm_key):
-    arm = EXP02_ARMS_PY[arm_key]
-    name = arm["name"]
-    cfg = arm["config"]
+def _official_eval_code(letter, name, config):
     return code(
         "import os",
-        f"ARM_OUTPUT_DIR = os.path.join(DRIVE_EXP02_DIR, '{name}')".replace("{name}", name),
-        "ARM_CHECKPOINT = os.path.join(ARM_OUTPUT_DIR, 'best_model.pt')",
-        "assert os.path.exists(ARM_CHECKPOINT), f'Checkpoint not found (train this arm first): {ARM_CHECKPOINT}'",
-        "print('Evaluating Exp02 arm on the VALIDATION split (inference only, no training):')",
-        "print('  checkpoint:', ARM_CHECKPOINT)",
-        "print('  output dir:', ARM_OUTPUT_DIR)",
-        "",
-        "# run_evaluation reads the preprocessing from the checkpoint's embedded config,",
-        "# so evaluation matches exactly how this arm was trained. --split val keeps the",
-        "# official 19-case held-out TEST set untouched. {ARM_*} expand to the Python",
-        "# variables above (Colab shell-magic variable substitution).",
-        f"!python scripts/run_evaluation.py --config {cfg} --checkpoint {{ARM_CHECKPOINT}} --output-dir {{ARM_OUTPUT_DIR}} --split val",
+        f"ARM_OUTPUT_DIR = os.path.join(DRIVE_RESULTS_DIR, 'exp02_preprocessing', '{name}')".replace("{name}", name),
+        "ARM_CKPT = os.path.join(ARM_OUTPUT_DIR, 'best_model.pt')",
+        "assert os.path.exists(ARM_CKPT), f'Train this arm first: {ARM_CKPT}'",
+        f"!python scripts/run_evaluation.py --config {config} --checkpoint {{ARM_CKPT}} --output-dir {{ARM_OUTPUT_DIR}} --split val",
     )
 
 
-# EXP02_ARMS is only defined in the notebook runtime (cell 3); mirror it here for the builder.
-EXP02_ARMS_PY = {
-    "A": {"name": "a_zresample_on", "config": "configs/experiments/exp02_a_zresample_on.yaml"},
-    "B": {"name": "b_normalization_global", "config": "configs/experiments/exp02_b_normalization_global.yaml"},
-    "C": {"name": "c_spatial_resize", "config": "configs/experiments/exp02_c_spatial_resize.yaml"},
-}
+_SEC = {"A": 17, "B": 18, "C": 19}
+_FACTOR = {"A": "z-axis resampling ON", "B": "global train-only normalization", "C": "spatial resize 256x256"}
+for letter in ("A", "B", "C"):
+    arm = EXP02_ARMS[letter]
+    m = _official_train_md(letter, arm["name"], _FACTOR[letter])
+    m["source"] = [line.replace("{sec}", str(_SEC[letter])) for line in m["source"]]
+    cells.append(m)
+    cells.append(_official_train_code(letter, arm["name"], arm["config"]))
+    cells.append(md(f"### {_SEC[letter]}b. Exp02-{letter} validation evaluation (inference only, FP32)"))
+    cells.append(_official_eval_code(letter, arm["name"], arm["config"]))
 
-# ---- 11. Arm A ----
+# ===================================================================== 20 COLLECT
 cells.append(md(
-    "## 11. Exp02-A -- z-axis resampling ON",
+    "## 20. Final result collection (official validation comparison)",
     "",
-    "**Only change vs baseline:** `z_resample: true` (target 3.0 mm; image linear,",
-    "mask nearest-neighbour). Expected to be a *near no-op* on this ~3.0 mm cohort --",
-    "kept deliberately to exercise the ablation axis (see the note in the header).",
-    "Everything else is the baseline.",
-))
-cells.append(_training_cell("A"))
-cells.append(md("### 11b. Exp02-A validation evaluation (inference only)"))
-cells.append(_eval_cell("A"))
-
-# ---- 12. Arm B ----
-cells.append(md(
-    "## 12. Exp02-B -- global (train-only) normalization",
-    "",
-    "**Only change vs baseline:** `normalization: global`. Stats are auto-computed",
-    "from the TRAINING split ONLY (`src/train.py::_ensure_global_stats`, leakage-safe)",
-    "and embedded in the checkpoint so evaluation reuses the identical train-derived",
-    "stats. Validation/test never contribute to the statistics.",
-))
-cells.append(_training_cell("B"))
-cells.append(md("### 12b. Exp02-B validation evaluation (inference only)"))
-cells.append(_eval_cell("B"))
-
-# ---- 13. Arm C ----
-cells.append(md(
-    "## 13. Exp02-C -- spatial resize (256x256)",
-    "",
-    "**Only change vs baseline:** `spatial_mode: resize`, `target_size: [256, 256]`",
-    "(image bilinear, mask nearest-neighbour). This resize is lossy and not",
-    "pixel-exact, so predictions are still inverse-transformed to original voxel space",
-    "and scored against the UNTOUCHED on-disk ground truth (guarded in cell 10) -- no",
-    "optimistic self-comparison. Everything else is the baseline.",
-))
-cells.append(_training_cell("C"))
-cells.append(md("### 13b. Exp02-C validation evaluation (inference only)"))
-cells.append(_eval_cell("C"))
-
-# ---- 14. Comparison summary ----
-cells.append(md(
-    "## 14. Result collection -- validation comparison across arms",
-    "",
-    "Reads each arm's `eval_val_summary.csv` (written by the evaluation cells) and",
-    "builds a per-class Dice comparison table (mean, SD, 95% CI). The Exp01 baseline",
-    "validation summary is included for reference when present. All numbers are",
-    "volume-level, per-case, original voxel space, VALIDATION split -- **not** the",
-    "held-out test set. Use this table to select a preprocessing variant; the",
-    "held-out test evaluation of the chosen variant is a separate, later step.",
+    "Reads each official arm's `eval_val_summary.csv` and prints a per-class",
+    "validation Dice comparison (baseline included when present). Validation split",
+    "only -- the held-out 19-case test set is evaluated separately, once, AFTER a",
+    "variant is selected.",
 ))
 cells.append(code(
-    "import os",
-    "import pandas as pd",
-    "",
-    "# (label, results_dir) for every arm we want in the table, baseline first.",
+    "import os, pandas as pd",
     "sources = [('baseline (Exp01)', os.path.join(DRIVE_RESULTS_DIR, 'exp01_baseline'))]",
-    "for key, arm in EXP02_ARMS.items():",
-    "    sources.append((f'Exp02-{key} ({arm[\"name\"]})', os.path.join(DRIVE_EXP02_DIR, arm['name'])))",
-    "",
+    "for k, a in EXP02_ARMS.items():",
+    "    sources.append((f'Exp02-{k} ({a[\"name\"]})', os.path.join(DRIVE_RESULTS_DIR, 'exp02_preprocessing', a['name'])))",
     "records = []",
-    "for label, results_dir in sources:",
-    "    summary_csv = os.path.join(results_dir, 'eval_val_summary.csv')",
-    "    if not os.path.exists(summary_csv):",
-    "        print(f'(skip) {label}: no eval_val_summary.csv at {summary_csv}')",
-    "        continue",
-    "    df = pd.read_csv(summary_csv)",
-    "    dice = df[df['metric'] == 'dice']",
+    "for label, d in sources:",
+    "    csvp = os.path.join(d, 'eval_val_summary.csv')",
+    "    if not os.path.exists(csvp):",
+    "        print(f'(skip) {label}: no eval_val_summary.csv'); continue",
+    "    df = pd.read_csv(csvp); dice = df[df['metric']=='dice']",
     "    for _, r in dice.iterrows():",
-    "        if int(r['class_id']) == 0:",
-    "            continue  # background is not a reported foreground zone",
-    "        records.append({",
-    "            'arm': label,",
-    "            'class_id': int(r['class_id']),",
-    "            'class_name': r['class_name'],",
-    "            'dice_mean': round(float(r['mean']), 4),",
-    "            'dice_sd': round(float(r['std']), 4),",
-    "            'ci95_low': round(float(r['ci95_low']), 4),",
-    "            'ci95_high': round(float(r['ci95_high']), 4),",
-    "            'n_cases': int(r['n_cases']),",
-    "        })",
-    "",
+    "        if int(r['class_id']) == 0: continue",
+    "        records.append({'arm': label, 'class_id': int(r['class_id']),",
+    "                        'dice_mean': round(float(r['mean']), 4), 'n_cases': int(r['n_cases'])})",
     "if records:",
-    "    table = pd.DataFrame.from_records(records)",
-    "    pivot = table.pivot(index='arm', columns='class_id', values='dice_mean')",
-    "    print('Validation Dice (mean) by arm and class:')",
-    "    print(pivot.to_string())",
-    "    print()",
-    "    print('Full per-class detail:')",
-    "    print(table.to_string(index=False))",
+    "    t = pd.DataFrame.from_records(records)",
+    "    print(t.pivot(index='arm', columns='class_id', values='dice_mean').to_string())",
     "else:",
-    "    print('No arm results found yet. Train + evaluate at least one arm above first.')",
+    "    print('No official arm results yet.')",
 ))
 
 notebook = {
@@ -606,5 +602,4 @@ out_path = os.path.abspath(out_path)
 with open(out_path, "w", encoding="utf-8") as f:
     json.dump(notebook, f, indent=1)
     f.write("\n")
-
-print("Wrote", out_path)
+print("Wrote", out_path, "with", len(cells), "cells")

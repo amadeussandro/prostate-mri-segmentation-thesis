@@ -54,8 +54,16 @@ class TestPilotConfigs(unittest.TestCase):
         amp = load_config(PILOT_AMP)
         self.assertFalse(fp32["training"]["amp"])
         self.assertTrue(amp["training"]["amp"])
-        self.assertEqual(fp32["training"]["num_epochs"], 15)
-        self.assertEqual(amp["training"]["num_epochs"], 15)
+        # Pilot is a short 10-epoch screening run.
+        self.assertEqual(fp32["training"]["num_epochs"], 10)
+        self.assertEqual(amp["training"]["num_epochs"], 10)
+
+    def test_official_experiments_are_100_epochs(self):
+        base = load_config(BASELINE)
+        self.assertEqual(base["training"]["num_epochs"], 100)
+        for name in ("exp02_a_zresample_on", "exp02_b_normalization_global", "exp02_c_spatial_resize"):
+            cfg = load_config(os.path.join(CONFIG_DIR, "experiments", f"{name}.yaml"))
+            self.assertEqual(cfg["training"]["num_epochs"], 100, f"{name} must stay at 100 epochs")
 
     def test_fp32_and_amp_differ_only_by_amp_and_output(self):
         fp32 = load_config(PILOT_FP32)
@@ -69,9 +77,9 @@ class TestPilotConfigs(unittest.TestCase):
         self.assertEqual(t1.pop("amp"), False)
         self.assertEqual(t2.pop("amp"), True)
         self.assertEqual(t1, t2)
-        # Output dirs isolated + distinct.
-        self.assertIn("pilot_amp/fp32", fp32["experiment"]["output_dir"].replace("\\", "/"))
-        self.assertIn("pilot_amp/amp", amp["experiment"]["output_dir"].replace("\\", "/"))
+        # Output dirs isolated + distinct (clean v2 pilot dirs).
+        self.assertIn("pilot_amp_v2/fp32", fp32["experiment"]["output_dir"].replace("\\", "/"))
+        self.assertIn("pilot_amp_v2/amp", amp["experiment"]["output_dir"].replace("\\", "/"))
 
     def test_pilot_matches_baseline_scientific_controls(self):
         base = load_config(BASELINE)
@@ -101,6 +109,10 @@ class TestOutputIsolationGuard(unittest.TestCase):
         guard = self._guard()
         self.assertIn("pilot_amp", guard("./results/pilot_amp/fp32"))
         self.assertIn("pilot_amp", guard("results/pilot_amp/amp"))
+        # v2 (clean) pilot dirs must also be accepted.
+        self.assertIn("pilot_amp", guard("./results/pilot_amp_v2/fp32"))
+        self.assertIn("pilot_amp", guard(
+            "/content/drive/MyDrive/THESIS_PROSTATE158/results/pilot_amp_v2/amp"))
 
     def test_rejects_official_dirs(self):
         guard = self._guard()
@@ -109,6 +121,87 @@ class TestOutputIsolationGuard(unittest.TestCase):
                     "./results/something_else"):
             with self.assertRaises(SystemExit):
                 guard(bad)
+
+
+class TestResolvePilotRun(unittest.TestCase):
+    """The incident fix: the runner must never silently overwrite a checkpoint."""
+
+    def setUp(self):
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            self.skipTest("PyTorch not installed; skipping.")
+
+    def _write_ckpt(self, path, epoch, best=0.4, init_features=4):
+        import torch
+        from src.model import ProstateUNet2D
+        m = ProstateUNet2D(in_channels=1, out_channels=3, init_features=init_features)
+        opt = torch.optim.AdamW(m.parameters(), lr=1e-3)
+        torch.save({"epoch": epoch, "model_state_dict": m.state_dict(),
+                    "optimizer_state_dict": opt.state_dict(), "best_metric": best,
+                    "config": {"model": {"init_features": init_features}}}, path)
+
+    def _resolve(self):
+        from scripts.run_amp_pilot import resolve_pilot_run
+        return resolve_pilot_run
+
+    def test_no_checkpoint_is_fresh(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            r = resolve(os.path.join(d, "best_model.pt"), num_epochs=10)
+            self.assertEqual(r["mode"], "fresh")
+            self.assertIsNone(r["resume_from"])
+
+    def test_existing_checkpoint_resumes_at_next_epoch(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            ckpt = os.path.join(d, "best_model.pt")
+            self._write_ckpt(ckpt, epoch=6)
+            r = resolve(ckpt, num_epochs=10)
+            self.assertEqual(r["mode"], "resume")
+            self.assertEqual(r["resume_from"], ckpt)
+            self.assertEqual(r["plan"]["start_epoch"], 7)  # N+1
+
+    def test_completed_checkpoint_is_complete(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            ckpt = os.path.join(d, "best_model.pt")
+            self._write_ckpt(ckpt, epoch=10)
+            r = resolve(ckpt, num_epochs=10)
+            self.assertEqual(r["mode"], "complete")
+            self.assertIsNone(r["resume_from"])
+
+    def test_fresh_refuses_when_checkpoint_exists(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            ckpt = os.path.join(d, "best_model.pt")
+            self._write_ckpt(ckpt, epoch=6)
+            with self.assertRaises(SystemExit):  # must NOT silently overwrite
+                resolve(ckpt, num_epochs=10, fresh=True)
+
+    def test_fresh_allowed_when_no_checkpoint(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            r = resolve(os.path.join(d, "best_model.pt"), num_epochs=10, fresh=True)
+            self.assertEqual(r["mode"], "fresh")
+
+    def test_force_fresh_overrides_existing_checkpoint(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            ckpt = os.path.join(d, "best_model.pt")
+            self._write_ckpt(ckpt, epoch=6)
+            r = resolve(ckpt, num_epochs=10, force_fresh=True)
+            self.assertEqual(r["mode"], "fresh_forced")
+            self.assertIsNone(r["resume_from"])
+
+    def test_corrupt_checkpoint_fails_clearly(self):
+        resolve = self._resolve()
+        with tempfile.TemporaryDirectory() as d:
+            ckpt = os.path.join(d, "best_model.pt")
+            with open(ckpt, "wb") as f:
+                f.write(b"not a checkpoint")
+            with self.assertRaises(SystemExit):
+                resolve(ckpt, num_epochs=10)
 
 
 class TestEvaluationStaysFP32(unittest.TestCase):
