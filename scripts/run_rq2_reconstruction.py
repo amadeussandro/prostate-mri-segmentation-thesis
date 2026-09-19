@@ -352,6 +352,62 @@ def write_report(path: str, ctx: Dict[str, Any]) -> str:
 # Orchestration
 # ---------------------------------------------------------------------------
 
+def apply_data_path_overrides(
+    cfg: dict,
+    dataset_root: Optional[str] = None,
+    train_csv: Optional[str] = None,
+    valid_csv: Optional[str] = None,
+    test_dir: Optional[str] = None,
+    test_csv: Optional[str] = None,
+) -> dict:
+    """Overlay explicit dataset paths onto cfg["data"], returning the data dict.
+
+    Only non-None overrides are applied, so when nothing is passed the config's
+    own paths are preserved verbatim (backward-compatible local/non-Colab usage).
+    On Colab the dataset lives on Google Drive (outside the repo), so the
+    notebook passes absolute Drive paths here; no Drive path is hardcoded in
+    source. This does not change the split or evaluation methodology -- it only
+    changes WHERE the same official CSVs / case directories are read from.
+    """
+    data_cfg = cfg.setdefault("data", {})
+    for key, value in (
+        ("dataset_root", dataset_root),
+        ("train_csv", train_csv),
+        ("valid_csv", valid_csv),
+        ("test_dir", test_dir),
+        ("test_csv", test_csv),
+    ):
+        if value:
+            data_cfg[key] = value
+    return data_cfg
+
+
+def validate_data_paths(data_cfg: dict, split: str) -> None:
+    """Fail early and clearly if the dataset paths needed for `split` are absent.
+
+    load_official_split always reads train_csv + valid_csv (to enforce the
+    official 119/20 counts and the leakage check), so both must exist for every
+    split. The 'test' split additionally needs test_dir (the extracted 19-case
+    case-root). Raises FileNotFoundError naming the missing path and the CLI flag
+    that supplies it -- instead of a downstream pandas/nibabel error.
+    """
+    missing = []
+    for key, flag in (("train_csv", "--train-csv"), ("valid_csv", "--valid-csv")):
+        path = data_cfg.get(key)
+        if not path or not os.path.isfile(path):
+            missing.append(f"{key} ({flag}): {path!r}")
+    if split == "test":
+        test_dir = data_cfg.get("test_dir")
+        if not test_dir or not os.path.isdir(test_dir):
+            missing.append(f"test_dir (--test-dir): {test_dir!r}")
+    if missing:
+        raise FileNotFoundError(
+            "Required dataset path(s) not found. On Colab the Prostate158 data "
+            "lives on Google Drive, not in the repo -- pass the Drive path(s) "
+            "explicitly. Missing:\n  - " + "\n  - ".join(missing)
+        )
+
+
 def _resolve_split_ids(cfg: dict, split: str):
     from src.splits import load_official_split
 
@@ -386,6 +442,9 @@ def run(
     split: str = "test",
     test_dir: Optional[str] = None,
     test_csv: Optional[str] = None,
+    dataset_root: Optional[str] = None,
+    train_csv: Optional[str] = None,
+    valid_csv: Optional[str] = None,
     device: Optional[str] = None,
     class_ids: Sequence[int] = (0, 1, 2),
     make_viz: bool = True,
@@ -410,11 +469,18 @@ def run(
     from visualize_baseline_cases import render_case_slices, select_slice_indices
 
     cfg = load_config(config_path)
-    data_cfg = cfg.setdefault("data", {})
-    if test_dir:
-        data_cfg["test_dir"] = test_dir
-    if test_csv:
-        data_cfg["test_csv"] = test_csv
+    # Overlay explicit dataset paths (e.g. Google Drive) onto the config, then
+    # fail early with a clear message if anything required for this split is
+    # missing. When no overrides are passed, the config's paths are used as-is.
+    data_cfg = apply_data_path_overrides(
+        cfg,
+        dataset_root=dataset_root,
+        train_csv=train_csv,
+        valid_csv=valid_csv,
+        test_dir=test_dir,
+        test_csv=test_csv,
+    )
+    validate_data_paths(data_cfg, split)
     if device is None:
         device = get_device()
 
@@ -663,6 +729,12 @@ def main() -> None:
     parser.add_argument("--split", default="test", choices=["test", "val", "validation", "train"])
     parser.add_argument("--test-dir", default=None, help="Extracted 19-case test root (data.test_dir).")
     parser.add_argument("--test-csv", default=None, help="CSV of test case IDs (data.test_csv).")
+    parser.add_argument("--dataset-root", default=None,
+                        help="Override data.dataset_root (train/val split root); e.g. a Google Drive path.")
+    parser.add_argument("--train-csv", default=None,
+                        help="Override data.train_csv (official 119-case split); e.g. a Google Drive path.")
+    parser.add_argument("--valid-csv", default=None,
+                        help="Override data.valid_csv (official 20-case split); e.g. a Google Drive path.")
     parser.add_argument("--device", default=None)
     parser.add_argument("--no-viz", action="store_true", help="Skip qualitative visualization.")
     parser.add_argument("--n-slices", type=int, default=3)
@@ -675,6 +747,9 @@ def main() -> None:
         split=args.split,
         test_dir=args.test_dir,
         test_csv=args.test_csv,
+        dataset_root=args.dataset_root,
+        train_csv=args.train_csv,
+        valid_csv=args.valid_csv,
         device=args.device,
         make_viz=not args.no_viz,
         n_slices=args.n_slices,

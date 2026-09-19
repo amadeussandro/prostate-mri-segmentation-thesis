@@ -16,6 +16,7 @@ The model-dependent parts (real inference on the 19 test cases) run on
 Colab/GPU via scripts/run_rq2_reconstruction.py and are not covered here.
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -229,6 +230,107 @@ class TestRender3DProjectionsSmoke(unittest.TestCase):
             render_3d_projections(t2, gt, pred, "001", out)
             self.assertTrue(os.path.exists(out))
             self.assertGreater(os.path.getsize(out), 0)
+
+
+class TestDataPathOverrides(unittest.TestCase):
+    """Explicit Drive-path overrides vs config-based defaults (backward compat)."""
+
+    def _base_cfg(self):
+        return {"data": {
+            "dataset_root": "dataset/prostate158_train/train",
+            "train_csv": "dataset/prostate158_train/train.csv",
+            "valid_csv": "dataset/prostate158_train/valid.csv",
+            "target_mask": "t2_anatomy_reader1.nii.gz",
+        }}
+
+    def test_no_overrides_preserves_config(self):
+        from run_rq2_reconstruction import apply_data_path_overrides
+        cfg = self._base_cfg()
+        before = dict(cfg["data"])
+        data_cfg = apply_data_path_overrides(cfg)  # all None
+        self.assertEqual(data_cfg, before)  # unchanged -> local/non-Colab behavior intact
+
+    def test_overrides_replace_only_provided_keys(self):
+        from run_rq2_reconstruction import apply_data_path_overrides
+        cfg = self._base_cfg()
+        data_cfg = apply_data_path_overrides(
+            cfg,
+            train_csv="/drive/THESIS/dataset/prostate158_train/train.csv",
+            valid_csv="/drive/THESIS/dataset/prostate158_train/valid.csv",
+            test_dir="/drive/THESIS/dataset/test/extracted",
+        )
+        self.assertEqual(data_cfg["train_csv"], "/drive/THESIS/dataset/prostate158_train/train.csv")
+        self.assertEqual(data_cfg["valid_csv"], "/drive/THESIS/dataset/prostate158_train/valid.csv")
+        self.assertEqual(data_cfg["test_dir"], "/drive/THESIS/dataset/test/extracted")
+        # untouched keys preserved
+        self.assertEqual(data_cfg["dataset_root"], "dataset/prostate158_train/train")
+        self.assertEqual(data_cfg["target_mask"], "t2_anatomy_reader1.nii.gz")
+
+
+class TestValidateDataPaths(unittest.TestCase):
+    def test_missing_csvs_fail_clearly(self):
+        from run_rq2_reconstruction import validate_data_paths
+        with self.assertRaises(FileNotFoundError) as ctx:
+            validate_data_paths({"train_csv": "/nope/train.csv", "valid_csv": "/nope/valid.csv"}, "val")
+        msg = str(ctx.exception)
+        self.assertIn("--train-csv", msg)
+        self.assertIn("--valid-csv", msg)
+
+    def test_test_split_requires_test_dir(self):
+        from run_rq2_reconstruction import validate_data_paths
+        with tempfile.TemporaryDirectory() as d:
+            tr = os.path.join(d, "train.csv"); va = os.path.join(d, "valid.csv")
+            open(tr, "w").close(); open(va, "w").close()
+            # val split: CSVs present -> OK
+            validate_data_paths({"train_csv": tr, "valid_csv": va}, "val")
+            # test split without test_dir -> clear failure naming --test-dir
+            with self.assertRaises(FileNotFoundError) as ctx:
+                validate_data_paths({"train_csv": tr, "valid_csv": va}, "test")
+            self.assertIn("--test-dir", str(ctx.exception))
+            # test split with an existing test_dir -> OK
+            validate_data_paths({"train_csv": tr, "valid_csv": va, "test_dir": d}, "test")
+
+
+class TestNotebookCommandMatchesCLI(unittest.TestCase):
+    """The notebook's Section 9 command must use flags the orchestrator defines."""
+
+    def setUp(self):
+        nb_path = os.path.join(PROJECT_ROOT, "notebooks",
+                               "prostate158_rq2_reconstruction_colab.ipynb")
+        nb = json.load(open(nb_path, encoding="utf-8"))
+        code_cells = ["".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"]
+        self.code = "\n".join(code_cells)
+        # The cell that actually invokes the RQ2 orchestrator (Section 9): it
+        # both names the script AND builds the command list (has "--split").
+        self.cmd_cell = next(
+            s for s in code_cells
+            if "run_rq2_reconstruction.py" in s and '"--split"' in s)
+        script = os.path.join(PROJECT_ROOT, "scripts", "run_rq2_reconstruction.py")
+        self.script_src = open(script, encoding="utf-8").read()
+
+    def test_notebook_passes_explicit_drive_paths(self):
+        # Section 9 command block
+        self.assertIn("run_rq2_reconstruction.py", self.code)
+        for pair in ['"--train-csv", TRAIN_CSV',
+                     '"--valid-csv", VALID_CSV',
+                     '"--test-dir", TEST_DIR',
+                     '"--checkpoint", CHECKPOINT_PATH',
+                     '"--output-dir", OUTPUT_DIR']:
+            self.assertIn(pair, self.code, f"notebook missing: {pair}")
+
+    def test_notebook_defines_drive_csv_vars(self):
+        self.assertIn('TRAIN_CSV       = f"{DRIVE_BASE}/dataset/prostate158_train/train.csv"', self.code)
+        self.assertIn('VALID_CSV       = f"{DRIVE_BASE}/dataset/prostate158_train/valid.csv"', self.code)
+
+    def test_every_notebook_flag_is_defined_in_cli(self):
+        import re
+        # Only the RQ2 orchestrator command cell -- not git/pip cells elsewhere.
+        nb_flags = set(re.findall(r'"(--[a-z-]+)"', self.cmd_cell))
+        cli_flags = set(re.findall(r'add_argument\("(--[a-z-]+)"', self.script_src))
+        missing = nb_flags - cli_flags
+        self.assertFalse(missing, f"notebook uses flags not defined in the CLI: {missing}")
+        for required in ("--train-csv", "--valid-csv", "--test-dir"):
+            self.assertIn(required, cli_flags)
 
 
 if __name__ == "__main__":
