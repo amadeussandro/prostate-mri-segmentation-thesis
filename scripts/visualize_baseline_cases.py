@@ -191,10 +191,17 @@ def render_case_slices(
     slice_indices: Sequence[int],
     patient_id: str,
     out_dir: str,
+    subtitle: Optional[str] = None,
+    class_labels: Optional[Dict[int, str]] = None,
 ) -> List[str]:
     """Render one figure per selected slice: T2 | GT | Pred | GT/Pred overlay |
     error map. Returns the list of written PNG paths. Import of matplotlib is
-    local so the selection helpers stay importable without a display backend."""
+    local so the selection helpers stay importable without a display backend.
+
+    subtitle / class_labels default to the Experiment-1 baseline caption
+    ("Class 1 / Class 2", mapping UNVERIFIED, VALIDATION split). RQ2 passes the
+    verified CG/PZ names and the correct split so its test-set figures are not
+    mislabeled -- existing callers are unaffected (defaults preserve behavior)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -204,6 +211,9 @@ def render_case_slices(
 
     # Class 1 = orange, Class 2 = cyan (colorblind-safe, distinct on grayscale MRI).
     class_colors = {1: (0.95, 0.55, 0.10), 2: (0.10, 0.70, 0.90)}
+    if subtitle is None:
+        subtitle = "(Class1/Class2 anatomy mapping UNVERIFIED; VALIDATION split, not test)"
+    labels = class_labels or {1: "Class 1", 2: "Class 2"}
     written: List[str] = []
 
     for k in slice_indices:
@@ -216,8 +226,7 @@ def render_case_slices(
 
         fig, axes = plt.subplots(1, 5, figsize=(22, 4.6))
         fig.suptitle(
-            f"Patient {patient_id} -- axial slice {k}   "
-            f"(Class1/Class2 anatomy mapping UNVERIFIED; VALIDATION split, not test)",
+            f"Patient {patient_id} -- axial slice {k}   {subtitle}",
             fontsize=12,
         )
 
@@ -262,8 +271,8 @@ def render_case_slices(
             ax.axis("off")
 
         legend = [
-            Patch(facecolor=class_colors[1], label="Class 1"),
-            Patch(facecolor=class_colors[2], label="Class 2"),
+            Patch(facecolor=class_colors[1], label=labels.get(1, "Class 1")),
+            Patch(facecolor=class_colors[2], label=labels.get(2, "Class 2")),
         ]
         fig.legend(handles=legend, loc="lower center", ncol=2, frameon=False)
         fig.tight_layout(rect=(0, 0.04, 1, 0.95))

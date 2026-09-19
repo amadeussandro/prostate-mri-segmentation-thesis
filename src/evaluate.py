@@ -9,6 +9,7 @@ primary; slice-level is only ever a supplement (see Experiment 3 / RQ-2).
 """
 
 import os
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import nibabel as nib
 import numpy as np
@@ -182,6 +183,86 @@ def load_original_space_ground_truth(
     return gt
 
 
+@dataclass
+class CasePrediction:
+    """Everything RQ2 needs from one case's inference + 2D->3D reconstruction.
+
+    Produced by `predict_case_reconstructed`; the thin `predict_case_original_space`
+    wrapper below returns only the three fields the Experiment-1 evaluation and
+    the qualitative visualization already consumed, so their contract is unchanged.
+    """
+
+    patient_id: str
+    pred_nii: Any                      # nib.Nifti1Image: prediction in ORIGINAL voxel space
+    pred_original: np.ndarray          # np.asarray(pred_nii.dataobj), int label volume (H, W, D)
+    pred_preprocessed: np.ndarray      # (H, W, D) argmax stack in PREPROCESSED space (pre-inverse)
+    slice_indices: List[int]           # axial index of each predicted slice (explicit order)
+    gt_original: np.ndarray            # untouched on-disk GT in the same original grid
+    geometry: Any                      # VolumeGeometry for the case
+    transform_meta: Any                # CaseTransformMeta (records the exact forward transform)
+
+
+def predict_case_reconstructed(
+    patient_id: str,
+    model: Any,
+    dataset: Any,
+    device: str,
+) -> CasePrediction:
+    """Run the model on every axial slice of a case and reconstruct the
+    prediction to original voxel space, returning the reconstructed NIfTI plus
+    all provenance needed for RQ2 (2D stack, slice order, transform metadata).
+
+    This is the single shared inference + 2D->3D reconstruction path. Inference
+    only: `model.eval()` + `torch.no_grad()`; the checkpoint, dataset, and
+    preprocessing are never modified here. The ground truth returned is the
+    UNTOUCHED on-disk anatomy mask (see `load_original_space_ground_truth`),
+    never the preprocessed mask round-tripped back.
+    """
+    geometry, transform_meta = dataset.get_case_metadata(patient_id)
+
+    case_sample_indices = [
+        i for i, (pid, _) in enumerate(dataset.samples) if pid == patient_id
+    ]
+    if not case_sample_indices:
+        raise ValueError(f"No samples found for patient '{patient_id}' in this dataset.")
+
+    model.eval()
+    pred_slices: List[np.ndarray] = []
+    slice_indices: List[int] = []
+
+    with torch.no_grad():
+        for i in case_sample_indices:
+            sample = dataset[i]
+            image = torch.from_numpy(sample["image"]).unsqueeze(0).float().to(device)
+            logits = model(image)
+            pred = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy().astype(np.int64)
+
+            pred_slices.append(pred)
+            slice_indices.append(sample["slice_idx"])
+
+    # Preprocessed-space reassembly (the raw 2D predictions, explicit index),
+    # then the full inverse-transform to original voxel space. Both are built
+    # from the SAME predicted slices, so they can never disagree.
+    pred_preprocessed = reconstruct_volume_from_slices(
+        pred_slices, slice_indices, transform_meta.post_resample_depth
+    )
+    pred_nii = reconstruct_case_to_original_space(pred_slices, slice_indices, transform_meta, geometry)
+    pred_original = np.asarray(pred_nii.dataobj)
+
+    gt_original = load_original_space_ground_truth(dataset, patient_id, geometry)
+
+    return CasePrediction(
+        patient_id=patient_id,
+        pred_nii=pred_nii,
+        pred_original=pred_original,
+        pred_preprocessed=pred_preprocessed,
+        slice_indices=slice_indices,
+        gt_original=gt_original,
+        geometry=geometry,
+        transform_meta=transform_meta,
+    )
+
+
 def predict_case_original_space(
     patient_id: str,
     model: Any,
@@ -215,34 +296,8 @@ def predict_case_original_space(
             anatomy mask in that same original voxel grid.
         geometry : VolumeGeometry for the case (shape, affine, zooms, axcodes).
     """
-    geometry, transform_meta = dataset.get_case_metadata(patient_id)
-
-    case_sample_indices = [
-        i for i, (pid, _) in enumerate(dataset.samples) if pid == patient_id
-    ]
-    if not case_sample_indices:
-        raise ValueError(f"No samples found for patient '{patient_id}' in this dataset.")
-
-    model.eval()
-    pred_slices: List[np.ndarray] = []
-    slice_indices: List[int] = []
-
-    with torch.no_grad():
-        for i in case_sample_indices:
-            sample = dataset[i]
-            image = torch.from_numpy(sample["image"]).unsqueeze(0).float().to(device)
-            logits = model(image)
-            pred = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy().astype(np.int64)
-
-            pred_slices.append(pred)
-            slice_indices.append(sample["slice_idx"])
-
-    pred_nii = reconstruct_case_to_original_space(pred_slices, slice_indices, transform_meta, geometry)
-    pred_original = np.asarray(pred_nii.dataobj)
-
-    gt_original = load_original_space_ground_truth(dataset, patient_id, geometry)
-
-    return pred_original, gt_original, geometry
+    result = predict_case_reconstructed(patient_id, model, dataset, device)
+    return result.pred_original, result.gt_original, result.geometry
 
 
 def evaluate_patient_protocols(

@@ -1,0 +1,38 @@
+# RQ2 -- 3D reconstruction of the FROZEN 2D U-Net's predictions (inference only).
+#
+# Thesis RQ2: "Bagaimana Implementasi Rekonstruksi 3D Citra MRI Pasien Kanker
+# Prostat dari hasil Segmentasi 2D U-Net?"
+#
+# This file is DECLARATIVE / documentation-only, matching the convention of
+# exp04_reconstruction_analysis.yaml. The runnable entry point is
+# scripts/run_rq2_reconstruction.py, which takes the actual preprocessing, model
+# architecture, and official split from configs/config_baseline.yaml AND the
+# checkpoint's own embedded config (so inference matches how the weights were
+# trained). No training, no retraining, no checkpoint mutation.
+#
+# It does NOT retrain, change the model/hyperparameters/split, overwrite
+# results/exp01_baseline, or alter the frozen RQ1 result.
+
+task: "RQ2_3d_reconstruction"
+source_checkpoint: "./results/exp01_baseline/best_model.pt"   # frozen Experiment-1 epoch-77 weights
+base_config: "configs/config_baseline.yaml"                    # preprocessing + model + official split
+output_dir: "./results/exp04_rq2_reconstruction"
+split: "test"                                                  # official held-out 19-case test set
+class_ids: [0, 1, 2]
+
+# Label mapping human-verified in 3D Slicer (cases 020, 059); never changed here.
+label_mapping_status: "verified_3dslicer"
+class_names:
+  0: "background"
+  1: "CG_central_gland"    # Central Gland (CG = CZ + TZ)
+  2: "PZ_peripheral_zone"  # Peripheral Zone
+
+evaluation:
+  space: "original_voxel"   # reconstruct + inverse-transform prediction to original grid
+  aggregation: "per_case"   # per-case metrics first, then mean +/- SD across the 19 cases
+  ground_truth: "original_on_disk_mask_untouched"
+  metrics: ["dice", "iou", "hd95_mm", "asd_mm", "precision", "recall"]
+
+# Reminder: the round-trip fidelity result (scripts/roundtrip_test.py, Dice = 1.0)
+# validates the reconstruction TRANSFORM only -- it is NOT the model's accuracy.
+roundtrip_fidelity_note: "Dice=1.0 is reconstruction-transform fidelity, not model segmentation accuracy."

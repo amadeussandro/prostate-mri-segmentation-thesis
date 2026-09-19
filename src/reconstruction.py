@@ -112,3 +112,79 @@ def dice_per_class(pred: np.ndarray, gt: np.ndarray, class_ids: Sequence[int]) -
         denom = p.sum() + t.sum()
         scores[c] = 1.0 if denom == 0 else float(2.0 * intersection / denom)
     return scores
+
+
+def validate_reconstruction_geometry(
+    recon_nii: nib.Nifti1Image,
+    source_geometry: VolumeGeometry,
+    valid_labels: Sequence[int] = (0, 1, 2),
+    atol_affine: float = 1e-4,
+    atol_spacing: float = 1e-3,
+) -> Dict[str, object]:
+    """Per-case geometry-validation record for a reconstructed prediction NIfTI
+    (RQ2, Step 5). Read-only, torch-free, and independent of the checks already
+    performed inside ``reconstruct_case_to_original_space`` (which RAISE on
+    failure): this instead returns a machine-readable booleans-and-details dict
+    for every case, so a passing/failing table can be written for all cases
+    without aborting the run.
+
+    The geometry is read back from the reconstructed NIfTI's OWN header
+    (``read_geometry``), not from the Python variables used to build it, so this
+    also catches any precision loss from nibabel's float32 sform/qform storage.
+
+    Verifies, against the untouched source geometry:
+      * shape matches the original MRI,
+      * affine matches (within ``atol_affine``),
+      * voxel spacing preserved (within ``atol_spacing``),
+      * orientation (axis codes) correct,
+      * reconstructed mask contains only labels in ``valid_labels``.
+
+    Slice ordering/count: the depth axis matching the source shape, together with
+    the explicit-index completeness assertion enforced upstream in
+    ``reconstruct_volume_from_slices`` (missing/duplicate indices raise), is what
+    guarantees correct slice ordering; ``depth_match`` surfaces it here.
+    """
+    recon_geom = read_geometry(recon_nii)
+    data = np.asarray(recon_nii.dataobj)
+    labels_found = sorted(int(v) for v in np.unique(data))
+    valid_set = {int(v) for v in valid_labels}
+
+    shape_match = tuple(recon_geom.shape) == tuple(source_geometry.shape)
+    depth_match = (
+        len(recon_geom.shape) == len(source_geometry.shape)
+        and recon_geom.shape[-1] == source_geometry.shape[-1]
+    )
+    affine_max_abs_diff = float(
+        np.max(np.abs(np.asarray(recon_geom.affine) - np.asarray(source_geometry.affine)))
+    )
+    affine_match = bool(np.allclose(recon_geom.affine, source_geometry.affine, atol=atol_affine))
+    spacing_match = bool(np.allclose(recon_geom.zooms, source_geometry.zooms, atol=atol_spacing))
+    orientation_match = tuple(recon_geom.axcodes) == tuple(source_geometry.axcodes)
+    labels_valid = set(labels_found).issubset(valid_set)
+
+    all_ok = bool(
+        shape_match
+        and depth_match
+        and affine_match
+        and spacing_match
+        and orientation_match
+        and labels_valid
+    )
+
+    return {
+        "shape_match": shape_match,
+        "recon_shape": tuple(int(s) for s in recon_geom.shape),
+        "source_shape": tuple(int(s) for s in source_geometry.shape),
+        "depth_match": depth_match,
+        "affine_match": affine_match,
+        "affine_max_abs_diff": affine_max_abs_diff,
+        "spacing_match": spacing_match,
+        "recon_spacing_mm": tuple(round(float(z), 6) for z in recon_geom.zooms),
+        "source_spacing_mm": tuple(round(float(z), 6) for z in source_geometry.zooms),
+        "orientation_match": orientation_match,
+        "recon_orientation": "".join(recon_geom.axcodes),
+        "source_orientation": "".join(source_geometry.axcodes),
+        "labels_found": labels_found,
+        "labels_valid": labels_valid,
+        "all_ok": all_ok,
+    }

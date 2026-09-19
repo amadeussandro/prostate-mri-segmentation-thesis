@@ -60,3 +60,15 @@ results/**/eval_*_summary.json
 results/pilot_amp*/**/pilot_history.json
 results/pilot_amp*/**/runtime_info.json
 results/pilot_amp*/**/config_snapshot.yaml
+
+# RQ2 (Experiment 4) 3D-reconstruction outputs -- generated on Colab/Drive at
+# runtime by scripts/run_rq2_reconstruction.py. The directory skeleton (.gitkeep)
+# and the seeded report.md are kept in Git; heavy/generated artifacts are not.
+# (*.nii.gz and *.png are already covered by the global rules above.)
+results/exp04_rq2_reconstruction/reconstructions_3d/*.nii.gz
+results/exp04_rq2_reconstruction/predictions_2d/*.npz
+results/exp04_rq2_reconstruction/metadata/*.json
+results/exp04_rq2_reconstruction/metrics_per_case.csv
+results/exp04_rq2_reconstruction/metrics_summary.csv
+results/exp04_rq2_reconstruction/reconstruction_validation.csv
+results/exp04_rq2_reconstruction/summary.json
