@@ -72,3 +72,13 @@ results/exp04_rq2_reconstruction/metrics_per_case.csv
 results/exp04_rq2_reconstruction/metrics_summary.csv
 results/exp04_rq2_reconstruction/reconstruction_validation.csv
 results/exp04_rq2_reconstruction/summary.json
+# Experiment E1 (Dice+CE loss ablation) run artifacts -- generated at runtime on
+# Colab/Drive by src/train.py + scripts/finalize_e1_report.py. The directory
+# skeleton is kept via .gitkeep; checkpoints (*.pt) and figures (*.png) are
+# already covered by the global rules above.
+results/exp_e1_dice_ce/metrics.csv
+results/exp_e1_dice_ce/summary.json
+results/exp_e1_dice_ce/training_report.md
+results/exp_e1_dice_ce/config.yaml
+results/exp_e1_dice_ce/config_fingerprint.json
+results/exp_e1_dice_ce/config_fingerprint.txt

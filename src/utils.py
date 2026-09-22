@@ -107,6 +107,109 @@ def get_device(prefer_cuda: bool = True) -> str:
     return "cpu"
 
 
+def build_config_fingerprint(
+    config: Dict[str, Any], device: Optional[str] = None
+) -> Dict[str, Any]:
+    """Summarize the scientifically-relevant settings of an experiment run.
+
+    The purpose is auditability: printed at the start of every run and saved
+    next to the results, so it is immediately obvious which factor a given
+    experiment changed relative to the baseline -- and that everything else
+    (optimizer, LR, batch size, seed, epochs, precision) was held fixed.
+
+    Reads ONLY the config; it never inspects or mutates training state. Fields
+    the pipeline does not implement (augmentation, LR scheduler) are reported
+    explicitly as OFF rather than omitted, so their absence is on the record.
+    """
+    from src.losses import LossConfig  # local import: keeps utils torch-free on import
+
+    experiment_cfg = config.get("experiment", {}) or {}
+    model_cfg = config.get("model", {}) or {}
+    training_cfg = config.get("training", {}) or {}
+    data_cfg = config.get("data", {}) or {}
+    preprocessing_cfg = config.get("preprocessing", {}) or {}
+
+    loss_config = LossConfig.from_config(config)
+    amp_enabled = bool(training_cfg.get("amp", False))
+
+    return {
+        "experiment": experiment_cfg.get("name", "<unnamed>"),
+        "output_dir": experiment_cfg.get("output_dir"),
+        "architecture": model_cfg.get("architecture", "ProstateUNet2D"),
+        "in_channels": model_cfg.get("in_channels"),
+        "out_channels": model_cfg.get("out_channels"),
+        "init_features": model_cfg.get("init_features"),
+        "dropout_rate": model_cfg.get("dropout_rate"),
+        "loss": loss_config.describe(),
+        "loss_spec": loss_config.to_dict(),
+        "dice_classes": list(loss_config.dice_classes) if not loss_config.is_baseline_cross_entropy else None,
+        "dice_epsilon": loss_config.epsilon if not loss_config.is_baseline_cross_entropy else None,
+        "num_epochs": training_cfg.get("num_epochs"),
+        "seed": training_cfg.get("seed", 42),
+        "amp": amp_enabled,
+        "precision": "AMP (mixed)" if amp_enabled else "FP32",
+        "optimizer": training_cfg.get("optimizer"),
+        "learning_rate": training_cfg.get("learning_rate"),
+        "weight_decay": training_cfg.get("weight_decay"),
+        "batch_size": training_cfg.get("batch_size"),
+        "num_workers": training_cfg.get("num_workers", 0),
+        "use_weighted_sampling": training_cfg.get("use_weighted_sampling", True),
+        "augmentation": "OFF (no augmentation implemented in this pipeline)",
+        "scheduler": "OFF (constant learning rate)",
+        "preprocessing": {
+            "normalization": preprocessing_cfg.get("normalization"),
+            "z_resample": preprocessing_cfg.get("z_resample"),
+            "spatial_mode": preprocessing_cfg.get("spatial_mode"),
+            "target_size": preprocessing_cfg.get("target_size"),
+        },
+        "target_mask": data_cfg.get("target_mask"),
+        "slice_sampling": data_cfg.get("slice_sampling"),
+        "references_test_split": bool(data_cfg.get("test_csv") or data_cfg.get("test_dir")),
+        "device": device,
+    }
+
+
+def format_config_fingerprint(fingerprint: Dict[str, Any]) -> str:
+    """Render `build_config_fingerprint` output as an aligned text block."""
+    rows = [
+        ("Experiment", fingerprint.get("experiment")),
+        ("Architecture", f"{fingerprint.get('architecture')} "
+                         f"(in={fingerprint.get('in_channels')}, out={fingerprint.get('out_channels')}, "
+                         f"init_features={fingerprint.get('init_features')}, "
+                         f"dropout={fingerprint.get('dropout_rate')})"),
+        ("Loss", fingerprint.get("loss")),
+    ]
+    if fingerprint.get("dice_classes") is not None:
+        rows.append(("Dice classes", f"{fingerprint['dice_classes']} (1=CG, 2=PZ; background excluded)"))
+        rows.append(("Dice epsilon", fingerprint.get("dice_epsilon")))
+    rows.extend([
+        ("Epochs (max)", fingerprint.get("num_epochs")),
+        ("Seed", fingerprint.get("seed")),
+        ("AMP", "ON" if fingerprint.get("amp") else "OFF"),
+        ("Precision", fingerprint.get("precision")),
+        ("Optimizer", fingerprint.get("optimizer")),
+        ("Learning rate", fingerprint.get("learning_rate")),
+        ("Weight decay", fingerprint.get("weight_decay")),
+        ("Batch size", fingerprint.get("batch_size")),
+        ("DataLoader workers", fingerprint.get("num_workers")),
+        ("Weighted sampling", "ON" if fingerprint.get("use_weighted_sampling") else "OFF"),
+        ("Augmentation", fingerprint.get("augmentation")),
+        ("Scheduler", fingerprint.get("scheduler")),
+        ("Preprocessing", fingerprint.get("preprocessing")),
+        ("Target mask", fingerprint.get("target_mask")),
+        ("Slice sampling", fingerprint.get("slice_sampling")),
+        ("Test split referenced", "YES" if fingerprint.get("references_test_split") else "NO"),
+        ("Device", fingerprint.get("device")),
+    ])
+
+    width = max(len(label) for label, _ in rows)
+    header = "=" * 78
+    lines = [header, "EXPERIMENT CONFIGURATION FINGERPRINT", header]
+    lines.extend(f"  {label.ljust(width)} : {value}" for label, value in rows)
+    lines.append(header)
+    return "\n".join(lines)
+
+
 def ensure_dir(dir_path: str) -> str:
     """Ensure that a directory exists, creating parent directories if necessary.
 

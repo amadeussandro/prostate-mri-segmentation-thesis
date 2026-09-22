@@ -1,0 +1,105 @@
+# Experiment E1 (RQ-1) -- LOSS FUNCTION ablation: Dice + Cross Entropy.
+#
+# RESEARCH QUESTION
+#   "Does replacing the baseline Cross Entropy loss with Dice + Cross Entropy
+#    improve validation segmentation performance while keeping all other major
+#    training conditions unchanged?"
+#
+# SCIENTIFIC CONTROL
+#   Every value below is IDENTICAL to configs/config_baseline.yaml except:
+#     1. experiment.name / experiment.output_dir  (isolation, not a variable)
+#     2. the `loss:` block                        (THE independent variable)
+#   `training.loss_function` is deliberately ABSENT here: the top-level `loss:`
+#   block is the single source of truth for this arm, and src/losses.py raises
+#   if both are present and disagree. This equivalence is enforced mechanically
+#   by tests/test_e1_config.py, which fails if any controlled key drifts.
+#
+# MOTIVATION (from the RQ-1 audit; see Outputs/rq1_experiment_specification.md)
+#   Census over the 119 official training cases:
+#     background 94.20% | CG (1) 4.30% | PZ (2) 1.51% of voxels  -> CG:PZ 2.85:1
+#   The baseline shows PZ precision 0.791 >> PZ recall 0.599 on validation-space
+#   behavior, i.e. PZ is systematically UNDER-segmented -- the signature of a
+#   minority class under an unweighted, purely pixel-wise objective. The soft
+#   Dice term is region/overlap based and is computed over the FOREGROUND
+#   classes only (background excluded), so the 94.2% background cannot mask the
+#   1.5% PZ term.
+#
+#   Literature citation required (no citation is asserted here; the rationale
+#   above is derived from this repository's own measured class statistics).
+#
+# OUTCOME IS NOT PRESUMED
+#   E1 may improve, match, or regress against the baseline. The measured
+#   validation result decides. Nothing in this config is tuned to force a gain.
+#
+# EVALUATION / SELECTION
+#   Within-run checkpoint selection: UNCHANGED from the baseline (batch-level
+#     foreground-macro val Dice proxy in src/train.py::validate).
+#   Across-experiment comparison:    per-case, volume-level, original-voxel-space
+#     macro Dice = (mean CG Dice + mean PZ Dice) / 2 over the 20 validation
+#     cases, via src/evaluate.py::run_evaluation(split="val").
+#   Baseline anchor: validation macro Dice = 0.8008 (CG 0.8642 / PZ 0.7375).
+#
+# TEST SET
+#   The official 19-case test archive is NOT referenced here (no test_csv /
+#   test_dir keys). E1 must never touch it.
+
+experiment:
+  name: "exp_e1_dice_ce"
+  description: "RQ-1 E1 loss ablation: 1.0 x CrossEntropy + 1.0 x SoftDice (foreground CG+PZ) vs baseline CrossEntropy"
+  output_dir: "./results/exp_e1_dice_ce"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+
+# IDENTICAL to baseline -- preprocessing is NOT a variable in E1.
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+# IDENTICAL to baseline -- architecture is NOT a variable in E1.
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+# IDENTICAL to baseline -- note `loss_function` is intentionally omitted, see header.
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  amp: false                 # FP32, matching the FP32-trained baseline (controlled comparison)
+
+# ===================== THE INDEPENDENT VARIABLE (E1) =====================
+# Baseline: plain CrossEntropy.   E1: 1.0 * CE + 1.0 * SoftDice(CG, PZ).
+loss:
+  name: dice_ce
+  ce_weight: 1.0
+  dice_weight: 1.0
+  dice_classes: [1, 2]       # 1 = CG, 2 = PZ; background (0) excluded by design
+  epsilon: 1.0e-6
+# =========================================================================
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+# NOTE: declarative / documentation-only, matching the baseline and Exp02
+# configs -- src/evaluate.py takes aggregation/space/class_ids as explicit
+# Python arguments; nothing reads this block automatically.
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"

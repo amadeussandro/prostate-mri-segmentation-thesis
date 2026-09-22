@@ -5,15 +5,22 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from torch import nn
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from src.dataset import ProstateZonal2DDataset
 from src.evaluate import compute_dice, compute_iou
+from src.losses import LossConfig, compute_loss_components
 from src.model import build_model
 from src.splits import load_official_split
 from src.transforms import PreprocessingConfig
-from src.utils import ensure_dir, get_device, load_config, set_seed
+from src.utils import (
+    build_config_fingerprint,
+    ensure_dir,
+    format_config_fingerprint,
+    get_device,
+    load_config,
+    set_seed,
+)
 
 
 def _resolve_split_ids(config: Dict[str, Any]):
@@ -49,9 +56,14 @@ def compute_loss(
     loss_type="cross_entropy",
     dice_weight=1.0,
     bce_weight=1.0,
+    loss_config=None,
 ):
     """
     Compute loss for multiclass prostate zonal segmentation.
+
+    Backward compatible: called with the defaults (or loss_type="cross_entropy")
+    this returns EXACTLY `nn.CrossEntropyLoss()(predictions, targets.long())`,
+    the original baseline loss, unchanged.
 
     Parameters
     ----------
@@ -59,20 +71,23 @@ def compute_loss(
         Raw logits with shape (B, C, H, W).
     targets : torch.Tensor
         Integer class labels with shape (B, H, W).
+    loss_type : str
+        Legacy selector ("cross_entropy" / "dice_ce"). Ignored when
+        `loss_config` is supplied.
+    dice_weight, bce_weight : float
+        Legacy arguments, kept for signature compatibility. Prefer passing a
+        fully-resolved `loss_config`.
+    loss_config : Optional[src.losses.LossConfig]
+        Fully-resolved loss spec (E1 path). Takes precedence over `loss_type`.
 
     Returns
     -------
     torch.Tensor
-        Scalar CrossEntropy loss.
+        Scalar loss.
     """
-    if loss_type.lower() in ("cross_entropy", "ce"):
-        criterion = nn.CrossEntropyLoss()
-        return criterion(predictions, targets.long())
-
-    raise ValueError(
-        f"Unsupported loss_type: {loss_type}. "
-        "Currently supported: cross_entropy"
-    )
+    cfg = loss_config or LossConfig(name=loss_type, dice_weight=dice_weight)
+    total, _ = compute_loss_components(predictions, targets, cfg)
+    return total
 
 
 def _move_batch_to_device(
@@ -128,7 +143,9 @@ def train_one_epoch(
     loss_type: str = "cross_entropy",
     use_amp: bool = False,
     scaler: Any = None,
-) -> float:
+    loss_config: Any = None,
+    return_components: bool = False,
+) -> Any:
     """Execute one training epoch.
 
     AMP (mixed precision) is OPT-IN and off by default. When `use_amp` is False
@@ -137,11 +154,27 @@ def train_one_epoch(
     byte-for-byte unchanged. When `use_amp` is True, the forward pass runs under
     `torch.autocast` and the backward/step go through the provided GradScaler.
     AMP is a training-only speedup for the pilot; evaluation/inference stays FP32.
+
+    `loss_config` (optional, E1) selects the compound Dice+CE objective; when it
+    is None the legacy `loss_type` path is used, i.e. plain cross entropy.
+
+    Returns
+    -------
+    float
+        Sample-weighted mean total loss (default -- unchanged contract).
+    Tuple[float, Dict[str, float]]
+        When `return_components=True`: the same mean total loss plus the
+        sample-weighted mean of each term ({"ce", "dice", "total"}), for
+        per-epoch logging.
     """
 
     model.train()
 
+    cfg = loss_config or LossConfig(name=loss_type)
+
     total_loss = 0.0
+    total_ce = 0.0
+    total_dice = 0.0
     total_samples = 0
 
     autocast_device = "cuda" if device == "cuda" else "cpu"
@@ -154,30 +187,36 @@ def train_one_epoch(
         if use_amp and scaler is not None:
             with torch.autocast(device_type=autocast_device, enabled=True):
                 predictions = model(images)
-                loss = compute_loss(predictions, masks, loss_type=loss_type)
+                loss, components = compute_loss_components(predictions, masks, cfg)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
         else:
             # Original FP32 path -- unchanged.
             predictions = model(images)
-            loss = compute_loss(
-                predictions,
-                masks,
-                loss_type=loss_type,
-            )
+            loss, components = compute_loss_components(predictions, masks, cfg)
             loss.backward()
             optimizer.step()
 
         batch_size = images.size(0)
 
         total_loss += loss.item() * batch_size
+        total_ce += components["ce"] * batch_size
+        total_dice += components["dice"] * batch_size
         total_samples += batch_size
 
     if total_samples == 0:
-        return 0.0
+        return (0.0, {"ce": 0.0, "dice": 0.0, "total": 0.0}) if return_components else 0.0
 
-    return total_loss / total_samples
+    mean_total = total_loss / total_samples
+    if not return_components:
+        return mean_total
+
+    return mean_total, {
+        "ce": total_ce / total_samples,
+        "dice": total_dice / total_samples,
+        "total": mean_total,
+    }
 
 
 def _multiclass_metrics(
@@ -224,12 +263,26 @@ def validate(
     device: str,
     loss_type: str = "cross_entropy",
     num_classes: int = 3,
+    loss_config: Any = None,
 ) -> Dict[str, float]:
-    """Execute validation over the validation dataset."""
+    """Execute validation over the validation dataset.
+
+    IMPORTANT (checkpoint-selection contract): the returned "dice" is the
+    batch-level foreground-macro Dice proxy that has ALWAYS driven best-model
+    selection in this project, and it is unchanged by the E1 work. Adding a
+    `loss_config` only changes the reported validation LOSS terms (so the E1 run
+    logs the same objective it trains on); it does NOT change which epoch is
+    saved as best. Baseline and E1 therefore use an identical within-run
+    checkpoint-selection rule, which is what makes them comparable.
+    """
 
     model.eval()
 
+    cfg = loss_config or LossConfig(name=loss_type)
+
     total_loss = 0.0
+    total_ce = 0.0
+    total_dice_term = 0.0
     total_samples = 0
 
     dice_values = []
@@ -245,15 +298,13 @@ def validate(
 
             predictions = model(images)
 
-            loss = compute_loss(
-                predictions,
-                masks,
-                loss_type=loss_type,
-            )
+            loss, components = compute_loss_components(predictions, masks, cfg)
 
             batch_size = images.size(0)
 
             total_loss += loss.item() * batch_size
+            total_ce += components["ce"] * batch_size
+            total_dice_term += components["dice"] * batch_size
             total_samples += batch_size
 
             dice, iou = _multiclass_metrics(
@@ -298,6 +349,10 @@ def validate(
 
     return {
         "loss": average_loss,
+        # Per-term breakdown of the validation objective (reporting only --
+        # never used for checkpoint selection).
+        "ce_loss": (total_ce / total_samples) if total_samples > 0 else 0.0,
+        "dice_loss": (total_dice_term / total_samples) if total_samples > 0 else 0.0,
         "dice": mean_dice,
         "iou": mean_iou,
         "per_class_dice": per_class_dice,
@@ -409,6 +464,203 @@ def _build_train_sampler(
     )
 
 
+def _capture_rng_state() -> Dict[str, Any]:
+    """Snapshot the RNG state of every stream this training loop consumes.
+
+    Persisted inside `latest_checkpoint.pt` so a Colab-interrupted run resumes
+    with the same random stream rather than silently re-drawing from a fresh
+    seed. CUDA state is captured only when CUDA is actually in use.
+    """
+    import random
+
+    state: Dict[str, Any] = {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch": torch.get_rng_state(),
+    }
+    if torch.cuda.is_available():
+        try:
+            state["torch_cuda_all"] = torch.cuda.get_rng_state_all()
+        except Exception:  # pragma: no cover - defensive, never fail a save
+            state["torch_cuda_all"] = None
+    return state
+
+
+def _restore_rng_state(state: Optional[Dict[str, Any]]) -> bool:
+    """Restore RNG streams saved by `_capture_rng_state`. Returns True if applied.
+
+    Never raises: a checkpoint written by an older version (no RNG block), or on
+    a machine with a different CUDA device count, simply skips restoration.
+    """
+    import random
+
+    if not state:
+        return False
+    try:
+        if state.get("python") is not None:
+            random.setstate(state["python"])
+        if state.get("numpy") is not None:
+            np.random.set_state(state["numpy"])
+        if state.get("torch") is not None:
+            torch.set_rng_state(torch.as_tensor(state["torch"], dtype=torch.uint8))
+        cuda_state = state.get("torch_cuda_all")
+        if cuda_state and torch.cuda.is_available():
+            if len(cuda_state) == torch.cuda.device_count():
+                torch.cuda.set_rng_state_all(cuda_state)
+    except Exception as exc:  # pragma: no cover - defensive
+        print(f"  WARNING: could not fully restore RNG state ({type(exc).__name__}: {exc}).")
+        return False
+    return True
+
+
+def _atomic_torch_save(payload: Dict[str, Any], path: str) -> None:
+    """`torch.save` via a temp file + atomic replace.
+
+    Critical for the Colab/Drive workflow: a session that dies mid-write must
+    never leave a truncated `latest_checkpoint.pt` behind, because that would
+    make the run unresumable. The previous good checkpoint stays intact until
+    the new one is completely written.
+    """
+    tmp_path = f"{path}.tmp"
+    torch.save(payload, tmp_path)
+    os.replace(tmp_path, path)
+
+
+# Config keys that MUST match for a resume to be scientifically valid. Note
+# `num_epochs` is deliberately ABSENT: extending an interrupted run's epoch
+# budget is a legitimate recovery action (and `_load_resume_checkpoint` already
+# refuses to resume a run that is already complete).
+_COMPAT_MODEL_KEYS = ("architecture", "in_channels", "out_channels", "init_features", "dropout_rate")
+_COMPAT_TRAINING_KEYS = ("batch_size", "learning_rate", "seed", "optimizer", "weight_decay", "amp")
+
+
+def verify_checkpoint_compatibility(
+    checkpoint_config: Optional[Dict[str, Any]],
+    config: Dict[str, Any],
+    checkpoint_path: str = "",
+) -> Dict[str, Any]:
+    """Refuse to resume a run from a checkpoint belonging to a DIFFERENT experiment.
+
+    This is the guard that makes it impossible to, say, continue the E1 DiceCE
+    arm from the baseline's `best_model.pt`: experiment name, model
+    architecture, loss specification, and the controlled training
+    hyperparameters must all agree.
+
+    Verification is skipped (with a printed note, not an error) when the
+    checkpoint predates config embedding or carries no `experiment` block --
+    older checkpoints stay loadable, exactly as before.
+
+    Returns
+    -------
+    Dict[str, Any]
+        {"verified": bool, "skipped_reason": Optional[str], "mismatches": List[str]}
+
+    Raises
+    ------
+    ValueError
+        If any controlled field differs. The message lists every mismatch.
+    """
+    result: Dict[str, Any] = {"verified": False, "skipped_reason": None, "mismatches": []}
+
+    if not isinstance(checkpoint_config, dict) or "experiment" not in checkpoint_config:
+        result["skipped_reason"] = (
+            "checkpoint carries no `experiment` block (pre-dates config embedding); "
+            "compatibility verification skipped"
+        )
+        return result
+
+    mismatches = []
+
+    ckpt_name = (checkpoint_config.get("experiment") or {}).get("name")
+    cfg_name = (config.get("experiment") or {}).get("name")
+    if ckpt_name != cfg_name:
+        mismatches.append(f"experiment.name: checkpoint='{ckpt_name}' vs config='{cfg_name}'")
+
+    ckpt_model = checkpoint_config.get("model") or {}
+    cfg_model = config.get("model") or {}
+    for key in _COMPAT_MODEL_KEYS:
+        if key in ckpt_model or key in cfg_model:
+            if ckpt_model.get(key) != cfg_model.get(key):
+                mismatches.append(
+                    f"model.{key}: checkpoint={ckpt_model.get(key)!r} vs config={cfg_model.get(key)!r}"
+                )
+
+    ckpt_training = checkpoint_config.get("training") or {}
+    cfg_training = config.get("training") or {}
+    for key in _COMPAT_TRAINING_KEYS:
+        ckpt_value = ckpt_training.get(key, False if key == "amp" else None)
+        cfg_value = cfg_training.get(key, False if key == "amp" else None)
+        if ckpt_value != cfg_value:
+            mismatches.append(f"training.{key}: checkpoint={ckpt_value!r} vs config={cfg_value!r}")
+
+    ckpt_loss = LossConfig.from_config(checkpoint_config).to_dict()
+    cfg_loss = LossConfig.from_config(config).to_dict()
+    if ckpt_loss != cfg_loss:
+        mismatches.append(f"loss: checkpoint={ckpt_loss} vs config={cfg_loss}")
+
+    if mismatches:
+        result["mismatches"] = mismatches
+        raise ValueError(
+            "Refusing to resume: the checkpoint was produced by a DIFFERENT experiment "
+            "configuration, so continuing would silently mix two experiments.\n"
+            f"  checkpoint: {checkpoint_path or '<unknown>'}\n"
+            + "".join(f"  - {m}\n" for m in mismatches)
+            + "Start this experiment fresh in its own output_dir, or point "
+            "`resume_from` at a checkpoint belonging to THIS experiment."
+        )
+
+    result["verified"] = True
+    return result
+
+
+_METRICS_CSV_FIELDS = (
+    "epoch",
+    "train_loss_total",
+    "train_loss_ce",
+    "train_loss_dice",
+    "val_loss",
+    "val_dice_proxy",
+    "val_iou",
+    "val_dice_class1_CG",
+    "val_dice_class2_PZ",
+    "learning_rate",
+    "epoch_seconds",
+    "amp",
+)
+
+
+def _write_metrics_csv(path: str, history: list) -> None:
+    """Rewrite the per-epoch metrics CSV from the in-memory history.
+
+    Written after EVERY epoch (whole-file rewrite, then atomic replace) so a
+    Colab timeout still leaves a complete, readable record of everything
+    finished so far.
+    """
+    import csv
+
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(_METRICS_CSV_FIELDS))
+        writer.writeheader()
+        for row in history:
+            per_class = row.get("val_per_class_dice") or {}
+            writer.writerow({
+                "epoch": row.get("epoch"),
+                "train_loss_total": row.get("train_loss"),
+                "train_loss_ce": row.get("train_loss_ce"),
+                "train_loss_dice": row.get("train_loss_dice"),
+                "val_loss": row.get("val_loss"),
+                "val_dice_proxy": row.get("val_dice"),
+                "val_iou": row.get("val_iou"),
+                "val_dice_class1_CG": per_class.get("1"),
+                "val_dice_class2_PZ": per_class.get("2"),
+                "learning_rate": row.get("learning_rate"),
+                "epoch_seconds": row.get("epoch_seconds"),
+                "amp": row.get("amp"),
+            })
+    os.replace(tmp_path, path)
+
+
 def _load_resume_checkpoint(
     resume_from: str,
     model: Any,
@@ -416,6 +668,9 @@ def _load_resume_checkpoint(
     device: str,
     num_epochs: int,
     scaler: Any = None,
+    sampler: Any = None,
+    restore_rng: bool = False,
+    verify_against_config: Optional[Dict[str, Any]] = None,
 ) -> Tuple[int, float, int]:
     """Restore model + optimizer state from a checkpoint to resume training.
 
@@ -453,10 +708,39 @@ def _load_resume_checkpoint(
                 f"'{required_key}'. Keys present: {sorted(checkpoint.keys())}"
             )
 
+    # Experiment-identity guard: verified BEFORE any state is loaded into the
+    # model, so an incompatible checkpoint cannot half-apply. Raises on mismatch.
+    if verify_against_config is not None:
+        compat = verify_checkpoint_compatibility(
+            checkpoint.get("config"), verify_against_config, checkpoint_path=resume_from
+        )
+        if compat["verified"]:
+            print("  Checkpoint compatibility: VERIFIED (same experiment, model, loss, hyperparameters).")
+        elif compat["skipped_reason"]:
+            print(f"  Checkpoint compatibility: SKIPPED -- {compat['skipped_reason']}.")
+
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     if scaler is not None and checkpoint.get("scaler_state_dict") is not None:
         scaler.load_state_dict(checkpoint["scaler_state_dict"])
+
+    # Optional reproducibility state (only written by newer checkpoints; an
+    # older checkpoint simply has neither key and is loaded exactly as before).
+    if restore_rng and _restore_rng_state(checkpoint.get("rng_state")):
+        print("  Restored RNG state (python/numpy/torch) from checkpoint.")
+
+    sampler_state = checkpoint.get("sampler_generator_state")
+    if sampler is not None and sampler_state is not None:
+        generator = getattr(sampler, "generator", None)
+        if generator is not None:
+            try:
+                generator.set_state(torch.as_tensor(sampler_state, dtype=torch.uint8))
+                print("  Restored WeightedRandomSampler generator state from checkpoint.")
+            except Exception as exc:  # pragma: no cover - defensive
+                print(
+                    f"  WARNING: could not restore sampler generator state "
+                    f"({type(exc).__name__}: {exc}); sampling continues from the seeded state."
+                )
 
     checkpoint_epoch = int(checkpoint["epoch"])
     best_metric = float(checkpoint["best_metric"])
@@ -488,10 +772,11 @@ def inspect_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
       resumable
 
     Note on `has_scheduler_state` / `has_rng_state`: the training design uses no
-    LR scheduler, and RNG state is intentionally not persisted (the fixed seed
-    preserves the experiment design; see run_training). Both are therefore
-    expected to be False for this project's checkpoints -- they are reported for
-    transparency, not because they are required for a safe resume.
+    LR scheduler, so `has_scheduler_state` is always False. `has_rng_state` is
+    True for `latest_checkpoint.pt` files written by the current run_training
+    (which persists python/numpy/torch RNG state for interruption-safe resume)
+    and False for older checkpoints and for `best_model.pt`; neither is required
+    for a safe resume.
     """
     info: Dict[str, Any] = {
         "exists": False,
@@ -714,9 +999,38 @@ def run_training(
         )
     )
 
+    # Loss selection (E1). Defaults to plain cross entropy, so every config
+    # without a `loss:` block trains exactly as the baseline did.
+    loss_config = LossConfig.from_config(config)
+
     print(f"Loaded config: {config_path}")
     print(f"Target compute device: {device}")
     print(f"Outputs will be saved to: {output_dir}")
+
+    # ---------------------------------------------------------
+    # Experiment fingerprint -- printed AND persisted next to the
+    # results, so it is always obvious which single factor this
+    # run changed relative to the baseline.
+    # ---------------------------------------------------------
+    fingerprint = build_config_fingerprint(config, device=device)
+    print()
+    print(format_config_fingerprint(fingerprint))
+    print()
+
+    with open(os.path.join(output_dir, "config_fingerprint.json"), "w", encoding="utf-8") as f:
+        json.dump(fingerprint, f, indent=2, default=str)
+    with open(os.path.join(output_dir, "config_fingerprint.txt"), "w", encoding="utf-8") as f:
+        f.write(format_config_fingerprint(fingerprint) + "\n")
+    try:
+        import yaml
+
+        with open(os.path.join(output_dir, "config.yaml"), "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, sort_keys=False, default_flow_style=False)
+    except Exception as exc:  # pragma: no cover - snapshot is best-effort
+        print(f"WARNING: could not write config.yaml snapshot ({type(exc).__name__}: {exc}).")
+
+    metrics_csv_path = os.path.join(output_dir, "metrics.csv")
+    latest_checkpoint = os.path.join(output_dir, "latest_checkpoint.pt")
 
     # ---------------------------------------------------------
     # Dataset
@@ -898,6 +1212,9 @@ def run_training(
             device=device,
             num_epochs=num_epochs,
             scaler=scaler,
+            sampler=train_sampler,
+            restore_rng=True,
+            verify_against_config=config,
         )
         print(f"Resumed from checkpoint: {resume_from}")
         print(
@@ -913,7 +1230,7 @@ def run_training(
 
         epoch_start = time.perf_counter()
 
-        train_loss = train_one_epoch(
+        train_loss, train_components = train_one_epoch(
             model=model,
             dataloader=train_loader,
             optimizer=optimizer,
@@ -921,12 +1238,23 @@ def run_training(
             loss_type=loss_type,
             use_amp=use_amp,
             scaler=scaler,
+            loss_config=loss_config,
+            return_components=True,
         )
 
-        print(
-            f"Epoch {epoch}/{num_epochs} "
-            f"- train_loss: {train_loss:.6f}"
-        )
+        current_lr = float(optimizer.param_groups[0]["lr"])
+
+        if loss_config.is_baseline_cross_entropy:
+            print(
+                f"Epoch {epoch}/{num_epochs} "
+                f"- train_loss: {train_loss:.6f}"
+            )
+        else:
+            print(
+                f"Epoch {epoch}/{num_epochs} "
+                f"- train_loss: {train_loss:.6f} "
+                f"(ce: {train_components['ce']:.6f} | dice: {train_components['dice']:.6f})"
+            )
 
         val_metrics = None
         if val_loader is not None:
@@ -937,13 +1265,22 @@ def run_training(
                 device=device,
                 loss_type=loss_type,
                 num_classes=num_classes,
+                loss_config=loss_config,
             )
 
+            per_class = val_metrics.get("per_class_dice", {})
             print(
                 f"  val_loss: {val_metrics['loss']:.6f} "
                 f"| val_dice: {val_metrics['dice']:.6f} "
                 f"| val_iou: {val_metrics['iou']:.6f}"
             )
+            if per_class:
+                print(
+                    "  val_dice per class (slice-level proxy) -- "
+                    + " | ".join(
+                        f"class {cid}: {value:.6f}" for cid, value in sorted(per_class.items())
+                    )
+                )
 
             current_metric = val_metrics["dice"]
 
@@ -958,22 +1295,24 @@ def run_training(
         epoch_history.append({
             "epoch": epoch,
             "train_loss": train_loss,
+            "train_loss_ce": train_components["ce"],
+            "train_loss_dice": train_components["dice"],
             "val_loss": (val_metrics["loss"] if val_metrics else None),
+            "val_loss_ce": (val_metrics["ce_loss"] if val_metrics else None),
+            "val_loss_dice": (val_metrics["dice_loss"] if val_metrics else None),
             "val_dice": (val_metrics["dice"] if val_metrics else None),
             "val_iou": (val_metrics["iou"] if val_metrics else None),
             "val_per_class_dice": (
                 {str(k): v for k, v in val_metrics.get("per_class_dice", {}).items()}
                 if val_metrics else None
             ),
+            "learning_rate": current_lr,
             "epoch_seconds": epoch_seconds,
             "amp": use_amp,
         })
 
-        if current_metric > best_metric:
-
-            best_metric = current_metric
-
-            checkpoint_payload = {
+        def _build_checkpoint_payload(include_resume_state: bool) -> Dict[str, Any]:
+            payload: Dict[str, Any] = {
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
@@ -983,16 +1322,37 @@ def run_training(
             # Only AMP runs persist scaler state -- FP32 checkpoints stay in the
             # exact prior 5-key format (backward-compatible on load).
             if use_amp and scaler is not None:
-                checkpoint_payload["scaler_state_dict"] = scaler.state_dict()
+                payload["scaler_state_dict"] = scaler.state_dict()
+            if include_resume_state:
+                # Reproducibility state lives ONLY in latest_checkpoint.pt, so
+                # best_model.pt keeps the historical 5-key format byte-for-byte.
+                payload["rng_state"] = _capture_rng_state()
+                generator = getattr(train_sampler, "generator", None)
+                if generator is not None:
+                    payload["sampler_generator_state"] = generator.get_state()
+            return payload
 
-            torch.save(checkpoint_payload, best_checkpoint)
+        if current_metric > best_metric:
+
+            best_metric = current_metric
+
+            _atomic_torch_save(_build_checkpoint_payload(include_resume_state=False), best_checkpoint)
 
             print(
                 f"  Saved best checkpoint: {best_checkpoint}"
             )
 
+        # Interruption safety: latest_checkpoint.pt is refreshed after EVERY
+        # epoch (atomically) and carries model + optimizer + epoch + best_metric
+        # + config + RNG/sampler state, so a Colab disconnect resumes from the
+        # next epoch rather than restarting. It is written AFTER the best-model
+        # block so its `best_metric` reflects this epoch's outcome.
+        _atomic_torch_save(_build_checkpoint_payload(include_resume_state=True), latest_checkpoint)
+
         # Persist the running history each epoch so a timeout still leaves a
         # usable partial record (atomic-ish: written whole each time).
+        _write_metrics_csv(metrics_csv_path, epoch_history)
+
         if history_path is not None:
             with open(history_path, "w", encoding="utf-8") as f:
                 json.dump(
@@ -1002,7 +1362,9 @@ def run_training(
                 )
 
     print("Training completed.")
-    print(f"Best checkpoint: {best_checkpoint}")
+    print(f"Best checkpoint:   {best_checkpoint}")
+    print(f"Latest checkpoint: {latest_checkpoint}")
+    print(f"Per-epoch metrics: {metrics_csv_path}")
 
     return {
         "resumed": resume_from is not None,
@@ -1010,7 +1372,10 @@ def run_training(
         "num_epochs": num_epochs,
         "best_metric": best_metric,
         "best_checkpoint": best_checkpoint,
+        "latest_checkpoint": latest_checkpoint,
+        "metrics_csv": metrics_csv_path,
         "amp": use_amp,
+        "loss": loss_config.to_dict(),
     }
 
 
