@@ -1,0 +1,137 @@
+# Experiment E2 (RQ-1) -- DATA AUGMENTATION ablation: Cross Entropy + augmentation.
+#
+# RESEARCH QUESTION
+#   "Does adding mild, anatomically-plausible training-time augmentation improve
+#    validation segmentation performance while keeping all other major training
+#    conditions -- including the baseline Cross Entropy loss -- unchanged?"
+#
+# PLACE IN THE 2x2 DESIGN
+#                        NO AUGMENTATION     AUGMENTATION
+#     CE loss            BASELINE            E2   <-- this config
+#     Dice + CE loss     E1                  E1+E2
+#
+#   E2 is the augmentation-only arm. It keeps the BASELINE loss (plain Cross
+#   Entropy) precisely so that augmentation is isolated from the E1 loss factor.
+#   The E1+E2 combination arm is a SEPARATE, later experiment; nothing here
+#   anticipates or prejudges it.
+#
+# SCIENTIFIC CONTROL
+#   Every value below is IDENTICAL to configs/config_baseline.yaml except:
+#     1. experiment.name / experiment.output_dir  (isolation, not a variable)
+#     2. the `augmentation:` block                (THE independent variable)
+#   `training.loss_function: "cross_entropy"` is stated explicitly and MUST
+#   match the baseline: E2 does not touch the loss. This equivalence is enforced
+#   mechanically by tests/test_e2_config.py, which fails if any controlled key
+#   drifts.
+#
+# FRESH INITIALIZATION
+#   E2 trains from scratch. It must NEVER be resumed from, or initialized with,
+#   the Baseline or E1 checkpoint. `experiment.output_dir` is isolated, and
+#   src/train.py::verify_checkpoint_compatibility refuses any checkpoint whose
+#   embedded config has a different experiment name, loss, or augmentation spec.
+#
+# MOTIVATION (from the RQ-1 audit; see Outputs/rq1_experiment_specification.md
+# section 6, which pre-committed this exact transform set)
+#   Only 119 official training cases are available and the pipeline currently
+#   applies ZERO augmentation. Mild geometric + intensity augmentation is the
+#   standard, low-risk response to a small training cohort: it enlarges the
+#   effective sample without altering the data distribution in ways that are
+#   anatomically implausible for axial prostate T2W.
+#
+# OUTCOME IS NOT PRESUMED
+#   E2 may improve, match, or regress against the baseline. The measured
+#   validation result decides. Nothing here is tuned to force a gain.
+#
+# EVALUATION / SELECTION
+#   Within-run checkpoint selection: UNCHANGED from the baseline and E1
+#     (batch-level foreground-macro val Dice proxy in src/train.py::validate).
+#   Across-experiment comparison:    per-case, volume-level, original-voxel-space
+#     macro Dice = (mean CG Dice + mean PZ Dice) / 2 over the 20 validation
+#     cases, via src/evaluate.py::run_evaluation(split="val").
+#   Anchors: baseline validation macro Dice = 0.8008 (CG 0.8642 / PZ 0.7375)
+#            E1       validation macro Dice = 0.8094 (CG 0.8662 / PZ 0.7527)
+#
+# TEST SET
+#   The official 19-case test archive is NOT referenced here (no test_csv /
+#   test_dir keys). E2 must never touch it.
+
+experiment:
+  name: "exp_e2_ce_aug"
+  description: "RQ-1 E2 augmentation ablation: baseline CrossEntropy + mild geometric/intensity augmentation (train only)"
+  output_dir: "./results/exp_e2_ce_aug"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+
+# IDENTICAL to baseline -- preprocessing is NOT a variable in E2. Augmentation
+# runs AFTER this pipeline, on the already-preprocessed 442x442 slices.
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+# IDENTICAL to baseline -- architecture is NOT a variable in E2.
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+# IDENTICAL to baseline, including the loss. num_workers is pinned to 0 (the
+# project default) because the augmentation RNG lives in the dataset object:
+# forked DataLoader workers would each inherit a copy of it and break
+# seed-exact reproducibility. src/train.py raises if this is >0 with
+# augmentation enabled.
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  loss_function: "cross_entropy"   # baseline loss -- E2 does NOT change the loss
+  amp: false                       # FP32, matching the FP32-trained baseline
+  num_workers: 0                   # required for reproducible augmentation
+
+# ===================== THE INDEPENDENT VARIABLE (E2) =====================
+# Verbatim from Outputs/rq1_experiment_specification.md section 6.
+# Applied to TRAINING slices ONLY (src/train.py passes augment=True for the
+# training dataset and augment=False for validation). Image and mask receive
+# the IDENTICAL spatial transform; the image is interpolated bilinearly
+# (order=1) and the mask ALWAYS nearest-neighbour (order=0).
+#
+# Deliberately EXCLUDED (would distort zonal anatomy): vertical flip, heavy
+# elastic deformation, large rotations.
+augmentation:
+  enabled: true
+  seed: 42                    # same stream as training.seed
+  rotation_degrees: 10.0      # random rotation in [-10, +10] degrees
+  rotation_p: 0.5
+  scale_min: 0.9              # random isotropic zoom in [0.9, 1.1]
+  scale_max: 1.1
+  scale_p: 0.3
+  hflip_p: 0.5                # horizontal (left-right) flip
+  gamma_min: 0.7              # random gamma in [0.7, 1.5], IMAGE ONLY
+  gamma_max: 1.5
+  gamma_p: 0.3
+# =========================================================================
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+# NOTE: declarative / documentation-only, matching the baseline, Exp02 and E1
+# configs -- src/evaluate.py takes aggregation/space/class_ids as explicit
+# Python arguments; nothing reads this block automatically.
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"

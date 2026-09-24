@@ -118,9 +118,12 @@ def build_config_fingerprint(
     (optimizer, LR, batch size, seed, epochs, precision) was held fixed.
 
     Reads ONLY the config; it never inspects or mutates training state. Fields
-    the pipeline does not implement (augmentation, LR scheduler) are reported
-    explicitly as OFF rather than omitted, so their absence is on the record.
+    the pipeline does not implement (LR scheduler) are reported explicitly as
+    OFF rather than omitted, so their absence is on the record. Augmentation is
+    reported from the resolved `augmentation:` block: OFF for Baseline / E1
+    (no block), and the full parameter set for E2.
     """
+    from src.augment import AugmentationConfig  # local import: keeps utils light
     from src.losses import LossConfig  # local import: keeps utils torch-free on import
 
     experiment_cfg = config.get("experiment", {}) or {}
@@ -130,6 +133,7 @@ def build_config_fingerprint(
     preprocessing_cfg = config.get("preprocessing", {}) or {}
 
     loss_config = LossConfig.from_config(config)
+    augmentation_config = AugmentationConfig.from_config(config)
     amp_enabled = bool(training_cfg.get("amp", False))
 
     return {
@@ -154,7 +158,9 @@ def build_config_fingerprint(
         "batch_size": training_cfg.get("batch_size"),
         "num_workers": training_cfg.get("num_workers", 0),
         "use_weighted_sampling": training_cfg.get("use_weighted_sampling", True),
-        "augmentation": "OFF (no augmentation implemented in this pipeline)",
+        "augmentation": augmentation_config.describe(),
+        "augmentation_spec": augmentation_config.to_dict(),
+        "augmentation_enabled": augmentation_config.enabled,
         "scheduler": "OFF (constant learning rate)",
         "preprocessing": {
             "normalization": preprocessing_cfg.get("normalization"),

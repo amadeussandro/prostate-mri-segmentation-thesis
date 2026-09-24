@@ -82,3 +82,17 @@ results/exp_e1_dice_ce/training_report.md
 results/exp_e1_dice_ce/config.yaml
 results/exp_e1_dice_ce/config_fingerprint.json
 results/exp_e1_dice_ce/config_fingerprint.txt
+
+# Experiment E2 (CE + augmentation ablation) run artifacts -- generated at runtime
+# on Colab/Drive by src/train.py + scripts/finalize_e2_report.py. The directory
+# skeleton is kept via .gitkeep; checkpoints (*.pt) and figures (*.png) are
+# already covered by the global rules above.
+results/exp_e2_ce_aug/metrics.csv
+results/exp_e2_ce_aug/summary.json
+results/exp_e2_ce_aug/training_report.md
+results/exp_e2_ce_aug/training_history.json
+results/exp_e2_ce_aug/reproducibility.json
+results/exp_e2_ce_aug/config.yaml
+results/exp_e2_ce_aug/config_fingerprint.json
+results/exp_e2_ce_aug/config_fingerprint.txt
+results/exp_e2_ce_aug/state/training_state.json
