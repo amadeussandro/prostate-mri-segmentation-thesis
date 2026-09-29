@@ -1,0 +1,143 @@
+# Experiment E3 (RQ-1) -- CE CLASS-WEIGHTING ablation on top of E1's Dice+CE loss.
+#
+# RESEARCH QUESTION
+#   "Does re-weighting the Cross Entropy term by median class frequency -- so the
+#    minority PZ class contributes more -- improve validation segmentation
+#    performance (in particular PZ recall) relative to E1, while keeping every
+#    other training condition identical to E1?"
+#
+# SCIENTIFIC CONTROL
+#   Every value below is IDENTICAL to configs/experiments/exp_e1_dice_ce.yaml
+#   except:
+#     1. experiment.name / experiment.output_dir / experiment.description
+#        (isolation and labelling, not variables)
+#     2. `loss.ce_class_weights`                (THE independent variable)
+#   Augmentation stays OFF, so E3 is E1 + class-weighted CE and nothing else.
+#   This equivalence is enforced mechanically by tests/test_e3_config.py, which
+#   fails if any controlled key drifts from E1.
+#
+# WHY THIS FACTOR, WHY THESE NUMBERS
+#   Census over the 119 official training cases (this repository's own measured
+#   voxel statistics, same census that motivated E1):
+#     background 94.20% | CG (1) 4.30% | PZ (2) 1.51% of voxels
+#
+#   Median class frequency = median(0.9420, 0.0430, 0.0151) = 0.0430, so the
+#   median-frequency weights are:
+#     background : 0.0430 / 0.9420 = 0.0456
+#     CG         : 0.0430 / 0.0430 = 1.0000
+#     PZ         : 0.0430 / 0.0151 = 2.8477
+#
+#   Measured motivation, not a guess: on the 20 validation cases E1 still shows
+#   PZ precision 0.8073 >> PZ recall 0.7161, i.e. PZ remains systematically
+#   UNDER-segmented even with the foreground soft-Dice term in place. E1's Dice
+#   term is region-based but class-balanced only across the two foreground
+#   zones; the CE term is still purely pixel-wise and unweighted, so 94.2% of
+#   the pixels it scores are background. E3 addresses exactly that term.
+#
+# NORMALIZATION (deliberate, do not "fix")
+#   The weights go straight into nn.CrossEntropyLoss(weight=w, reduction="mean"),
+#   i.e. PyTorch's weighted mean  sum_i w_{y_i} l_i / sum_i w_{y_i}.
+#   No manual 1/N re-normalization is applied. Rescaling the CE term would alter
+#   the effective CE:Dice contribution ratio and thereby introduce a SECOND
+#   independent variable, which would make E3 uninterpretable as an ablation.
+#
+# FRESH INITIALIZATION
+#   E3 trains from scratch. It must NEVER be resumed from, or initialized with,
+#   the Baseline, E1 or E2 checkpoint. `experiment.output_dir` is isolated, and
+#   src/train.py::verify_checkpoint_compatibility refuses any checkpoint whose
+#   embedded config has a different experiment name, loss spec (now including
+#   `ce_class_weights`), or augmentation spec.
+#
+# OUTCOME IS NOT PRESUMED
+#   E3 may improve, match, or regress against E1. The measured validation result
+#   decides. Nothing in this config is tuned to force a gain, and the success
+#   criteria were fixed BEFORE the run (see the pre-committed thresholds in the
+#   E3 notebook and scripts/finalize_e3_report.py).
+#
+# EVALUATION / SELECTION
+#   Within-run checkpoint selection: UNCHANGED from Baseline / E1 / E2
+#     (batch-level foreground-macro val Dice proxy in src/train.py::validate).
+#   Across-experiment comparison:    per-case, volume-level, original-voxel-space
+#     macro Dice = (mean CG Dice + mean PZ Dice) / 2 over the 20 validation
+#     cases, via src/evaluate.py::run_evaluation(split="val").
+#   Anchors: baseline validation macro Dice = 0.8008 (CG 0.8642 / PZ 0.7375)
+#            E1       validation macro Dice = 0.8094 (CG 0.8662 / PZ 0.7527)
+#            E2       validation macro Dice = 0.7982 (CG 0.8636 / PZ 0.7327)
+#
+# TEST SET
+#   The official 19-case test archive is NOT referenced here (no test_csv /
+#   test_dir keys). E3 must never touch it.
+#
+# LABEL MAPPING
+#   Unchanged from Baseline / E1 / E2: class 1 is treated as CG and class 2 as
+#   PZ. That identification is still formally UNVERIFIED (see
+#   results/label_mapping/label_mapping_report.md) and is recorded as a
+#   limitation in the E3 report rather than silently altered here.
+
+experiment:
+  name: "exp_e3_dice_ce_pzweight"
+  description: "RQ-1 E3 CE class-weighting ablation: E1's 1.0 x CE + 1.0 x SoftDice with median-frequency CE weights [0.0456, 1.0, 2.8477] (bg, CG, PZ)"
+  output_dir: "./results/exp_e3_dice_ce_pzweight"
+
+# IDENTICAL to E1 -- the split, target and slice policy are NOT variables in E3.
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+
+# IDENTICAL to E1 -- preprocessing is NOT a variable in E3.
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+# IDENTICAL to E1 -- architecture is NOT a variable in E3.
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+# IDENTICAL to E1 -- note `loss_function` is intentionally omitted: the top-level
+# `loss:` block is the single source of truth, and src/losses.py raises if both
+# are present and disagree.
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  amp: false                 # FP32, matching the FP32-trained Baseline / E1 / E2
+
+# ===================== THE INDEPENDENT VARIABLE (E3) =====================
+# E1: 1.0 * CE(unweighted) + 1.0 * SoftDice(CG, PZ)
+# E3: 1.0 * CE(WEIGHTED)   + 1.0 * SoftDice(CG, PZ)   <-- only ce_class_weights added
+#
+# The Dice component is byte-for-byte E1's: same weight, same classes, same eps.
+loss:
+  name: dice_ce
+  ce_weight: 1.0
+  dice_weight: 1.0
+  dice_classes: [1, 2]       # 1 = CG, 2 = PZ; background (0) excluded by design
+  epsilon: 1.0e-6
+  ce_class_weights: [0.0456, 1.0000, 2.8477]   # index 0 = background, 1 = CG, 2 = PZ
+# =========================================================================
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+# NOTE: declarative / documentation-only, matching the baseline, Exp02, E1 and E2
+# configs -- src/evaluate.py takes aggregation/space/class_ids as explicit
+# Python arguments; nothing reads this block automatically.
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "unverified"

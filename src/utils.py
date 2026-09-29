@@ -121,7 +121,9 @@ def build_config_fingerprint(
     the pipeline does not implement (LR scheduler) are reported explicitly as
     OFF rather than omitted, so their absence is on the record. Augmentation is
     reported from the resolved `augmentation:` block: OFF for Baseline / E1
-    (no block), and the full parameter set for E2.
+    (no block), and the full parameter set for E2. The CE class weights are
+    reported the same way: "unweighted (uniform)" for Baseline / E1 / E2, and
+    the explicit per-class vector for E3.
     """
     from src.augment import AugmentationConfig  # local import: keeps utils light
     from src.losses import LossConfig  # local import: keeps utils torch-free on import
@@ -148,6 +150,12 @@ def build_config_fingerprint(
         "loss_spec": loss_config.to_dict(),
         "dice_classes": list(loss_config.dice_classes) if not loss_config.is_baseline_cross_entropy else None,
         "dice_epsilon": loss_config.epsilon if not loss_config.is_baseline_cross_entropy else None,
+        # E3's independent variable. None for Baseline / E1 / E2 (unweighted CE).
+        "ce_class_weights": (
+            list(loss_config.ce_class_weights)
+            if loss_config.ce_class_weights is not None else None
+        ),
+        "ce_class_weights_description": loss_config.describe_ce_class_weights(),
         "num_epochs": training_cfg.get("num_epochs"),
         "seed": training_cfg.get("seed", 42),
         "amp": amp_enabled,
@@ -188,6 +196,10 @@ def format_config_fingerprint(fingerprint: Dict[str, Any]) -> str:
     if fingerprint.get("dice_classes") is not None:
         rows.append(("Dice classes", f"{fingerprint['dice_classes']} (1=CG, 2=PZ; background excluded)"))
         rows.append(("Dice epsilon", fingerprint.get("dice_epsilon")))
+    rows.append((
+        "CE class weights",
+        fingerprint.get("ce_class_weights_description") or "unweighted (uniform)",
+    ))
     rows.extend([
         ("Epochs (max)", fingerprint.get("num_epochs")),
         ("Seed", fingerprint.get("seed")),

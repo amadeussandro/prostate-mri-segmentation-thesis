@@ -96,3 +96,18 @@ results/exp_e2_ce_aug/config.yaml
 results/exp_e2_ce_aug/config_fingerprint.json
 results/exp_e2_ce_aug/config_fingerprint.txt
 results/exp_e2_ce_aug/state/training_state.json
+
+# Experiment E3 (class-weighted CE + Dice ablation) run artifacts -- generated at
+# runtime on Colab/Drive by src/train.py + scripts/finalize_e3_report.py. The
+# directory skeleton is kept via .gitkeep; checkpoints (*.pt) and figures (*.png)
+# are already covered by the global rules above.
+results/exp_e3_dice_ce_pzweight/metrics.csv
+results/exp_e3_dice_ce_pzweight/summary.json
+results/exp_e3_dice_ce_pzweight/training_report.md
+results/exp_e3_dice_ce_pzweight/training_history.json
+results/exp_e3_dice_ce_pzweight/reproducibility.json
+results/exp_e3_dice_ce_pzweight/config.yaml
+results/exp_e3_dice_ce_pzweight/config_fingerprint.json
+results/exp_e3_dice_ce_pzweight/config_fingerprint.txt
+results/exp_e3_dice_ce_pzweight/e3_vs_e1_paired_cases.csv
+results/exp_e3_dice_ce_pzweight/state/training_state.json
