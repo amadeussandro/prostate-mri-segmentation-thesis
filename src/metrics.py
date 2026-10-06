@@ -244,10 +244,16 @@ def aggregate_case_results(
 # which zone is an unverified hypothesis (see results/label_mapping/), so the
 # names carried into every output file say so explicitly and must not be read
 # as a confirmed mapping.
+# Anatomical identity of labels 1 and 2 was VERIFIED on 2026-10-05 by multi-planar
+# visual inspection of cases 020/059/099/139, corroborated by the 15/15 morphometric
+# analysis, the MONAI convention and the independently annotated ProstateX cohort.
+# See results/label_mapping/label_mapping_verified.md. Before that date these names
+# carried an explicit "_hypothesis_..._unverified" suffix; artifacts generated then
+# still show the old strings, and the mapping they encode is the one confirmed here.
 DEFAULT_CLASS_NAMES: Dict[int, str] = {
     0: "background",
-    1: "class1_hypothesis_CG_TZ_unverified",
-    2: "class2_hypothesis_PZ_unverified",
+    1: "CG_central_gland",
+    2: "PZ_peripheral_zone",
 }
 
 REPORT_METRIC_NAMES: Tuple[str, ...] = ("dice", "iou", "hd95_mm", "asd_mm", "precision", "recall")

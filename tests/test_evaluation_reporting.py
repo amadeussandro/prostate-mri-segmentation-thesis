@@ -65,11 +65,17 @@ class TestEvaluationReporting(unittest.TestCase):
         for row in rows:
             for metric in REPORT_METRIC_NAMES:
                 self.assertIn(metric, row)
-        # label-mapping status must be carried in the class names, not asserted as fact
+        # Class names must state the VERIFIED anatomical identity. Until 2026-10-05
+        # these carried an explicit "_unverified" suffix because the integer -> zone
+        # mapping was an open question; it was resolved by multi-planar inspection of
+        # cases 020/059/099/139 (results/label_mapping/label_mapping_verified.md), so
+        # the names now assert CG and PZ directly.
         c1_names = {r["class_name"] for r in rows if r["class_id"] == 1}
         c2_names = {r["class_name"] for r in rows if r["class_id"] == 2}
-        self.assertTrue(all("unverified" in n for n in c1_names))
-        self.assertTrue(all("unverified" in n for n in c2_names))
+        self.assertTrue(all("CG" in n for n in c1_names), c1_names)
+        self.assertTrue(all("PZ" in n for n in c2_names), c2_names)
+        self.assertFalse(any("unverified" in n for n in c1_names | c2_names),
+                         "class names still carry the pre-verification suffix")
 
     def test_per_case_csv_roundtrip(self):
         with tempfile.TemporaryDirectory() as d:
@@ -114,7 +120,9 @@ class TestEvaluationReporting(unittest.TestCase):
             self.assertIn("1", payload["per_class"])
             self.assertIn("metrics", payload["per_class"]["1"])
             self.assertIn("dice", payload["per_class"]["1"]["metrics"])
-            self.assertIn("unverified", payload["per_class"]["1"]["class_name"])
+            # Verified 2026-10-05: label 1 = CG, label 2 = PZ.
+            self.assertIn("CG", payload["per_class"]["1"]["class_name"])
+            self.assertIn("PZ", payload["per_class"]["2"]["class_name"])
 
     def test_nan_not_written_as_bare_token_breaking_strict_json(self):
         """json.dump would emit NaN (invalid JSON) if a NaN leaked into metadata;

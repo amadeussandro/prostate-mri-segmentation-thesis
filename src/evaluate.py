@@ -618,7 +618,7 @@ def run_evaluation(
     split_dataset_root = _resolve_split_dataset_root(data_cfg, split)
 
     print("=" * 78)
-    print(f"BASELINE EVALUATION (inference only, no training)")
+    print(f"SEGMENTATION EVALUATION (inference only, no training)")
     print(f"  checkpoint : {checkpoint_path}")
     print(f"  ckpt epoch : {checkpoint.get('epoch', 'unknown')}  "
           f"(training-loop best metric: {checkpoint.get('best_metric', float('nan'))})")
@@ -661,7 +661,10 @@ def run_evaluation(
         "evaluation_space": "original_voxel",
         "ground_truth_source": "original_on_disk_mask_untouched",
         "aggregation": "per_case",
-        "label_mapping_status": "unverified (see results/label_mapping/label_mapping_report.md)",
+        "label_mapping_status": (
+            "verified_multiplanar_2026_10_05 (0=background, 1=CG, 2=PZ; see "
+            "results/label_mapping/label_mapping_verified.md)"
+        ),
         "preprocessing": {
             "normalization": preproc.normalization,
             "z_resample": preproc.z_resample,

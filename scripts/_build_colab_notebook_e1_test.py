@@ -875,7 +875,7 @@ cells.append(code(
     "print(macro_per_case.to_string())",
     "print('-' * 70)",
     "print(f\"mean {macro_per_case['macro_dice'].mean():.4f} \"",
-    "      f\"+/- {macro_per_case['macro_dice'].std(ddof=1):.4f} SD   |   \"",
+    "      f\"+/- {macro_per_case['macro_dice'].std(ddof=0):.4f} SD   |   \"",
     "      f\"median {macro_per_case['macro_dice'].median():.4f}   |   \"",
     "      f\"range {macro_per_case['macro_dice'].min():.4f}-{macro_per_case['macro_dice'].max():.4f}\")",
 ))
@@ -890,8 +890,13 @@ cells.append(md(
 ))
 
 cells.append(code(
+    "# ddof=0 (population SD), matching src/metrics.py -- which is what produced the",
+    "# validation, baseline, E2 and E3 standard deviations. Pandas defaults to ddof=1;",
+    "# using that here would put two SD conventions in one results table and make the",
+    "# validation-vs-test comparison inconsistent.",
     "aggregate = (per_case.groupby('class_id')[list(METRIC_NAMES)]",
-    "             .agg(['mean', 'std']))",
+    "             .agg(['mean', lambda x: x.std(ddof=0)]))",
+    "aggregate.columns = aggregate.columns.set_levels(['mean', 'std'], level=1)",
     "",
     "TEST_CG_DICE = float(aggregate.loc[CG, ('dice', 'mean')])",
     "TEST_PZ_DICE = float(aggregate.loc[PZ, ('dice', 'mean')])",
@@ -1059,7 +1064,7 @@ cells.append(code(
     "        'validation': E1_VALIDATION['macro_dice'],",
     "        'difference': TEST_MACRO_DICE - E1_VALIDATION['macro_dice'],",
     "        'per_case_mean': float(macro_per_case['macro_dice'].mean()),",
-    "        'per_case_std': float(macro_per_case['macro_dice'].std(ddof=1)),",
+    "        'per_case_std': float(macro_per_case['macro_dice'].std(ddof=0)),",
     "        'per_case_median': float(macro_per_case['macro_dice'].median()),",
     "    },",
     "    'validation_vs_test': {",
@@ -1119,7 +1124,7 @@ cells.append(code(
     "    '',",
     "    f'**Macro Dice (CG + PZ) / 2 = {TEST_MACRO_DICE:.4f}**  '",
     "    f\"(per-case {macro_per_case['macro_dice'].mean():.4f} ± \"",
-    "    f\"{macro_per_case['macro_dice'].std(ddof=1):.4f} SD, \"",
+    "    f\"{macro_per_case['macro_dice'].std(ddof=0):.4f} SD, \"",
     "    f\"median {macro_per_case['macro_dice'].median():.4f})\",",
     "    '',",
     "    'Background is reported above for completeness and is **not** part of macro Dice.',",
