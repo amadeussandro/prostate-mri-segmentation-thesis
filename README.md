@@ -81,9 +81,11 @@ thesis-project/
 - **Label mapping:** which integer is CG/TZ vs PZ is **not resolved by
   assumption**. See `results/label_mapping/label_mapping_report.md` for
   quantitative morphological evidence (exterior-contact fraction, centroid
-  distance, sampled across 15 cases spanning the full ID range) — strongly
-  and consistently pointing to **label 1 = CG/TZ, label 2 = PZ**, but this
-  remains a documented hypothesis pending 3D Slicer human confirmation.
+  distance, sampled across 15 cases spanning the full ID range) — pointing to
+  **label 1 = CG/TZ, label 2 = PZ**. This was **VERIFIED on 2026-10-05** by
+  multi-planar (axial/coronal/sagittal) visual inspection of cases 020, 059,
+  099 and 139; see `results/label_mapping/label_mapping_verified.md` for the record
+  and `results/label_mapping/label_verification_<case>.png` for the figures.
 
 ## 4. Environment
 

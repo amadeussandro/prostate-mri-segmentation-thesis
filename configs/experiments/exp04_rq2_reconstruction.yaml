@@ -20,8 +20,10 @@ output_dir: "./results/exp04_rq2_reconstruction"
 split: "test"                                                  # official held-out 19-case test set
 class_ids: [0, 1, 2]
 
-# Label mapping human-verified in 3D Slicer (cases 020, 059); never changed here.
-label_mapping_status: "verified_3dslicer"
+# Label mapping VERIFIED 2026-10-05 by multi-planar visual inspection
+# (axial/coronal/sagittal; cases 020, 059, 099, 139). Never changed here.
+# Record: results/label_mapping/label_mapping_verified.md
+label_mapping_status: "verified_multiplanar_2026_10_05"
 class_names:
   0: "background"
   1: "CG_central_gland"    # Central Gland (CG = CZ + TZ)

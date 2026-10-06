@@ -1,6 +1,15 @@
-# UNVERIFIED — see label_mapping_report.md. Do not treat as ground truth.
-label_mapping_verified: false
-label_mapping_hypothesis:
-  1: "CG_TZ"
-  2: "PZ"
-verification_method_required: "3D Slicer visual inspection, sampled cases"
+# VERIFIED 2026-10-05 — see results/label_mapping/label_mapping_verified.md for the full record.
+label_mapping_verified: true
+label_mapping:
+  0: "background"
+  1: "CG_TZ"          # Central Gland = Central Zone + Transition Zone
+  2: "PZ"             # Peripheral Zone
+verification_date: "2026-10-05"
+verification_method: "multi-planar visual inspection (axial/coronal/sagittal), cases 020/059/099/139"
+verification_evidence: "results/label_mapping/label_mapping_verified.md"
+verification_figures: "results/label_mapping/label_verification_<case>.png"
+corroborating_evidence:
+  - "morphometry: 15/15 cases, exterior-contact and centroid-distance tests agree"
+  - "MONAI convention"
+  - "ProstateX (Cuocolo et al.) independent annotation uses the same assignment"
+contradicts: "Nakic et al. 2026 text, which implies 1 = PZ"

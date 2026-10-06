@@ -17,4 +17,4 @@
 source_checkpoint: "./results/exp01_baseline/best_model.pt"  # produced by Experiment 1
 output_dir: "./results/exp04_reconstruction"
 class_ids: [0, 1, 2]
-label_mapping_status: "unverified"
+label_mapping_status: "verified_multiplanar_2026_10_05" # VERIFIED 2026-10-05 (1=CG, 2=PZ); see results/label_mapping/label_mapping_verified.md

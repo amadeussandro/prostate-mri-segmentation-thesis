@@ -42,3 +42,30 @@ Union of unique mask values across sample: [0, 1, 2]
 Rationale: morphological heuristics (exterior contact, centroid distance) are strong supporting evidence but are inference, not ground truth — they cannot distinguish a genuinely ambiguous or atypical case, and published sources on this exact dataset already disagree with each other. Per the research protocol, this gate does not resolve the mapping by assumption. The pipeline continues to read and report labels as neutral **'label 1'** / **'label 2'** (or 'class 1' / 'class 2') until a human confirms the anatomical identity by opening `t2.nii.gz` and `t2_anatomy_reader1.nii.gz` together in 3D Slicer for a sample of cases (suggested: patients 020, 059, 099, 139) and visually identifying which integer is the thin outer rim (PZ) vs the central mass (CG/TZ).
 
 Working (unverified) hypothesis for reference during development: label 2 = PZ, label 1 = CG/TZ. Do not report final thesis per-class results under these names until confirmed.
+
+---
+
+## RESOLUTION (2026-10-05) — THIS GATE IS NOW CLOSED
+
+The human visual check required by the VERDICT above **has been performed**.
+Multi-planar figures (axial / coronal / sagittal, canonical RAS, correct physical
+aspect ratio) were generated for the exact cases suggested above — **020, 059,
+099, 139** — by `scripts/make_label_mapping_figures.py`, and inspected.
+
+**Confirmed: `0 = background, 1 = CG (CZ + TZ), 2 = PZ`.**
+
+In every case and every plane, label 2 forms the thin crescent on the posterior
+aspect of the gland at the rectal interface, while label 1 is the bulky central
+and anterior mass. Case 139 (volume ratio 6.20 : 1, BPH pattern) shows label 2
+compressed into a thin posterior strip by the enlarged label-1 mass — the
+textbook appearance, and anatomically impossible under the reversed mapping.
+
+This agrees with the morphometric evidence above (15/15 cases, two independent
+tests), with the MONAI convention, and with the independently annotated
+ProstateX cohort. It contradicts the reading implied by the Nakić et al. 2026
+text.
+
+**Full record, evidence, limitations and sign-off: `results/label_mapping/label_mapping_verified.md`.**
+
+The original verdict is retained above, unedited, as the record of the state
+before verification.

@@ -9,10 +9,10 @@ This module provides two dataset classes:
    current thesis work. It raises a DeprecationWarning on instantiation.
 
 2. ProstateZonal2DDataset -- ****CURRENT THESIS DATASET****. Multi-class
-   prostate zonal anatomy segmentation (label 1 / label 2; see
-   results/label_mapping/label_mapping_report.md for the CG/PZ identity,
-   which is a documented hypothesis pending 3D Slicer confirmation, not
-   resolved by this code) using T2-weighted MRI alone. This is the only
+   prostate zonal anatomy segmentation (label 1 = CG/TZ, label 2 = PZ --
+   VERIFIED 2026-10-05 by multi-planar visual inspection, see
+   results/label_mapping/label_mapping_verified.md; this code reads the integers as-is and
+   never relabels) using T2-weighted MRI alone. This is the only
    dataset class any current pipeline code (src/train.py, scripts/*) may use.
 """
 

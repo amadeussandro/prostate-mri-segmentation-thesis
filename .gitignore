@@ -51,6 +51,10 @@ results/10_patients/*.pth
 results/**/visualizations/
 *.png
 !results/020_patient_overview.png
+# Label-mapping figures ARE versioned: they are the evidence behind
+# results/label_mapping/label_mapping_verified.md, and every per-class (CG/PZ)
+# result in the thesis rests on them. A reader must be able to check them.
+!results/label_mapping/*.png
 results/**/eval_*_per_case_metrics.csv
 results/**/eval_*_summary.csv
 results/**/eval_*_summary.json
