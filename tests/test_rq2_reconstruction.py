@@ -309,14 +309,34 @@ class TestNotebookCommandMatchesCLI(unittest.TestCase):
         self.script_src = open(script, encoding="utf-8").read()
 
     def test_notebook_passes_explicit_drive_paths(self):
-        # Section 9 command block
+        # Section 9 must pass explicit Drive paths rather than relying on the
+        # orchestrator's defaults. --test-dir takes TEST_CASE_ROOT, not the raw
+        # TEST_DIR: the Zenodo archive nests the cases under a wrapper folder, so
+        # Section 5 resolves the real case-root first (see the test below).
         self.assertIn("run_rq2_reconstruction.py", self.code)
         for pair in ['"--train-csv", TRAIN_CSV',
                      '"--valid-csv", VALID_CSV',
-                     '"--test-dir", TEST_DIR',
+                     '"--test-dir", TEST_CASE_ROOT',
                      '"--checkpoint", CHECKPOINT_PATH',
                      '"--output-dir", OUTPUT_DIR']:
             self.assertIn(pair, self.code, f"notebook missing: {pair}")
+
+    def test_notebook_resolves_the_case_root_before_use(self):
+        """TEST_DIR may point at a wrapper; the cases must be found underneath it.
+
+        load_official_split(test_dir=...) lists only immediate subdirectories, so
+        passing the archive root straight through would resolve one id instead of
+        nineteen. The notebook must derive TEST_CASE_ROOT with find_case_root and
+        consume that everywhere the test data is read.
+        """
+        self.assertIn("from audit_test_archive import find_case_root", self.code)
+        self.assertIn("TEST_CASE_ROOT = find_case_root(TEST_DIR)", self.code)
+        self.assertIn("test_dir=TEST_CASE_ROOT", self.code)
+        self.assertIn("dataset_root=TEST_CASE_ROOT", self.code)
+        # The raw TEST_DIR must never reach the data-reading calls.
+        self.assertNotIn("test_dir=TEST_DIR", self.code)
+        self.assertNotIn("dataset_root=TEST_DIR", self.code)
+        self.assertNotIn('"--test-dir", TEST_DIR', self.code)
 
     def test_notebook_defines_drive_csv_vars(self):
         self.assertIn('TRAIN_CSV       = f"{DRIVE_BASE}/dataset/prostate158_train/train.csv"', self.code)
