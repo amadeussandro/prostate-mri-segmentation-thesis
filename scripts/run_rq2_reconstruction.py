@@ -5,9 +5,9 @@ Thesis RQ2:
      hasil Segmentasi 2D U-Net?"
 
 This is the single end-to-end RQ2 entry point. It does NOT train, retrain,
-fine-tune, or modify the checkpoint -- it consumes the existing Experiment-1
-(epoch-77) `best_model.pt` and, for every case of the official held-out TEST
-split (19 cases):
+fine-tune, or modify the checkpoint -- it consumes the frozen RQ1 candidate,
+E1 (`exp_e1_dice_ce`) `best_model.pt` at epoch 88, and for every case of the
+official held-out TEST split (19 cases):
 
     original MRI (t2.nii.gz)
       -> ProstateZonal2DDataset preprocessing (the SAME preprocessing that
@@ -33,15 +33,15 @@ IMPORTANT distinctions (see report.md):
     HD95/ASD/precision/recall in original voxel space -- a different quantity.
 
 Label mapping (0=background, 1=CG central gland, 2=PZ peripheral zone) is the
-mapping human-verified in 3D Slicer for this thesis; it is never changed here.
+mapping verified on 2026-10-05 by multi-planar inspection; never changed here.
 
 Typical Colab usage (checkpoint + test archive on Google Drive):
 
     python scripts/run_rq2_reconstruction.py \
         --config configs/config_baseline.yaml \
-        --checkpoint /content/drive/MyDrive/THESIS_PROSTATE158/results/exp01_baseline/best_model.pt \
+        --checkpoint /content/drive/MyDrive/THESIS_PROSTATE158/results/exp_e1_dice_ce/best_model.pt \
         --test-dir  /content/drive/MyDrive/THESIS_PROSTATE158/dataset/test/extracted/<case-root> \
-        --output-dir /content/drive/MyDrive/THESIS_PROSTATE158/results/exp04_rq2_reconstruction \
+        --output-dir /content/drive/MyDrive/THESIS_PROSTATE158/results/rq2_e1_epoch88 \
         --split test
 """
 
@@ -62,7 +62,8 @@ if SCRIPTS_DIR not in sys.path:
 
 import numpy as np
 
-# Label mapping human-verified in 3D Slicer for this thesis (cases 020, 059).
+# Label mapping VERIFIED 2026-10-05 by multi-planar visual inspection of cases
+# 020, 059, 099 and 139 (results/label_mapping/label_mapping_verified.md).
 # RQ2 reports under these names; the integer->zone mapping is never changed here.
 RQ2_CLASS_NAMES: Dict[int, str] = {
     0: "background",
@@ -623,7 +624,10 @@ def run(
         "evaluation_space": "original_voxel",
         "ground_truth_source": "original_on_disk_mask_untouched",
         "aggregation": "per_case",
-        "label_mapping_status": "verified_3dslicer (0=background, 1=CG, 2=PZ)",
+        "label_mapping_status": (
+            "verified_multiplanar_2026_10_05 (0=background, 1=CG, 2=PZ; see "
+            "results/label_mapping/label_mapping_verified.md)"
+        ),
         "reconstruction_geometry_all_ok": f"{n_validation_ok}/{len(case_results)}",
         "roundtrip_fidelity_note": (
             "Dice=1.0 in scripts/roundtrip_test.py is reconstruction-transform "
@@ -724,8 +728,10 @@ def run(
 def main() -> None:
     parser = argparse.ArgumentParser(description="RQ2 3D reconstruction from the frozen 2D U-Net (inference only).")
     parser.add_argument("--config", default="configs/config_baseline.yaml")
-    parser.add_argument("--checkpoint", required=True, help="Path to the frozen best_model.pt (epoch 77).")
-    parser.add_argument("--output-dir", default="results/exp04_rq2_reconstruction")
+    parser.add_argument("--checkpoint", required=True,
+                        help="Path to the frozen RQ1 checkpoint (E1, epoch 88). Its identity "
+                             "should be confirmed by SHA-256, not by filename.")
+    parser.add_argument("--output-dir", default="results/rq2_e1_epoch88")
     parser.add_argument("--split", default="test", choices=["test", "val", "validation", "train"])
     parser.add_argument("--test-dir", default=None, help="Extracted 19-case test root (data.test_dir).")
     parser.add_argument("--test-csv", default=None, help="CSV of test case IDs (data.test_csv).")

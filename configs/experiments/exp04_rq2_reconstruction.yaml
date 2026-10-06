@@ -14,9 +14,17 @@
 # results/exp01_baseline, or alter the frozen RQ1 result.
 
 task: "RQ2_3d_reconstruction"
-source_checkpoint: "./results/exp01_baseline/best_model.pt"   # frozen Experiment-1 epoch-77 weights
-base_config: "configs/config_baseline.yaml"                    # preprocessing + model + official split
-output_dir: "./results/exp04_rq2_reconstruction"
+# The frozen RQ1 candidate: E1 (Dice + Cross Entropy), epoch 88, selected on the
+# 20 official validation cases and evaluated once on the held-out test set.
+# Identity is verified by SHA-256 before inference, not by filename.
+source_checkpoint: "./results/exp_e1_dice_ce/best_model.pt"
+source_checkpoint_sha256: "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2"
+source_checkpoint_epoch: 88
+source_experiment: "exp_e1_dice_ce"
+base_config: "configs/experiments/exp_e1_dice_ce.yaml"         # preprocessing + model + official split
+# Isolated output. results/exp04_reconstruction/ holds the earlier Baseline
+# epoch-77 run and is NOT overwritten -- it remains available as a comparison.
+output_dir: "./results/rq2_e1_epoch88"
 split: "test"                                                  # official held-out 19-case test set
 class_ids: [0, 1, 2]
 
@@ -24,6 +32,8 @@ class_ids: [0, 1, 2]
 # (axial/coronal/sagittal; cases 020, 059, 099, 139). Never changed here.
 # Record: results/label_mapping/label_mapping_verified.md
 label_mapping_status: "verified_multiplanar_2026_10_05"
+# NOTE: the historical Baseline epoch-77 RQ2 run lives in
+# results/exp04_reconstruction/ and must not be presented as an E1 result.
 class_names:
   0: "background"
   1: "CG_central_gland"    # Central Gland (CG = CZ + TZ)
