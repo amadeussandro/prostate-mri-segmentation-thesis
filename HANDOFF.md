@@ -4,7 +4,7 @@ Living state document for this thesis. A new session should read this before
 touching anything; it records what is decided, what is frozen, and what is open,
 so settled questions are not re-litigated.
 
-**Last updated:** 2026-10-07 · **HEAD at writing:** `ad1a8e5`
+**Last updated:** 2026-10-07 · **HEAD at writing:** `7d805e0`
 
 ---
 
@@ -35,7 +35,7 @@ so settled questions are not re-litigated.
 | RQ2 re-pointed to E1 | **done** — notebook ready to run |
 | RQ2 run with E1 | **done** 2026-10-06 — audited 2026-10-07, VALID |
 | Reconstruction ablation (task B) | **done** 2026-10-07 |
-| Zone volumes in mL (task C) | **partly done** — predictions only; GT agreement needs Colab |
+| Zone volumes in mL (task C) | **done** 2026-10-07 — agreement measured |
 | ProstateX external validation (task D) | **ready to run** — notebook + script done, needs Drive upload |
 | Manuscript update to E1 | open (audited, findings in §6) |
 
@@ -125,10 +125,9 @@ The older `results/exp04_reconstruction/` is **Baseline epoch 77** and must not
 be presented as an E1 result. Contamination check found no computational
 baseline reference in the E1 artifacts.
 
-**Still pending:** the 3D projection PNGs in `rq2_e1_epoch88/visualizations/`
-predate the aspect-ratio fix (`13e7d3f`) and are still squashed ~6.4× in the
-coronal/sagittal panels. Regenerate on the next Colab trip — bundle with task C.
-`report.md` was already regenerated locally on 2026-10-07 and is correct.
+**Figures and report are now current.** The 3D projections were regenerated on
+2026-10-07 with the corrected aspect ratio (`13e7d3f`); coronal/sagittal panels
+are no longer squashed. `report.md` was regenerated locally the same day.
 
 ### Reconstruction ablation (task B) — `results/rq2_ablation_naive/`
 
@@ -174,9 +173,33 @@ Predicted over the 19 test cases: whole gland **47.02 ± 14.02 mL** (24.26–78.
 CG 34.23 ± 14.28, PZ 12.79 ± 5.19, PZ fraction 0.288 ± 0.121. Plausible for a
 cancer-suspicion cohort.
 
-**Not yet validated against the annotation.** Rerun with `--gt-root` on Colab to
-add per-case error, bias and Bland–Altman limits of agreement. Until then these
-are model outputs, not agreement figures — the report says so in the file.
+**Agreement against the annotation (measured 2026-10-07):**
+
+| Quantity | GT mean | Bias | % of GT | Under-est. | 95% LoA |
+|---|---|---|---|---|---|
+| CG | 35.72 mL | −1.48 mL | −4.2% | 12/19 | −10.82 to +7.85 |
+| **PZ** | 17.88 mL | **−5.10 mL** | **−28.5%** | **18/19** | −16.53 to +6.34 |
+| Whole gland | 53.60 mL | −6.58 mL | −12.3% | 15/19 | −20.18 to +7.02 |
+
+The model **systematically under-segments**, and PZ worst — under-estimated in
+18 of 19 cases by nearly a third of its true volume. This is the same defect the
+RQ1 metrics show as low PZ recall (0.609) against high PZ precision (0.830),
+now expressed in millilitres: what the model does find is right, it just does
+not find enough of it.
+
+**The clinical consequence, which is the task-C payoff.** PSA density is
+PSA ÷ gland volume, so under-estimating the volume **inflates** PSAD:
+
+- PSAD over-estimated by **14.7% on average**, up to **50%** in the worst case.
+- Biased **upward in 15/19 cases** — i.e. toward *more* biopsies, not fewer.
+- Against the commonly cited 0.15 ng/mL/cc threshold, a true PSAD of **0.131**
+  already reads as ≥ 0.15 at the mean error factor.
+
+That direction matters for how it is written up: the failure mode is
+false-positive-leaning, which is the safer direction clinically but still a
+real mis-calibration. Report the **limits of agreement**, not the bias — a
+−20 to +7 mL spread on a ~54 mL gland is what decides usability for an
+individual patient, and it is wide.
 
 ---
 
