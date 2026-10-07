@@ -4,7 +4,7 @@ Living state document for this thesis. A new session should read this before
 touching anything; it records what is decided, what is frozen, and what is open,
 so settled questions are not re-litigated.
 
-**Last updated:** 2026-10-07 · **HEAD at writing:** `e61ff44`
+**Last updated:** 2026-10-07 · **HEAD at writing:** `13e7d3f`
 
 ---
 
@@ -33,8 +33,9 @@ so settled questions are not re-litigated.
 | RQ1 held-out test (19 cases) | **done**, audited, VALID |
 | Label-mapping verification | **done** 2026-10-05 |
 | RQ2 re-pointed to E1 | **done** — notebook ready to run |
-| RQ2 run with E1 | **OPEN — next action** |
-| Reconstruction ablation, zone volumes | open |
+| RQ2 run with E1 | **done** 2026-10-06 — audited 2026-10-07, VALID |
+| Reconstruction ablation (task B) | **open — next action** |
+| Zone volumes in mL (task C) | open |
 | ProstateX external validation | open (data ready, 204 cases) |
 | Manuscript update to E1 | open (audited, findings in §6) |
 
@@ -95,11 +96,39 @@ Macro +0.0098 (E1 better in 13/19 cases); PZ Dice +0.0177 (**16/19**); PZ
 precision +0.0390. Wilcoxon paired n=19: **W=47, p=0.055**.
 → Write as *consistent in direction*, **never** as statistically significant.
 
-### RQ2 (reconstruction) — Baseline epoch 77 only, awaiting E1 re-run
+### RQ2 (reconstruction) — E1 epoch 88, `results/rq2_e1_epoch88/`
 
-Geometry 19/19 all_ok, affine max diff 0.0. Round-trip Dice = 1.0 exactly.
-Existing artifacts in `results/exp04_reconstruction/` are **Baseline-derived**
-and must not be presented as E1 results.
+Run 2026-10-06, forensically audited 2026-10-07: **VALID**.
+
+- Checkpoint SHA-256 re-hashed locally and matches the frozen E1 exactly.
+  Every other checkpoint in the tree hashes differently.
+- Geometry **19/19 all_ok**; `affine_max_abs_diff = 0.0` exactly (not merely
+  within tolerance), verified by re-reading all 19 output NIfTI headers.
+- Reconstruction is **exact voxel reassembly** — with `z_resample: false` and
+  `crop_pad`, the mask path has *zero* interpolation, so round-trip Dice = 1.0
+  is a structural certainty, not a lucky measurement.
+- Every aggregate (mean, SD ddof=0, and both bootstrap CI bounds) reproduces
+  from `metrics_per_case.csv` with **0.000e+00** discrepancy. No NaN, no
+  duplicates, 19 cases × 3 classes.
+- Split verified: train 119 / valid 20, mutually disjoint, and neither contains
+  any ID in 001–019. No train/test or val/test overlap.
+
+**Segmentation metrics are identical to the RQ1 test, bit-for-bit, by
+construction** — both go through `src.evaluate.predict_case_reconstructed`, and
+the RQ1 test was already scored in original voxel space. RQ2 is the same
+measurement in 3D form, **not** an independent confirmation of RQ1. What RQ2
+adds is the geometry validation, the saved spatially valid volumes, and the
+fidelity verification. Say this in the manuscript; a reviewer reading both
+files will otherwise catch it.
+
+The older `results/exp04_reconstruction/` is **Baseline epoch 77** and must not
+be presented as an E1 result. Contamination check found no computational
+baseline reference in the E1 artifacts.
+
+**Still pending:** the 3D projection PNGs in `rq2_e1_epoch88/visualizations/`
+predate the aspect-ratio fix (`13e7d3f`) and are still squashed ~6.4× in the
+coronal/sagittal panels. Regenerate on the next Colab trip — bundle with task C.
+`report.md` was already regenerated locally on 2026-10-07 and is correct.
 
 ---
 
@@ -139,13 +168,13 @@ and must not be presented as E1 results.
 
 ## 6. Open work, in order
 
-### A. Run RQ2 with E1 — **next action, needs Colab + Drive**
+### A. Run RQ2 with E1 — **DONE** 2026-10-06, audited 2026-10-07
 
-Notebook: `notebooks/prostate158_rq2_reconstruction_colab.ipynb` → Run all.
-Output lands in `<DRIVE>/results/rq2_e1_epoch88/`. Three gates stop it on a SHA
-mismatch, a case count ≠ 19, or a failed single-case sanity check.
+Notebook: `notebooks/prostate158_rq2_reconstruction_colab.ipynb`. Output in
+`results/rq2_e1_epoch88/`. All three gates passed (SHA, case count 19,
+single-case sanity). Results and audit findings in §4.
 
-### B. Reconstruction ablation — **the highest-value remaining experiment**
+### B. Reconstruction ablation — **next action, runnable locally**
 
 Run naive reconstruction (stack slices without explicit indices, without inverse
 crop/pad, without affine restoration) over the same 19 cases and measure the
@@ -153,6 +182,21 @@ damage: Dice drop, geometric shift in mm, zone-volume error in mL.
 
 Cheap: the 2D predictions are already saved as `predictions_2d/*.npz`, so this
 varies only the reconstruction stage — CPU, minutes, no re-inference.
+
+**No Colab needed for the core result.** Everything required is already on the
+local disk: 19 `predictions_2d/*.npz`, 19 `metadata/meta_*.json` (affine,
+spacing, pad/crop parameters, original shape), and the 19 correct
+`reconstructions_3d/*.nii.gz` to compare against. Build both volumes from the
+*same* `.npz` — one through the correct path, one naive — so what is measured is
+purely the cost of the reconstruction stage, with no model error mixed in. That
+is a cleaner ablation than comparing to ground truth.
+
+Correctness gate: the "correct" path recomputed locally must equal the saved
+`.nii.gz` exactly. If it does not, the ablation is wrong and must not be
+reported. The ablation validates itself.
+
+Caveat: metrics *against ground truth* need the test data, which lives on Drive.
+The core numbers (geometric damage, naive-vs-correct volume error) need no GT.
 
 **Why it matters:** the manuscript currently *asserts* that naive reconstruction
 "is not trivial" without evidence. This converts the central novelty claim from
@@ -266,6 +310,14 @@ exists.
 
 ## 10. Known rough edges
 
+- `results/exp_e1_dice_ce51026/best_model.pt` hashes to the **same SHA-256** as
+  the frozen E1 checkpoint — a bit-identical copy, harmless and incapable of
+  causing a wrong-model run, but the directory name invites confusion.
+- `results/test_e1_epoch88/summary.json` carries
+  `scope_note: "RQ1 only. No reconstruction... is performed in this notebook."`
+  That is **factually wrong** — scoring in original voxel space requires the
+  inverse transform. The file is frozen (§5.6) so it stays as-is; do not quote
+  that sentence in the manuscript.
 - `results/exp_e3_dice_ce_pzweight/` contains a **nested duplicate** directory —
   an artifact of extracting a Google Drive zip. The real artifacts are in
   `results/exp_e3_dice_ce_pzweight/exp_e3_dice_ce_pzweight/`. Harmless but
