@@ -231,6 +231,50 @@ class TestRender3DProjectionsSmoke(unittest.TestCase):
             self.assertTrue(os.path.exists(out))
             self.assertGreater(os.path.getsize(out), 0)
 
+    def test_accepts_anisotropic_spacing(self):
+        from run_rq2_reconstruction import render_3d_projections
+
+        h, w, d = 24, 24, 4
+        t2 = np.random.default_rng(2).random((h, w, d)).astype(np.float32)
+        gt = np.zeros((h, w, d), dtype=np.int64)
+        gt[8:16, 8:16, 1:3] = 1
+        with tempfile.TemporaryDirectory() as dd:
+            out = os.path.join(dd, "proj_aniso.png")
+            render_3d_projections(t2, gt, gt.copy(), "001", out,
+                                  spacing=(0.46875, 0.46875, 3.0))
+            self.assertTrue(os.path.exists(out))
+            self.assertGreater(os.path.getsize(out), 0)
+
+
+class TestPanelAspect(unittest.TestCase):
+    """The through-plane axis must not be drawn as if it were square.
+
+    Prostate158 is ~0.47 mm in-plane and 3.0 mm through-plane. Rendering the
+    coronal/sagittal projections with square voxels compresses them ~6.4x and
+    makes a geometrically valid reconstruction look anatomically wrong.
+    """
+
+    ZOOMS = (0.46875, 0.46875, 3.0)
+
+    def test_axial_panel_is_square_for_isotropic_in_plane(self):
+        from run_rq2_reconstruction import panel_aspect
+
+        # Axial flattens z (axis 2) and keeps the isotropic in-plane grid.
+        self.assertAlmostEqual(panel_aspect(2, self.ZOOMS), 1.0, places=9)
+
+    def test_coronal_and_sagittal_use_the_through_plane_ratio(self):
+        from run_rq2_reconstruction import panel_aspect
+
+        expected = 3.0 / 0.46875  # 6.4
+        self.assertAlmostEqual(panel_aspect(1, self.ZOOMS), expected, places=9)
+        self.assertAlmostEqual(panel_aspect(0, self.ZOOMS), expected, places=9)
+
+    def test_isotropic_volume_is_square_on_every_plane(self):
+        from run_rq2_reconstruction import panel_aspect
+
+        for ax_id in (0, 1, 2):
+            self.assertAlmostEqual(panel_aspect(ax_id, (0.8, 0.8, 0.8)), 1.0, places=9)
+
 
 class TestDataPathOverrides(unittest.TestCase):
     """Explicit Drive-path overrides vs config-based defaults (backward compat)."""

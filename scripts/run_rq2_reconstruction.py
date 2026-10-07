@@ -136,12 +136,26 @@ def write_reconstruction_validation_csv(path: str, rows: List[Dict[str, Any]]) -
 # 3D (multi-plane projection) visualization -- matplotlib only, no extra deps
 # ---------------------------------------------------------------------------
 
+def panel_aspect(proj_axis_id: int, zooms: Sequence[float]) -> float:
+    """Display aspect ratio for a projection panel that flattens `proj_axis_id`.
+
+    Projecting along `proj_axis_id` leaves the other two axes in ascending
+    order, and `render_3d_projections` transposes before drawing, so the
+    SECOND remaining axis lands on the display rows and the first on the
+    columns. matplotlib's `aspect` is row-height divided by column-width, so
+    it is exactly the ratio of those two axes' physical voxel spacings.
+    """
+    rem = [a for a in (0, 1, 2) if a != proj_axis_id]
+    return float(zooms[rem[1]]) / float(zooms[rem[0]])
+
+
 def render_3d_projections(
     t2: np.ndarray,
     gt: np.ndarray,
     pred: np.ndarray,
     patient_id: str,
     out_path: str,
+    spacing: Optional[Sequence[float]] = None,
     class_colors: Dict[int, tuple] = CLASS_COLORS,
 ) -> str:
     """Pseudo-3D comparison: for each of the three anatomical planes (axial,
@@ -149,7 +163,18 @@ def render_3d_projections(
     (top row) and predicted (bottom row) label silhouettes overlaid -- a
     foreground voxel of a class anywhere along the projected axis colors that
     pixel. Dependency-free (matplotlib), a lightweight stand-in for a full
-    surface render (which can be produced from the saved NIfTI in 3D Slicer)."""
+    surface render (which can be produced from the saved NIfTI in 3D Slicer).
+
+    `spacing` is the case's (sx, sy, sz) voxel size in mm, used to set each
+    panel's display aspect ratio. This matters: Prostate158 is strongly
+    anisotropic (~0.47 mm in-plane vs 3.0 mm through-plane, a ratio of ~6.4),
+    so a renderer that assumes square voxels compresses the coronal and
+    sagittal projections by that factor and the prostate reads as a flat disc
+    instead of its true walnut shape. The axial panel is unaffected because
+    the in-plane grid is isotropic. Passing `None` falls back to square
+    voxels (aspect 1.0) and is intended only for synthetic test volumes that
+    have no physical spacing.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -167,18 +192,23 @@ def render_3d_projections(
         fontsize=13,
     )
 
+    zooms = [1.0, 1.0, 1.0] if spacing is None else [float(s) for s in spacing[:3]]
+
     for row, (vol, tag) in enumerate([(gt, "GT"), (pred, "Pred")]):
         for col, ax_id in enumerate(proj_axis):
             t2_mip = t2.max(axis=ax_id)
             lo, hi = (np.percentile(t2_mip, [1, 99]) if np.ptp(t2_mip) > 0 else (0.0, 1.0))
             ax = axgrid[row][col]
-            ax.imshow(t2_mip.T, cmap="gray", origin="lower", vmin=lo, vmax=hi)
+            aspect = panel_aspect(ax_id, zooms)
+            ax.imshow(t2_mip.T, cmap="gray", origin="lower", vmin=lo, vmax=hi,
+                      aspect=aspect)
             overlay = np.zeros((*t2_mip.shape, 4), dtype=float)
             for cid, color in class_colors.items():
                 footprint = (vol == cid).any(axis=ax_id)
                 overlay[footprint, 0], overlay[footprint, 1], overlay[footprint, 2] = color
                 overlay[footprint, 3] = 0.55
-            ax.imshow(np.transpose(overlay, (1, 0, 2)), origin="lower")
+            ax.imshow(np.transpose(overlay, (1, 0, 2)), origin="lower",
+                      aspect=aspect)
             ax.set_title(f"{tag} -- {axes_names[col]}")
             ax.axis("off")
 
@@ -282,7 +312,12 @@ def write_report(path: str, ctx: Dict[str, Any]) -> str:
         "(and `tests/test_reconstruction.py` / `tests/test_rq2_reconstruction.py`): "
         "GT mask -> preprocess -> reconstruct -> inverse -> original space yields "
         "**Dice = 1.0 exactly** for classes 0/1/2 with shape and affine exact, on "
-        "both the identity and baseline-(442,442) suites, **with no model involved**.\n\n"
+        "both the identity suite and the (442, 442) crop_pad suite this model was "
+        "trained under, **with no model involved**. Dice = 1.0 here is a structural "
+        "consequence, not a lucky measurement: with `z_resample: false` and "
+        "`spatial_mode: crop_pad` the mask's forward transform is a symmetric pad "
+        "plus a signed axis permutation, both exactly invertible, so any value below "
+        "1.0 would mean the reconstruction is broken.\n\n"
         "> **This Dice = 1.0 is a property of the reconstruction transform only. It is "
         "NOT the segmentation accuracy of the model. The model's real accuracy is in "
         "Section 10.**\n")
@@ -302,7 +337,17 @@ def write_report(path: str, ctx: Dict[str, Any]) -> str:
             f"{_fmt_mean_sd(summary, c, 'recall')} |\n")
     md.append(
         "\nThese are volume-level, original-voxel-space, per-case metrics -- distinct "
-        "from any slice-level training-loop `val_dice`.\n")
+        "from any slice-level training-loop `val_dice`.\n\n"
+        "> **Relationship to the RQ1 held-out test result.** These numbers come from "
+        "`src.evaluate.predict_case_reconstructed`, the single shared inference + "
+        "2D->3D reconstruction path, which is also the path the RQ1 test evaluation "
+        "used -- that evaluation was already scored per case in original voxel space, "
+        "and reaching that space requires this same inverse transform. The RQ1 and RQ2 "
+        "segmentation metrics are therefore numerically identical by construction. RQ2 "
+        "reports the same measurement in its 3D form; it is **not** an independent "
+        "confirmation of RQ1 and must not be presented as one. What RQ2 adds beyond "
+        "RQ1 is the per-case geometry validation (Section 8), the saved spatially "
+        "valid volumes, and the transform-fidelity verification (Section 9).\n")
 
     md.append("## 11. Qualitative visualization cases\n")
     md.append(
@@ -331,13 +376,14 @@ def write_report(path: str, ctx: Dict[str, Any]) -> str:
         "python scripts/roundtrip_test.py\n\n"
         "# 2) Torch-free RQ2 unit tests (geometry validation, synthetic round-trip):\n"
         "python -m pytest tests/test_rq2_reconstruction.py -q\n\n"
-        "# 3) Full RQ2 run (Colab/GPU, checkpoint + test archive on Drive):\n"
+        "# 3) Full RQ2 run (Colab/GPU, checkpoint + test archive on Drive).\n"
+        "#    These are the arguments THIS run was invoked with:\n"
         "python scripts/run_rq2_reconstruction.py \\\n"
-        "    --config configs/config_baseline.yaml \\\n"
+        f"    --config {ctx['config_path']} \\\n"
         f"    --checkpoint {ctx['checkpoint_path']} \\\n"
-        "    --test-dir <extracted 19-case test root> \\\n"
-        "    --output-dir results/exp04_rq2_reconstruction \\\n"
-        "    --split test\n"
+        f"    --test-dir {ctx['split_root']} \\\n"
+        f"    --output-dir {ctx['output_dir']} \\\n"
+        f"    --split {ctx['split']}\n"
         "```\n\n"
         "**Frozen-scope statement:** RQ1 model/training was frozen; no retraining, no "
         "architecture/hyperparameter/split change, and `results/exp01_baseline` was "
@@ -665,7 +711,8 @@ def run(
             )
             proj = render_3d_projections(
                 t2, cp.gt_original, cp.pred_original, pid,
-                os.path.join(patient_dir, f"patient_{pid}_3d_projections.png"))
+                os.path.join(patient_dir, f"patient_{pid}_3d_projections.png"),
+                spacing=cp.geometry.zooms)
             for label in pid_to_label[pid]:
                 cm = next(c for c in case_results if c.patient_id == pid)
                 representatives[label] = {
@@ -687,6 +734,8 @@ def run(
         "case_ids": [c.patient_id for c in case_results],
         "mask_name": mask_name,
         "split_root": split_root,
+        "config_path": config_path,
+        "output_dir": out_root,
         "checkpoint_path": checkpoint_path,
         "checkpoint_epoch": metadata["checkpoint_epoch"],
         "checkpoint_best_metric": metadata["training_loop_val_metric_slice_level"],
