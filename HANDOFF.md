@@ -4,7 +4,7 @@ Living state document for this thesis. A new session should read this before
 touching anything; it records what is decided, what is frozen, and what is open,
 so settled questions are not re-litigated.
 
-**Last updated:** 2026-10-07 · **HEAD at writing:** `13e7d3f`
+**Last updated:** 2026-10-07 · **HEAD at writing:** `412a7c4`
 
 ---
 
@@ -34,8 +34,8 @@ so settled questions are not re-litigated.
 | Label-mapping verification | **done** 2026-10-05 |
 | RQ2 re-pointed to E1 | **done** — notebook ready to run |
 | RQ2 run with E1 | **done** 2026-10-06 — audited 2026-10-07, VALID |
-| Reconstruction ablation (task B) | **open — next action** |
-| Zone volumes in mL (task C) | open |
+| Reconstruction ablation (task B) | **done** 2026-10-07 |
+| Zone volumes in mL (task C) | **partly done** — predictions only; GT agreement needs Colab |
 | ProstateX external validation | open (data ready, 204 cases) |
 | Manuscript update to E1 | open (audited, findings in §6) |
 
@@ -130,6 +130,54 @@ predate the aspect-ratio fix (`13e7d3f`) and are still squashed ~6.4× in the
 coronal/sagittal panels. Regenerate on the next Colab trip — bundle with task C.
 `report.md` was already regenerated locally on 2026-10-07 and is correct.
 
+### Reconstruction ablation (task B) — `results/rq2_ablation_naive/`
+
+`scripts/run_reconstruction_ablation.py`, CPU, seconds, no inference, no GT.
+Every variant is rebuilt from the same `predictions_2d/*.npz`, so differences
+are attributable to the reconstruction stage alone. A correctness gate requires
+the locally rebuilt reference to be bit-identical to the saved reconstruction —
+it is, for all 19 cases.
+
+| Variant | CG Dice | PZ Dice | Centroid shift | Volume error | Caught by geometry check |
+|---|---|---|---|---|---|
+| No reorientation | 0.6308 | **0.1802** | 8.2 / 17.3 mm (max 33.4) | 0% | **0/19 — invisible** |
+| Naive centre crop | 1.0000 | 1.0000 | 0 mm | 0% | 0/19 |
+| Identity affine | 1.0000 | 1.0000 | 183 / 205 mm | **47%** | 19/19 |
+| Append order | 1.0000 | 1.0000 | 0 mm | 0% | 0/19 |
+| All naive | 0.6308 | 0.1802 | ~185 mm | 47% | 19/19 |
+
+**The headline finding, and the strongest argument RQ2 has:** skipping the
+inverse orientation step produces an anatomically **mirrored** volume that
+**passes the entire geometry checklist** — shape, affine, spacing, orientation
+codes and labels are all correct, because the header is correct and only the
+voxel data is wrong. Only the round-trip fidelity test catches it.
+
+→ This is the concrete answer to the supervisor's "Dice 0.8 not 1" concern
+(§5.4). A round-trip Dice of 1.0 is not an inflated accuracy claim; it is the
+only gate in the pipeline that detects a correct-looking file containing wrong
+voxels. Say this in the manuscript.
+
+The complementary failure is the mirror image: the identity affine keeps Dice at
+1.0 while misplacing zones by ~180–205 mm and inflating volumes by 47%. Neither
+check alone finds both failures. Two shortcuts are harmless here for *different*
+reasons — the centre crop structurally (the forward pad is always centred, but
+it still cannot invert a forward *crop*), the append order only circumstantially
+(this loader happens to emit slices in axial order).
+
+### Zone volumes (task C) — `results/rq2_zone_volumes/`, **prediction-only so far**
+
+`scripts/run_zone_volumes.py`. Volume = voxel count × |det(affine)|, so it is
+valid only because the affine is restored exactly — the ablation above measures
+what the same voxels yield without it.
+
+Predicted over the 19 test cases: whole gland **47.02 ± 14.02 mL** (24.26–78.86),
+CG 34.23 ± 14.28, PZ 12.79 ± 5.19, PZ fraction 0.288 ± 0.121. Plausible for a
+cancer-suspicion cohort.
+
+**Not yet validated against the annotation.** Rerun with `--gt-root` on Colab to
+add per-case error, bias and Bland–Altman limits of agreement. Until then these
+are model outputs, not agreement figures — the report says so in the file.
+
 ---
 
 ## 5. Decisions already made — do not reopen
@@ -174,7 +222,7 @@ Notebook: `notebooks/prostate158_rq2_reconstruction_colab.ipynb`. Output in
 `results/rq2_e1_epoch88/`. All three gates passed (SHA, case count 19,
 single-case sanity). Results and audit findings in §4.
 
-### B. Reconstruction ablation — **next action, runnable locally**
+### B. Reconstruction ablation — **DONE** 2026-10-07, results in §4
 
 Run naive reconstruction (stack slices without explicit indices, without inverse
 crop/pad, without affine restoration) over the same 19 cases and measure the
@@ -204,7 +252,18 @@ hygiene ("we validated it") into a finding ("here is the measured cost of not
 validating it"). Without it, a reviewer can answer "that is how it should always
 be done — what did we learn?"
 
-### C. Zone volumes in mL
+### B2. Next Colab trip — three things, one session
+
+Everything below needs the Drive data and nothing else. Do them together:
+
+1. **Zone-volume agreement (finishes task C):**
+   `python scripts/run_zone_volumes.py --recon-dir <DRIVE>/results/rq2_e1_epoch88/reconstructions_3d --gt-root <test case root> --output-dir results/rq2_zone_volumes`
+2. **Regenerate the 3D projection figures** — the saved PNGs predate the
+   aspect-ratio fix and are squashed ~6.4× in coronal/sagittal.
+3. **Optional:** ablation Dice against ground truth, to state the naive-vs-GT
+   drop as well as naive-vs-correct.
+
+### C. Zone volumes in mL — **partly done**, GT half needs Colab
 
 From the reconstructed NIfTI vs ground truth, per case. Connects to PSA density
 (needs gland volume) and targeted-biopsy planning — this is the *healthcare
