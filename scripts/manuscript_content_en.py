@@ -134,19 +134,19 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h2", "Introduction"))
     add(("p",
         "Prostate cancer is one of the most frequently diagnosed malignancies in men worldwide "
-        "and a leading cause of cancer-related death. Multiparametric MRI has become central to "
+        "and a leading cause of cancer-related death [1]. Multiparametric MRI has become central to "
         "detection, localization and staging, and structured reporting frameworks have made "
-        "image interpretation more consistent. That interpretation is organized around the zonal "
+        "image interpretation more consistent [2,3]. That interpretation is organized around the zonal "
         "anatomy of the gland."))
     add(("p",
         "The prostate is conventionally divided into the peripheral zone and the central gland, "
-        "the latter comprising the transition and central zones. The distinction matters "
+        "the latter comprising the transition and central zones [4]. The distinction matters "
         "clinically: most carcinomas arise in the peripheral zone, lesion assessment criteria "
         "differ between zones, and the ratio of zonal volumes informs the interpretation of "
         "benign enlargement. Zonal segmentation is therefore not an abstract partitioning task "
         "but a prerequisite for several downstream clinical quantities."))
     add(("p",
-        "Deep learning has become the standard approach to this segmentation problem. Prostate "
+        "Deep learning has become the standard approach to this segmentation problem [5,6]. Prostate "
         "MRI is strongly anisotropic, with in-plane resolution an order of magnitude finer than "
         "slice thickness, and two-dimensional networks remain a reasonable choice under that "
         "geometry: they avoid interpolating along the axis where information is sparsest, and "
@@ -203,7 +203,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Prostate158 was used as the methodological foundation. It comprises 158 biparametric 3T "
         "prostate MRI examinations with expert anatomical annotations distributed in NIfTI "
-        "format. The input to the model was the axial T2-weighted series, a single channel. The "
+        "format [7]. The input to the model was the axial T2-weighted series, a single channel. The "
         "segmentation target was the reader-1 anatomical mask with integer labels, where 0 is "
         "background, 1 is the central gland and 2 is the peripheral zone."))
     add(("p",
@@ -248,7 +248,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "2D U-Net Architecture"))
     add(("p",
-        "The network was a four-level encoder-decoder U-Net with 32 initial feature maps, a "
+        "The network was a four-level encoder-decoder U-Net [5] with 32 initial feature maps, a "
         "single input channel and three output channels, totalling 7,762,531 parameters. Each "
         "level applied two 3x3 convolutions with batch normalization and ReLU; downsampling used "
         "2x2 max pooling and upsampling used transposed convolutions with skip connections from "
@@ -290,7 +290,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "over slices, which would weight large examinations more heavily than small ones."))
     add(("p",
         "Reported metrics were Dice, intersection over union, 95th-percentile Hausdorff distance "
-        "(HD95), average surface distance (ASD), precision and recall. Surface distances were "
+        "(HD95), average surface distance (ASD), precision and recall [14,15]. Surface distances were "
         "computed in millimetres using each case's own voxel spacing. A class absent from both "
         "prediction and annotation was treated as trivial agreement; a class absent from only "
         "one leaves surface distances undefined, and those cases were excluded from that metric "
@@ -363,10 +363,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "volume of a voxel, taken as the absolute determinant of the affine's linear part rather "
         "than the product of header spacings, so that a rotated or sheared acquisition is handled "
         "exactly. Agreement with the volumes derived from the expert annotation was assessed by "
-        "Bland-Altman analysis, reporting bias and 95% limits of agreement."))
+        "Bland-Altman analysis [12], reporting bias and 95% limits of agreement."))
     add(("p",
         "Volumes were examined because they are the quantity through which this segmentation "
-        "reaches clinical use. Whole-gland volume is the denominator of PSA density, so an error "
+        "reaches clinical use. Whole-gland volume is the denominator of PSA density [13], so an error "
         "in the volume propagates directly into a quantity used in biopsy decisions. Volumes also "
         "make the geometric work legible: a volume in millilitres is a voxel count multiplied by "
         "a quantity read from the affine, so a pipeline that loses the affine reports a wrong "
@@ -375,7 +375,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h3", "External Validation"))
     add(("p",
         f"The frozen model was applied once to an independent cohort of {e['n_cases']} PROSTATEx "
-        "examinations with publicly released expert zonal annotations. No training, fine-tuning, "
+        "examinations [8,11] with publicly released expert zonal annotations [9,10]. No training, fine-tuning, "
         "threshold search or model selection was performed on this cohort; it was used purely for "
         "inference, through the same inference-and-reconstruction code path as the internal "
         "evaluation."))
@@ -424,7 +424,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "with the display aspect ratio set from the voxel spacing, so that the strongly "
         "anisotropic grid is not displayed as if it were isotropic."))
     add(("p",
-        "Training was performed on a single NVIDIA Tesla T4 GPU under PyTorch. Inference, "
+        "Training was performed on a single NVIDIA Tesla T4 GPU under PyTorch; the label "
+        "convention follows the MONAI ordering [16]. Inference, "
         "reconstruction, ablation and volumetric analysis require no GPU and were executed on "
         "CPU. All analysis code, configuration files and the exact evaluation scripts are "
         "available in the public repository cited below."))
@@ -803,7 +804,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "The accuracy reported here is below that of the Prostate158 reference implementation, "
         "which used a three-dimensional residual U-Net and reported a central-gland Dice of "
-        "approximately 0.877 and a peripheral-zone Dice of approximately 0.754. The difference is "
+        "approximately 0.877 and a peripheral-zone Dice of approximately 0.754 [7]. The difference is "
         "consistent with the architectural difference: a 3D network can use through-plane context "
         "that a 2D network does not see. We therefore do not present the present results as "
         "competitive with that reference, and the comparison is offered as context rather than as "
