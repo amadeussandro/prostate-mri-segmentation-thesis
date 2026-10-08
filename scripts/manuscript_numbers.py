@@ -291,6 +291,20 @@ def external(results_dir: str = None) -> Dict[str, object]:
     return out
 
 
+
+def hd95_tail() -> Dict[str, object]:
+    """Connected-component diagnosis of the external boundary-error tail.
+
+    Produced by `scripts/analyse_external_hd95_tail.py`. Loaded rather than
+    recomputed so the manuscript quotes the same summary the report does.
+    """
+    path = f"{PROJECT}/results/external_hd95_tail/summary.json"
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            "No HD95 tail analysis found. Run scripts/analyse_external_hd95_tail.py first.")
+    return json.load(open(path, encoding="utf-8"))
+
+
 def all_numbers() -> Dict[str, object]:
     arms = validation_arms()
     spread = max(a["macro"] for a in arms.values()) - min(a["macro"] for a in arms.values())
@@ -307,6 +321,7 @@ def all_numbers() -> Dict[str, object]:
         "ablation": ablation(),
         "volumes": zone_volumes(),
         "external": external(),
+        "hd95_tail": hd95_tail(),
     }
 
 

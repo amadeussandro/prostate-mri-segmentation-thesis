@@ -37,6 +37,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     v = N["volumes"]
     e = N["external"]
     eg = e["geometry"]
+    hd = N["hd95_tail"]
 
     cg_d = t["per_class"]["cg"]["dice"]
     pz_d = t["per_class"]["pz"]["dice"]
@@ -127,7 +128,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "bersifat sangat anisotropik, dengan resolusi in-plane satu orde lebih halus daripada "
         "ketebalan irisan, dan jaringan dua dimensi tetap merupakan pilihan yang wajar pada "
         "geometri tersebut: pendekatan ini menghindari interpolasi pada sumbu yang informasinya "
-        "paling jarang, dan murah untuk dilatih. Namun keluarannya berupa potongan per irisan. "
+        "paling jarang, dan murah untuk dilatih, dan karya terdahulu telah menyegmentasi kedua "
+        "zona dengan cara ini [@bardis]. Namun keluarannya berupa potongan per irisan. "
         "Apa pun yang memanfaatkan hasil segmentasi sebagai objek tiga dimensi - pengukuran "
         "volume, rendering permukaan, registrasi ke seri lain, atau perencanaan biopsi - "
         "mensyaratkan irisan-irisan tersebut disusun kembali menjadi volume yang menempati ruang "
@@ -181,7 +183,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Dataset"))
     add(("p",
-        "Prostate158 digunakan sebagai landasan metodologis [@adams_cbm]. Dataset ini terdiri atas 158 "
+        "Prostate158 digunakan sebagai landasan metodologis [@adams_cbm,adams_dib]. Dataset ini terdiri atas 158 "
         "pemeriksaan MRI prostat biparametrik 3T dengan anotasi anatomi oleh pakar dalam format "
         "NIfTI. Masukan model adalah seri T2-weighted aksial dengan satu kanal. Target "
         "segmentasi adalah mask anatomi pembaca pertama dengan label bilangan bulat, di mana 0 "
@@ -231,6 +233,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Arsitektur 2D U-Net"))
     add(("p",
+        "Pemilihan dan konfigurasi 2D U-Net untuk tugas ini mengikuti karya terdahulu yang "
+        "mengoptimalkan komponennya untuk MRI prostat [@astono]. "
         "Jaringan yang digunakan adalah U-Net encoder-decoder empat tingkat [@ronneberger] dengan 32 peta fitur "
         "awal, satu kanal masukan, dan tiga kanal keluaran, dengan total 7.762.531 parameter. "
         "Setiap tingkat menerapkan dua konvolusi 3x3 dengan batch normalization dan ReLU; "
@@ -288,6 +292,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Rekonstruksi 3D"))
     add(("p",
+        "Rekonstruksi ini mengikuti prinsip umum pemulihan volume 3D dari prediksi per irisan yang "
+        "ditunjukkan pada karya segmentasi prostat terdahulu [@cheng], dengan verifikasi eksplisit "
+        "ditambahkan pada setiap tahap. "
         "Irisan hasil prediksi disusun menjadi volume dengan menuliskan setiap irisan pada indeks "
         "aksial yang dibawanya, tidak pernah dengan menambahkan menurut urutan iterasi; indeks "
         "yang hilang atau ganda memicu galat alih-alih menghasilkan volume yang tampak masuk "
@@ -536,8 +543,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
              f"{t['per_class']['pz'][m]['mean']:.4f} ({t['per_class']['pz'][m]['sd']:.4f})"]
             for m, name in (("iou", "IoU"), ("hd95_mm", "HD95 (mm)"), ("asd_mm", "ASD (mm)"),
                             ("precision", "Precision"), ("recall", "Recall"))
-        ] + [["Macro Dice", f"{t['macro']['mean']:.4f}", ""],
-             ["Dice latar belakang", f"{bg_d['mean']:.4f} ({bg_d['sd']:.4f})", ""]])))
+        ] + [["Macro Dice (rerata CG dan PZ)",
+              f"{t['macro']['mean']:.4f}", "<<MERGE>>"],
+             ["Dice latar belakang (dilaporkan terpisah)",
+              f"{bg_d['mean']:.4f} ({bg_d['sd']:.4f})", "<<MERGE>>"]])))
 
     add(("h3", "Rekonstruksi 3D dan Validasi Geometris"))
     add(("p",
@@ -610,25 +619,44 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "geometris, karena header keduanya benar dan hanya data voxel yang berbeda. Volume pada "
         "baris bawah tercermin secara anatomis dan Dice peripheral zone-nya runtuh.")))
 
+    def _putusan(key):
+        """Apa yang dilakukan daftar periksa, dan apakah ada yang perlu dilakukan.
+
+        Angka "0/19" telanjang bersifat ambigu: pada pintasan yang tidak merusak
+        apa pun ia berarti daftar periksa benar diam, sedangkan pada pintasan
+        yang mencerminkan volume ia berarti daftar periksa gagal melihat
+        kesalahan nyata. Keduanya hasil yang berlawanan dan tidak boleh berbagi
+        nilai sel yang sama.
+        """
+        r = ab[key]["cg"]
+        rusak = (abs(r["dice_vs_gt"] - r["dice_vs_gt_correct"]) > 0.001
+                 or r["centroid_shift_mm"] > 1 or r["volume_pct_error"] > 1)
+        if not rusak:
+            return "tidak ada kerusakan"
+        if r["n_caught"] == r["n_cases"]:
+            return f"terdeteksi, {r['n_caught']}/{r['n_cases']}"
+        return f"TERLEWAT, {r['n_caught']}/{r['n_cases']}"
+
     add(("tbl", ("Tabel 4. Ablasi rekonstruksi. Setiap varian disusun ulang dari prediksi 2D yang "
                  "sama, sehingga perbedaan dapat diatribusikan pada tahap rekonstruksi semata. "
                  "Dice yang dilaporkan adalah angka yang akan dilihat pembaca terhadap anotasi "
-                 "pakar.",
+                 "pakar. Kolom terakhir membedakan pintasan yang memang tidak ada kerusakannya "
+                 "untuk ditandai dari pintasan yang kerusakannya tidak terlihat.",
         ["Pintasan", "Dice CG dilaporkan", "Dice PZ dilaporkan", "Pergeseran sentroid (mm)",
-         "Galat volume (%)", "Ditandai daftar periksa"],
-        [[lbl,
-          f"{ab[k]['cg']['dice_vs_gt']:.4f}", f"{ab[k]['pz']['dice_vs_gt']:.4f}",
-          f"{ab[k]['cg']['centroid_shift_mm']:.1f}",
-          f"{ab[k]['cg']['volume_pct_error']:.0f}",
-          f"{ab[k]['cg']['n_caught']}/{ab[k]['cg']['n_cases']}"]
-         for k, lbl in [("V1_no_reorientation", "Inversi orientasi dihilangkan"),
-                        ("V2_naive_centre_crop", "Pemotongan terpusat, bukan offset tercatat"),
-                        ("V3_identity_affine", "Affine tidak dipulihkan"),
-                        ("V4_append_order", "Irisan ditumpuk menurut urutan loader"),
-                        ("V5_all_naive", "Keempatnya digabung")]
-         ] + [["Tidak ada (pipeline benar)",
-               f"{v1['cg']['dice_vs_gt_correct']:.4f}", f"{v1['pz']['dice_vs_gt_correct']:.4f}",
-               "0,0", "0", "0/19"]])))
+         "Galat volume (%)", "Daftar periksa geometris"],
+        [["Tidak ada (pipeline benar)",
+          f"{v1['cg']['dice_vs_gt_correct']:.4f}", f"{v1['pz']['dice_vs_gt_correct']:.4f}",
+          "0,0", "0", "tidak ada kerusakan"]]
+        + [[lbl,
+            f"{ab[k]['cg']['dice_vs_gt']:.4f}", f"{ab[k]['pz']['dice_vs_gt']:.4f}",
+            f"{ab[k]['cg']['centroid_shift_mm']:.1f}",
+            f"{ab[k]['cg']['volume_pct_error']:.0f}",
+            _putusan(k)]
+           for k, lbl in [("V1_no_reorientation", "Inversi orientasi dihilangkan"),
+                          ("V2_naive_centre_crop", "Pemotongan terpusat, bukan offset tercatat"),
+                          ("V3_identity_affine", "Affine tidak dipulihkan"),
+                          ("V4_append_order", "Irisan ditumpuk menurut urutan loader"),
+                          ("V5_all_naive", "Keempatnya digabung")]])))
 
     add(("h3", "Volume Zona Anatomi"))
     add(("p",
@@ -703,14 +731,32 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"di seluruh kohort (r={e['hd95_cg']['corr_with_precision']:+.2f}), konsisten dengan "
         f"pembacaan tersebut."))
     add(("p",
-        f"Mekanisme yang paling mungkin adalah perbedaan medan pandang. Pemeriksaan eksternal "
-        f"mencakup {eg['fov_mean']:.0f} mm secara in-plane berbanding {eg['fov_internal']:.1f} mm "
-        f"pada data internal, yakni sebesar {eg['fov_ratio']:.2f} kali, sehingga memuat struktur "
-        f"panggul yang tidak pernah ditemui model selama pelatihan, dan pada wilayah tambahan "
-        f"itulah prediksi palsu dapat muncul. Kami menyatakan hal ini sebagai hipotesis yang "
-        f"konsisten dengan pengukuran, bukan sebagai sebab yang telah ditegakkan; pembuktiannya "
-        f"memerlukan analisis komponen terhubung pada volume yang terdampak, yang tidak kami "
-        f"lakukan."))
+        f"Mekanismenya adalah perbedaan medan pandang, dan kami mengujinya alih-alih "
+        f"menyatakannya begitu saja. Pemeriksaan eksternal mencakup {eg['fov_mean']:.0f} mm "
+        f"secara in-plane berbanding {eg['fov_internal']:.1f} mm pada data internal, yakni "
+        f"{eg['fov_ratio']:.2f} kali, sehingga memuat struktur panggul yang tidak pernah ditemui "
+        f"model selama pelatihan. Penguraian setiap prediksi central gland menjadi komponen "
+        f"terhubung menunjukkan bahwa seluruh {hd['tail']['n']} kasus berekor memiliki lebih dari "
+        f"satu komponen, berbanding {hd['rest']['multi_component_frac']*100:.0f}% pada sisanya, "
+        f"dan bahwa pada kasus-kasus tersebut komponen di luar yang terbesar menampung "
+        f"{hd['tail']['satellite_vol_frac_mean']*100:.1f}% volume prediksi sambil berjarak "
+        f"rata-rata {hd['tail']['max_satellite_dist_mean']:.0f} mm darinya. Membuang seluruh "
+        f"komponen kecuali yang terbesar menurunkan rerata HD95 central gland dari "
+        f"{hd['overall']['hd95_mean']:.1f} mm menjadi {hd['overall']['hd95_after_mean']:.1f} mm - "
+        f"dan dari {hd['tail']['hd95_mean']:.1f} mm menjadi {hd['tail']['hd95_after_mean']:.1f} mm "
+        f"pada kasus berekor - sementara rerata Dice hanya bergeser dari "
+        f"{hd['overall']['dice_mean']:.4f} menjadi {hd['overall']['dice_after_mean']:.4f}. Ekor "
+        f"tersebut dengan demikian merupakan komponen false-positive kecil yang jauh, bukan batas "
+        f"yang tergeser secara menyeluruh."))
+
+    add(("p",
+        "Kami melaporkan hal itu sebagai diagnosis dan sengaja tidak menerapkannya. "
+        "Mempertahankan hanya komponen terhubung terbesar merupakan perubahan metode, dan "
+        "memilihnya setelah melihat skor eksternal sama dengan menyetel pada kohort eksternal; "
+        "mengadopsinya secara sah mensyaratkan tahap tersebut dipra-spesifikasi dan divalidasi "
+        "lebih dahulu pada data validasi internal. Angka yang dilaporkan di atas adalah angka "
+        "pipeline tanpa modifikasi."))
+
     add(("p",
         f"Rekonstruksi berperilaku benar pada kohort ini meskipun geometrinya berbeda, dan "
         f"inilah uji yang lebih berat bagi pipeline. Seluruh {e['n_cases']} rekonstruksi lolos "
@@ -815,7 +861,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "dan perbandingannya diajukan sebagai konteks, bukan sebagai klaim."))
     add(("p",
         "Hubungan antara kedua zona juga dilaporkan secara tidak konsisten lintas penelitian pada "
-        "dataset ini. Beberapa melaporkan central gland sebagai zona yang lebih mudah; "
+        "dataset ini. Beberapa melaporkan central gland sebagai zona yang lebih mudah "
+        "[@bardis,cuocolo_jmri]; "
         "setidaknya satu melaporkan sebaliknya. Hasil kami menempatkan central gland sebagai yang "
         "jelas lebih mudah, dan urutan tersebut stabil pada kedua kohort yang ditelaah di sini. "
         "Sebagian ketidakkonsistenan antar penelitian tersebut secara masuk akal dapat "
@@ -825,7 +872,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "alasan itulah kami memverifikasi pemetaan label secara eksplisit."))
     add(("p",
         "Pada sisi rekonstruksi, literatur memperlakukan konsistensi spasial terutama sebagai "
-        "sifat model, yang ditangani melalui cross-slice attention atau pascapemrosesan. Tahap "
+        "sifat model, yang ditangani melalui cross-slice attention atau pascapemrosesan, dan ketika "
+        "penyusunan kembali disebut, biasanya sebagai tahap alih-alih sebagai sesuatu yang "
+        "diverifikasi [@cheng]. Tahap "
         "penyusunan kembali itu sendiri, beserta verifikasinya, biasanya dideskripsikan dalam "
         "satu kalimat, itu pun bila ada. Sepanjang pengetahuan kami belum ada penelitian "
         "terdahulu yang mengukur nilai operasi-operasi individual dalam tahap tersebut dengan cara "
@@ -877,9 +926,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "diuraikan menjadi keduanya. Pipeline tidak melakukan resampling in-plane, sehingga "
         "sebagian selisih eksternal dapat diatribusikan pada pergeseran skala piksel alih-alih "
         "kegagalan model; memisahkan keduanya memerlukan proses kedua dengan adapter resampling, "
-        "yang tidak kami lakukan. Mekanisme yang diajukan bagi ekor berat pada galat batas "
-        "eksternal merupakan hipotesis yang konsisten dengan pengukuran, bukan sebab yang telah "
-        "dibuktikan."))
+        "yang tidak kami lakukan. Analisis komponen terhubung menjelaskan ekor galat batas, "
+        "namun tidak menetapkan mengapa komponen palsu tersebut muncul di tempatnya; "
+        "mengaitkannya dengan medan pandang yang lebih luas tetap merupakan inferensi dari "
+        "geometri, bukan hasil terkendali."))
     add(("p",
         "Terakhir, tidak dilakukan reader study, dan tidak ada klaim yang dibuat mengenai "
         "kegunaan klinis, kesiapan penerapan, maupun dampak terhadap luaran pasien. Analisis "

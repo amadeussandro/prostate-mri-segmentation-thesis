@@ -46,6 +46,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     v = N["volumes"]
     e = N["external"]
     eg = e["geometry"]
+    hd = N["hd95_tail"]
 
     cg_d = t["per_class"]["cg"]["dice"]
     pz_d = t["per_class"]["pz"]["dice"]
@@ -724,13 +725,31 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"boundary that is uniformly wrong. HD95 correlates negatively with precision across the "
         f"cohort (r={e['hd95_cg']['corr_with_precision']:+.2f}), consistent with that reading."))
     add(("p",
-        f"The most likely mechanism is the field-of-view difference. The external examinations "
-        f"cover {eg['fov_mean']:.0f} mm in plane against {eg['fov_internal']:.1f} mm internally, "
-        f"a factor of {eg['fov_ratio']:.2f}, so they contain pelvic structures the model never "
-        f"encountered during training, and it is in that additional territory that spurious "
-        f"predictions can appear. We state this as a hypothesis consistent with the measurements "
-        f"rather than as an established cause; confirming it would require connected-component "
-        f"analysis of the affected volumes, which we did not perform."))
+        f"The mechanism is the field-of-view difference, and we tested it rather than "
+        f"asserting it. The external examinations cover {eg['fov_mean']:.0f} mm in plane against "
+        f"{eg['fov_internal']:.1f} mm internally, a factor of {eg['fov_ratio']:.2f}, so they "
+        f"contain pelvic structures the model never encountered during training. Decomposing "
+        f"each predicted central gland into connected components shows that every one of the "
+        f"{hd['tail']['n']} tail cases carries more than one component, against "
+        f"{hd['rest']['multi_component_frac']*100:.0f}% of the remainder, and that in those "
+        f"cases the components beyond the largest hold "
+        f"{hd['tail']['satellite_vol_frac_mean']*100:.1f}% of the predicted volume while sitting "
+        f"a mean of {hd['tail']['max_satellite_dist_mean']:.0f} mm from it. Discarding all but "
+        f"the largest component takes mean central-gland HD95 from {hd['overall']['hd95_mean']:.1f} "
+        f"mm to {hd['overall']['hd95_after_mean']:.1f} mm - and from "
+        f"{hd['tail']['hd95_mean']:.1f} mm to {hd['tail']['hd95_after_mean']:.1f} mm in the tail "
+        f"cases - while mean Dice moves only from {hd['overall']['dice_mean']:.4f} to "
+        f"{hd['overall']['dice_after_mean']:.4f}. The tail is therefore small, distant "
+        f"false-positive components, not a uniformly displaced boundary."))
+
+    add(("p",
+        "We report that as a diagnosis and deliberately do not apply it. Keeping only the "
+        "largest connected component would be a change to the method, and choosing it after "
+        "seeing the external scores would be tuning on the external cohort; adopting it "
+        "legitimately would require pre-specifying the step and validating it on the internal "
+        "validation split first. The numbers reported above are those of the unmodified "
+        "pipeline."))
+
     add(("p",
         f"Reconstruction behaved correctly on this cohort despite its different geometry, and "
         f"this is the stronger test of the pipeline. All {e['n_cases']} reconstructions passed "
@@ -893,8 +912,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "cannot be decomposed into the two. The pipeline performs no in-plane resampling, so part "
         "of the external gap is attributable to pixel-scale shift rather than to model failure; "
         "separating the two would require a second run with a resampling adapter, which we did "
-        "not perform. The mechanism proposed for the heavy tail in external boundary error is a "
-        "hypothesis consistent with the measurements, not a demonstrated cause."))
+        "not perform. The connected-component analysis explains the boundary-error tail but "
+        "does not establish why the spurious components arise where they do; attributing them "
+        "to the wider field of view remains an inference from the geometry rather than a "
+        "controlled result."))
     add(("p",
         "Finally, no reader study was conducted, and no claim is made about clinical utility, "
         "deployment readiness or effect on patient outcomes. The volumetric analysis establishes "
