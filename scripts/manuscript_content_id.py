@@ -451,7 +451,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
             ["Arsitektur", "2D U-Net, 32 fitur awal, 1 kanal masuk / 3 kanal keluar, "
                            "7.762.531 parameter"],
             ["Optimizer", "AdamW, learning rate 0,001, weight decay 0,0001"],
-            ["Batch size / epoch", "8 / 100"],
+            ["Batch size", "8 irisan"],
+            ["Jumlah epoch pelatihan", "100 (checkpoint terbaik dipilih pada data validasi)"],
             ["Random seed", "42"],
             ["Presisi", "FP32"],
             ["Aturan pemilihan", "Macro Dice tertinggi pada data validasi, ditetapkan di muka"],

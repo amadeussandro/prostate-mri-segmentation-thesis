@@ -452,7 +452,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
             ["Architecture", "2D U-Net, 32 initial features, 1 input / 3 output channels, "
                              "7,762,531 parameters"],
             ["Optimizer", "AdamW, learning rate 0.001, weight decay 0.0001"],
-            ["Batch size / epochs", "8 / 100"],
+            ["Batch size", "8 slices"],
+            ["Training epochs", "100 (best checkpoint selected on validation)"],
             ["Random seed", "42"],
             ["Precision", "FP32"],
             ["Selection rule", "Highest macro Dice on the validation split, fixed in advance"],
