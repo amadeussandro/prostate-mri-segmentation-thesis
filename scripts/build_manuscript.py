@@ -173,6 +173,44 @@ def render(blocks: List[Tuple[str, object]], out_path: str, template: str = TEMP
     return out_path
 
 
+_DECIMAL = __import__("re").compile(r"(?<![\w/.])(\d+)\.(\d+)(?![\w/.])")
+
+
+def to_indonesian_decimals(text: str) -> str:
+    """Render decimal points as commas, the Indonesian convention.
+
+    The numbers arrive formatted by Python, which always emits a point. Mixing
+    the two inside one document is worse than either convention, and parts of
+    the prose already use commas (1,96 SD; 0,15 ng/mL/cc).
+
+    The pattern deliberately refuses to fire when the number is touching a word
+    character, a slash or another dot, which leaves version strings, file
+    extensions, URLs and already-grouped thousands alone.
+    """
+    return _DECIMAL.sub(lambda m: f"{m.group(1)},{m.group(2)}", text)
+
+
+def localize(blocks: List[Tuple[str, object]], fn) -> List[Tuple[str, object]]:
+    """Apply a text transform to every human-readable string in the blocks."""
+    out = []
+    for kind, payload in blocks:
+        if kind in ("p", "title", "corr"):
+            out.append((kind, fn(payload)))
+        elif kind in ("authors", "affil", "refs"):
+            out.append((kind, [fn(x) for x in payload]))
+        elif kind == "abs":
+            out.append((kind, (payload[0], fn(payload[1]))))
+        elif kind == "fig":
+            out.append((kind, (payload[0], fn(payload[1]))))
+        elif kind == "tbl":
+            caption, headers, rows = payload
+            out.append((kind, (fn(caption), [fn(str(h)) for h in headers],
+                               [[fn(str(c)) for c in r] for r in rows])))
+        else:
+            out.append((kind, payload))
+    return out
+
+
 def strip_orphan_media(path: str) -> dict:
     """Remove media parts the rebuilt document no longer references.
 
@@ -242,6 +280,8 @@ def main() -> None:
         default_out = os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro-ID.docx")
 
     blocks = build(N)
+    if args.lang == "id":
+        blocks = localize(blocks, to_indonesian_decimals)
     out = args.out or default_out
     render(blocks, out, args.template)
     stripped = strip_orphan_media(out)

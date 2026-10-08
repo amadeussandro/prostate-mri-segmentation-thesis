@@ -298,7 +298,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "yang secara trivial mudah."))
     add(("p",
         "Simpangan baku yang dilaporkan adalah simpangan baku populasi. Selang kepercayaan "
-        "merupakan selang persentil bootstrap atas 2.000 resampel dengan seed tetap."))
+        "merupakan selang persentil bootstrap atas 2000 resampel dengan seed tetap."))
 
     add(("h3", "Rekonstruksi 3D"))
     add(("p",
