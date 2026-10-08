@@ -4,7 +4,7 @@ Living state document for this thesis. A new session should read this before
 touching anything; it records what is decided, what is frozen, and what is open,
 so settled questions are not re-litigated.
 
-**Last updated:** 2026-10-07 · **HEAD at writing:** `7d805e0`
+**Last updated:** 2026-10-08 · **HEAD at writing:** see `git log -1`
 
 ---
 
@@ -36,8 +36,10 @@ so settled questions are not re-litigated.
 | RQ2 run with E1 | **done** 2026-10-06 — audited 2026-10-07, VALID |
 | Reconstruction ablation (task B) | **done** 2026-10-07 |
 | Zone volumes in mL (task C) | **done** 2026-10-07 — agreement measured |
-| ProstateX external validation (task D) | **ready to run** — notebook + script done, needs Drive upload |
-| Manuscript update to E1 | open (audited, findings in §6) |
+| ProstateX external validation (task D) | **done** 2026-10-07, 204 cases |
+| Pre-writing audit of the whole project | **done** 2026-10-08 — every claim re-verified |
+| JMIR manuscript, English + Indonesian | **done** 2026-10-08 — rewritten from artifacts |
+| Thesis (skripsi) document, LaTeX | open — different format, after the journal |
 
 ---
 
@@ -200,6 +202,35 @@ false-positive-leaning, which is the safer direction clinically but still a
 real mis-calibration. Report the **limits of agreement**, not the bias — a
 −20 to +7 mL spread on a ~54 mL gland is what decides usability for an
 individual patient, and it is wide.
+
+---
+
+### Manuscript (2026-10-08)
+
+Both language versions are generated, not hand-edited:
+
+```
+scripts/manuscript_numbers.py      every value, loaded from result artifacts
+scripts/manuscript_content_en.py   English text
+scripts/manuscript_content_id.py   Indonesian text
+scripts/build_manuscript.py        renders either into .docx
+scripts/make_rq2_figures.py        figures F0-F5
+```
+
+Rebuild with `python scripts/build_manuscript.py --lang en|id`. **Edit the
+content module, never the .docx** — a rebuild overwrites it. The builder uses
+the existing file as its template so the journal styles carry over, resets
+document properties to the author alone, and strips media parts the rebuilt
+document no longer references (the previous draft left 2.5 MB of stale figures
+behind).
+
+Authors: Benedict Amadeus Sandro and Eunike Endariahna Surbakti, S.Kom., M.T.I.
+(Informatics, Faculty of Engineering and Informatics, UMN).
+
+English ~7,800 words, Indonesian ~6,700; 9 figures and 6 tables each.
+
+**The skripsi is a separate document** in a different format and is written in
+LaTeX. Do not conflate it with the journal manuscript.
 
 ---
 
