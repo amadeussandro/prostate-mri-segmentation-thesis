@@ -36,6 +36,69 @@ FIG_WIDTH_IN = 6.0
 TALL_FIG_WIDTH_IN = 4.1
 
 
+_CITE = __import__("re").compile(r"\[@([A-Za-z0-9_,]+)\]")
+
+
+def resolve_citations(blocks: List[Tuple[str, object]], library: dict) -> Tuple[list, list]:
+    """Turn ``[@key]`` and ``[@key1,key2]`` markers into numbered citations.
+
+    Numbers are assigned in order of first appearance, which is what the
+    journal's instructions ask for, and the reference list is emitted in that
+    same order containing only the entries actually cited. Keeping the numbering
+    derived rather than written by hand is what makes adding a reference safe:
+    the alternative is renumbering every marker in the prose by hand, which is
+    how a citation ends up pointing at the wrong paper.
+    """
+    order: List[str] = []
+
+    def sub(text: str) -> str:
+        def one(m):
+            nums = []
+            for key in m.group(1).split(","):
+                if key not in library:
+                    raise KeyError(f"citation [@{key}] has no entry in the reference library")
+                if key not in order:
+                    order.append(key)
+                nums.append(order.index(key) + 1)
+            return "[" + ",".join(str(n) for n in sorted(nums)) + "]"
+        return _CITE.sub(one, text)
+
+    resolved = []
+    for kind, payload in blocks:
+        if kind in ("p", "title", "corr"):
+            resolved.append((kind, sub(payload)))
+        elif kind in ("authors", "affil"):
+            resolved.append((kind, [sub(x) for x in payload]))
+        elif kind == "abs":
+            resolved.append((kind, (payload[0], sub(payload[1]))))
+        elif kind == "fig":
+            resolved.append((kind, (payload[0], sub(payload[1]))))
+        elif kind == "tbl":
+            cap, hdr, rows = payload
+            resolved.append((kind, (sub(cap), hdr,
+                                    [[sub(str(c)) for c in r] for r in rows])))
+        elif kind == "refs":
+            resolved.append((kind, "__PENDING__"))
+        else:
+            resolved.append((kind, payload))
+
+    numbered = [library[k] for k in order]
+    out = [(k, numbered if (k == "refs" and v == "__PENDING__") else v) for k, v in resolved]
+
+    # A document that carries bracketed citations but resolved no keys has prose
+    # still using hard-coded numbers; it would ship with a populated body and an
+    # empty reference list, which is worse than failing here.
+    if not order:
+        import re as _re
+        body = " ".join(p for k, p in blocks if k == "p" and isinstance(p, str))
+        if _re.search(r"\[\d+(,\d+)*\]", body):
+            raise ValueError(
+                "No [@key] citations resolved, but the text contains bracketed numbers. "
+                "The content module is still using hard-coded citation numbers - convert "
+                "them to [@key] markers so the numbering stays derived from the library.")
+    return out, order
+
+
 def apply_jmir_page_setup(doc: Document) -> dict:
     """Force US Letter portrait with the journal template's margins.
 
@@ -132,10 +195,20 @@ def _table(doc, caption, headers, rows):
         run.font.size = Pt(9)
     for r in rows:
         cells = t.add_row().cells
+        # A "<<MERGE>>" cell joins the one before it, for a value that belongs
+        # to the row as a whole rather than to one column - a macro average
+        # across both zones, say. An empty cell there would read as missing data.
+        merge_from = None
         for i, val in enumerate(r):
+            if str(val) == "<<MERGE>>":
+                if merge_from is None:
+                    merge_from = i - 1
+                continue
             cells[i].text = ""
             run = cells[i].paragraphs[0].add_run(str(val))
             run.font.size = Pt(9)
+        if merge_from is not None:
+            cells[merge_from].merge(cells[len(r) - 1])
     doc.add_paragraph().paragraph_format.space_after = Pt(10)
     return t
 
@@ -308,6 +381,8 @@ def main() -> None:
         default_out = os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro-ID.docx")
 
     blocks = build(N)
+    from manuscript_content_en import REFERENCES
+    blocks, cited = resolve_citations(blocks, REFERENCES)
     if args.lang == "id":
         blocks = localize(blocks, to_indonesian_decimals)
     out = args.out or default_out
@@ -319,6 +394,7 @@ def main() -> None:
     n_par = sum(1 for k, _ in blocks if k == "p")
     print(f"wrote {out}  ({os.path.getsize(out):,} bytes)")
     print(f"  {n_par} paragraphs, {n_fig} figures, {n_tbl} tables")
+    print(f"  {len(cited)} references, numbered in order of first citation")
     if stripped["removed"]:
         print(f"  removed {stripped['removed']} orphaned media parts from the previous "
               f"draft ({stripped['bytes']:,} bytes)")

@@ -122,23 +122,23 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h2", "Introduction"))
     add(("p",
         "Prostate cancer is one of the most frequently diagnosed malignancies in men worldwide "
-        "and a leading cause of cancer-related death [1]. Multiparametric MRI has become central to "
+        "and a leading cause of cancer-related death [@sung]. Multiparametric MRI has become central to "
         "detection, localization and staging, and structured reporting frameworks have made "
-        "image interpretation more consistent [2,3]. That interpretation is organized around the zonal "
+        "image interpretation more consistent [@turkbey,weinreb]. That interpretation is organized around the zonal "
         "anatomy of the gland."))
     add(("p",
         "The prostate is conventionally divided into the peripheral zone and the central gland, "
-        "the latter comprising the transition and central zones [4]. The distinction matters "
+        "the latter comprising the transition and central zones [@mcneal]. The distinction matters "
         "clinically: most carcinomas arise in the peripheral zone, lesion assessment criteria "
         "differ between zones, and the ratio of zonal volumes informs the interpretation of "
         "benign enlargement. Zonal segmentation is therefore not an abstract partitioning task "
         "but a prerequisite for several downstream clinical quantities."))
     add(("p",
-        "Deep learning has become the standard approach to this segmentation problem [5,6]. Prostate "
+        "Deep learning has become the standard approach to this segmentation problem [@ronneberger,isensee]. Prostate "
         "MRI is strongly anisotropic, with in-plane resolution an order of magnitude finer than "
         "slice thickness, and two-dimensional networks remain a reasonable choice under that "
         "geometry: they avoid interpolating along the axis where information is sparsest, and "
-        "they are inexpensive to train. Their output, however, is slice-wise. Anything that "
+        "they are inexpensive to train, and prior work has segmented the two zones this way [@bardis]. Their output, however, is slice-wise. Anything that "
         "consumes the segmentation as a three-dimensional object - a volume measurement, a "
         "surface rendering, registration to another series, or a biopsy plan - requires those "
         "slices to be reassembled into a volume that occupies the correct physical space."))
@@ -191,7 +191,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Prostate158 was used as the methodological foundation. It comprises 158 biparametric 3T "
         "prostate MRI examinations with expert anatomical annotations distributed in NIfTI "
-        "format [7]. The input to the model was the axial T2-weighted series, a single channel. The "
+        "format [@adams_cbm,adams_dib]. The input to the model was the axial T2-weighted series, a single channel. The "
         "segmentation target was the reader-1 anatomical mask with integer labels, where 0 is "
         "background, 1 is the central gland and 2 is the peripheral zone."))
     add(("p",
@@ -236,7 +236,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "2D U-Net Architecture"))
     add(("p",
-        "The network was a four-level encoder-decoder U-Net [5] with 32 initial feature maps, a "
+        "The choice and configuration of a 2D U-Net for this task follow prior work that optimised "
+        "its components for prostate MRI [@astono]. The network was a four-level encoder-decoder "
+        "U-Net [@ronneberger] with 32 initial feature maps, a "
         "single input channel and three output channels, totalling 7,762,531 parameters. Each "
         "level applied two 3x3 convolutions with batch normalization and ReLU; downsampling used "
         "2x2 max pooling and upsampling used transposed convolutions with skip connections from "
@@ -278,7 +280,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "over slices, which would weight large examinations more heavily than small ones."))
     add(("p",
         "Reported metrics were Dice, intersection over union, 95th-percentile Hausdorff distance "
-        "(HD95), average surface distance (ASD), precision and recall [14,15]. Surface distances were "
+        "(HD95), average surface distance (ASD), precision and recall [@taha,maierhein]. Surface distances were "
         "computed in millimetres using each case's own voxel spacing. A class absent from both "
         "prediction and annotation was treated as trivial agreement; a class absent from only "
         "one leaves surface distances undefined, and those cases were excluded from that metric "
@@ -291,6 +293,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "3D Reconstruction"))
     add(("p",
+        "The reconstruction follows the general principle of recovering a 3D volume from slice-wise "
+        "predictions demonstrated in earlier prostate segmentation work [@cheng], with explicit "
+        "verification added at each stage. "
         "Predicted slices were assembled into a volume by writing each slice to the axial index "
         "it carries, never by appending in iteration order; a missing or duplicated index raises "
         "an error rather than producing a plausible-looking volume. The assembled volume was then "
@@ -352,10 +357,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "volume of a voxel, taken as the absolute determinant of the affine's linear part rather "
         "than the product of header spacings, so that a rotated or sheared acquisition is handled "
         "exactly. Agreement with the volumes derived from the expert annotation was assessed by "
-        "Bland-Altman analysis [12], reporting bias and 95% limits of agreement."))
+        "Bland-Altman analysis [@bland], reporting bias and 95% limits of agreement."))
     add(("p",
         "Volumes were examined because they are the quantity through which this segmentation "
-        "reaches clinical use. Whole-gland volume is the denominator of PSA density [13], so an error "
+        "reaches clinical use. Whole-gland volume is the denominator of PSA density [@nordstrom], so an error "
         "in the volume propagates directly into a quantity used in biopsy decisions. Volumes also "
         "make the geometric work legible: a volume in millilitres is a voxel count multiplied by "
         "a quantity read from the affine, so a pipeline that loses the affine reports a wrong "
@@ -364,7 +369,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h3", "External Validation"))
     add(("p",
         f"The frozen model was applied once to an independent cohort of {e['n_cases']} PROSTATEx "
-        "examinations [8,11] with publicly released expert zonal annotations [9,10]. No training, fine-tuning, "
+        "examinations [@litjens,clark] with publicly released expert zonal annotations [@cuocolo_ejr,cuocolo_jmri]. No training, fine-tuning, "
         "threshold search or model selection was performed on this cohort; it was used purely for "
         "inference, through the same inference-and-reconstruction code path as the internal "
         "evaluation."))
@@ -414,7 +419,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "anisotropic grid is not displayed as if it were isotropic."))
     add(("p",
         "Training was performed on a single NVIDIA Tesla T4 GPU under PyTorch; the label "
-        "convention follows the MONAI ordering [16]. Inference, "
+        "convention follows the MONAI ordering [@monai]. Inference, "
         "reconstruction, ablation and volumetric analysis require no GPU and were executed on "
         "CPU. All analysis code, configuration files and the exact evaluation scripts are "
         "available in the public repository cited below."))
@@ -537,8 +542,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
              f"{t['per_class']['pz'][m]['mean']:.4f} ({t['per_class']['pz'][m]['sd']:.4f})"]
             for m, name in (("iou", "IoU"), ("hd95_mm", "HD95 (mm)"), ("asd_mm", "ASD (mm)"),
                             ("precision", "Precision"), ("recall", "Recall"))
-        ] + [["Macro Dice", f"{t['macro']['mean']:.4f}", ""],
-             ["Background Dice", f"{bg_d['mean']:.4f} ({bg_d['sd']:.4f})", ""]])))
+        ] + [["Macro Dice (mean of CG and PZ)",
+              f"{t['macro']['mean']:.4f}", "<<MERGE>>"],
+             ["Background Dice (reported separately)",
+              f"{bg_d['mean']:.4f} ({bg_d['sd']:.4f})", "<<MERGE>>"]])))
 
     add(("h3", "3D Reconstruction and Geometric Validation"))
     add(("p",
@@ -609,24 +616,43 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "the header is correct in each and only the voxel data differs. The lower volume is "
         "anatomically mirrored and its peripheral-zone Dice collapses.")))
 
+    def _verdict(key):
+        """What the checklist did, and whether there was anything to do.
+
+        A bare "0/19" is ambiguous: for a shortcut that caused no damage it
+        means the checklist correctly stayed silent, and for one that mirrored
+        the volume it means the checklist missed a real error. The two are
+        opposite outcomes and must not share a cell value.
+        """
+        r = ab[key]["cg"]
+        damaged = (abs(r["dice_vs_gt"] - r["dice_vs_gt_correct"]) > 0.001
+                   or r["centroid_shift_mm"] > 1 or r["volume_pct_error"] > 1)
+        if not damaged:
+            return "no damage to detect"
+        if r["n_caught"] == r["n_cases"]:
+            return f"detected, {r['n_caught']}/{r['n_cases']}"
+        return f"MISSED, {r['n_caught']}/{r['n_cases']}"
+
     add(("tbl", ("Table 4. Reconstruction ablation. Every variant is rebuilt from the same 2D "
                  "predictions, so differences are attributable to the reconstruction stage alone. "
-                 "Reported Dice is what a reader would have seen against the expert annotation.",
+                 "Reported Dice is what a reader would have seen against the expert annotation. "
+                 "The final column distinguishes a shortcut the checklist correctly had nothing "
+                 "to flag from one whose damage it failed to see.",
         ["Shortcut", "Reported CG Dice", "Reported PZ Dice", "Centroid shift (mm)",
-         "Volume error (%)", "Flagged by checklist"],
-        [[lbl,
-          f"{ab[k]['cg']['dice_vs_gt']:.4f}", f"{ab[k]['pz']['dice_vs_gt']:.4f}",
-          f"{ab[k]['cg']['centroid_shift_mm']:.1f}",
-          f"{ab[k]['cg']['volume_pct_error']:.0f}",
-          f"{ab[k]['cg']['n_caught']}/{ab[k]['cg']['n_cases']}"]
-         for k, lbl in [("V1_no_reorientation", "Inverse orientation omitted"),
-                        ("V2_naive_centre_crop", "Centre crop instead of recorded offsets"),
-                        ("V3_identity_affine", "Affine not restored"),
-                        ("V4_append_order", "Slices stacked in loader order"),
-                        ("V5_all_naive", "All four combined")]
-         ] + [["None (correct pipeline)",
-               f"{v1['cg']['dice_vs_gt_correct']:.4f}", f"{v1['pz']['dice_vs_gt_correct']:.4f}",
-               "0.0", "0", "0/19"]])))
+         "Volume error (%)", "Geometric checklist"],
+        [["None (correct pipeline)",
+          f"{v1['cg']['dice_vs_gt_correct']:.4f}", f"{v1['pz']['dice_vs_gt_correct']:.4f}",
+          "0.0", "0", "no damage to detect"]]
+        + [[lbl,
+            f"{ab[k]['cg']['dice_vs_gt']:.4f}", f"{ab[k]['pz']['dice_vs_gt']:.4f}",
+            f"{ab[k]['cg']['centroid_shift_mm']:.1f}",
+            f"{ab[k]['cg']['volume_pct_error']:.0f}",
+            _verdict(k)]
+           for k, lbl in [("V1_no_reorientation", "Inverse orientation omitted"),
+                          ("V2_naive_centre_crop", "Centre crop instead of recorded offsets"),
+                          ("V3_identity_affine", "Affine not restored"),
+                          ("V4_append_order", "Slices stacked in loader order"),
+                          ("V5_all_naive", "All four combined")]])))
 
     add(("h3", "Anatomical Zone Volumes"))
     add(("p",
@@ -801,14 +827,14 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "The accuracy reported here is below that of the Prostate158 reference implementation, "
         "which used a three-dimensional residual U-Net and reported a central-gland Dice of "
-        "approximately 0.877 and a peripheral-zone Dice of approximately 0.754 [7]. The difference is "
+        "approximately 0.877 and a peripheral-zone Dice of approximately 0.754 [@adams_cbm]. The difference is "
         "consistent with the architectural difference: a 3D network can use through-plane context "
         "that a 2D network does not see. We therefore do not present the present results as "
         "competitive with that reference, and the comparison is offered as context rather than as "
         "a claim."))
     add(("p",
         "The relationship between the two zones is also reported inconsistently across studies on "
-        "this dataset. Several report the central gland as the easier zone; at least one reports "
+        "this dataset. Several report the central gland as the easier zone [@bardis,cuocolo_jmri]; at least one reports "
         "the reverse. Our results place the central gland as clearly easier, and the ordering is "
         "stable across both cohorts examined here. Part of the inter-study inconsistency is "
         "plausibly attributable to protocol rather than to model: aggregation per slice rather "
@@ -817,7 +843,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "the label mapping explicitly for that reason."))
     add(("p",
         "On the reconstruction side, the literature treats spatial consistency predominantly as a "
-        "model property, addressed through cross-slice attention or post-processing. The "
+        "model property, addressed through cross-slice attention or post-processing, and where reassembly is described it is usually as a step rather than as something verified [@cheng]. The "
         "reassembly step itself, and its verification, is usually described in a sentence if at "
         "all. We are not aware of prior work that measures what the individual operations in that "
         "step are worth by omitting them. That measurement is what we consider this study's "
@@ -923,67 +949,92 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "prostate-specific antigen. PZ: peripheral zone. SD: standard deviation."))
 
     add(("h2", "References"))
-    add(("refs", [
+    add(("refs", REFERENCES))
+
+    return B
+
+
+# Reference library. The builder numbers these in order of first citation and
+# emits only the ones actually cited, so adding or removing a reference cannot
+# leave the numbering inconsistent with the text.
+REFERENCES = {
+    "sung":
         "Sung H, Ferlay J, Siegel RL, Laversanne M, Soerjomataram I, Jemal A, Bray F. Global "
         "Cancer Statistics 2020: GLOBOCAN Estimates of Incidence and Mortality Worldwide for 36 "
         "Cancers in 185 Countries. CA Cancer J Clin. 2021;71(3):209-249. doi:10.3322/caac.21660",
-
+    "turkbey":
         "Turkbey B, Rosenkrantz AB, Haider MA, Padhani AR, Villeirs G, Macura KJ, et al. Prostate "
         "Imaging Reporting and Data System Version 2.1: 2019 Update of Prostate Imaging Reporting "
-        "and Data System Version 2. Eur Urol. 2019;76(3):340-351. doi:10.1016/j.eururo.2019.02.033",
-
+        "and Data System Version 2. Eur Urol. 2019;76(3):340-351. "
+        "doi:10.1016/j.eururo.2019.02.033",
+    "weinreb":
         "Weinreb JC, Barentsz JO, Choyke PL, Cornud F, Haider MA, Macura KJ, et al. PI-RADS "
         "Prostate Imaging - Reporting and Data System: 2015, Version 2. Eur Urol. "
         "2016;69(1):16-40. doi:10.1016/j.eururo.2015.08.052",
-
+    "mcneal":
         "McNeal JE. The zonal anatomy of the prostate. Prostate. 1981;2(1):35-49. "
         "doi:10.1002/pros.2990020105",
-
+    "ronneberger":
         "Ronneberger O, Fischer P, Brox T. U-Net: Convolutional Networks for Biomedical Image "
         "Segmentation. In: Medical Image Computing and Computer-Assisted Intervention (MICCAI). "
         "Lecture Notes in Computer Science, vol 9351. Springer; 2015:234-241. "
         "doi:10.1007/978-3-319-24574-4_28",
-
+    "isensee":
         "Isensee F, Jaeger PF, Kohl SAA, Petersen J, Maier-Hein KH. nnU-Net: a self-configuring "
         "method for deep learning-based biomedical image segmentation. Nat Methods. "
         "2021;18(2):203-211. doi:10.1038/s41592-020-01008-z",
-
+    "astono":
+        "Astono IP, Welsh JS, Chalup S, Greer P. Optimisation of 2D U-Net Model Components for "
+        "Automatic Prostate Segmentation on MRI. Appl Sci. 2020;10(7):2601. "
+        "doi:10.3390/app10072601",
+    "bardis":
+        "Bardis M, Houshyar R, Chantaduly C, Tran-Harding K, Ushinsky A, Chahine C, et al. "
+        "Segmentation of the Prostate Transition Zone and Peripheral Zone on MR Images with Deep "
+        "Learning. Radiol Imaging Cancer. 2021;3(3):e200024. doi:10.1148/rycan.2021200024",
+    "cheng":
+        "Cheng R, Lay N, Roth HR, Turkbey B, Jin D, Gandler W, et al. Fully automated prostate "
+        "whole gland and central gland segmentation on MRI using holistically nested networks "
+        "with short connections. J Med Imaging (Bellingham). 2019;6(2):024007. "
+        "doi:10.1117/1.JMI.6.2.024007",
+    "adams_cbm":
         "Adams LC, Makowski MR, Engel G, Rattunde M, Busch F, Asbach P, et al. Prostate158 - An "
         "expert-annotated 3T MRI dataset and algorithm for prostate cancer detection. Comput Biol "
         "Med. 2022;148:105817. doi:10.1016/j.compbiomed.2022.105817",
-
+    "adams_dib":
+        "Adams LC, Makowski MR, Engel G, Rattunde M, Busch F, Asbach P, et al. Dataset of "
+        "prostate MRI annotated for anatomical zones and cancer. Data Brief. 2022;45:108739. "
+        "doi:10.1016/j.dib.2022.108739",
+    "litjens":
         "Litjens G, Debats O, Barentsz J, Karssemeijer N, Huisman H. Computer-aided detection of "
         "prostate cancer in MRI. IEEE Trans Med Imaging. 2014;33(5):1083-1092. "
         "doi:10.1109/TMI.2014.2303821",
-
+    "cuocolo_ejr":
         "Cuocolo R, Stanzione A, Castaldo A, De Lucia DR, Imbriaco M. Quality control and "
         "whole-gland, zonal and lesion annotations for the PROSTATEx challenge public dataset. "
         "Eur J Radiol. 2021;146:109647. doi:10.1016/j.ejrad.2021.109647",
-
+    "cuocolo_jmri":
         "Cuocolo R, Comelli A, Stefano A, Benfante V, Dahiya N, Stanzione A, et al. Deep Learning "
         "Whole-Gland and Zonal Prostate Segmentation on a Public MRI Dataset. J Magn Reson "
         "Imaging. 2021;54(2):452-459. doi:10.1002/jmri.27585",
-
+    "clark":
         "Clark K, Vendt B, Smith K, Freymann J, Kirby J, Koppel P, et al. The Cancer Imaging "
         "Archive (TCIA): maintaining and operating a public information repository. J Digit "
         "Imaging. 2013;26(6):1045-1057. doi:10.1007/s10278-013-9622-7",
-
+    "bland":
         "Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of "
         "clinical measurement. Lancet. 1986;1(8476):307-310. doi:10.1016/S0140-6736(86)90837-8",
-
+    "nordstrom":
         "Nordstrom T, Akre O, Aly M, Gronberg H, Eklund M. Prostate-specific antigen (PSA) "
         "density in the diagnostic algorithm of prostate cancer. Prostate Cancer Prostatic Dis. "
         "2018;21(1):57-63. doi:10.1038/s41391-017-0024-7",
-
+    "taha":
         "Taha AA, Hanbury A. Metrics for evaluating 3D medical image segmentation: analysis, "
         "selection, and tool. BMC Med Imaging. 2015;15:29. doi:10.1186/s12880-015-0068-x",
-
+    "maierhein":
         "Maier-Hein L, Reinke A, Godau P, Tizabi MD, Buettner F, Christodoulou E, et al. Metrics "
         "reloaded: recommendations for image analysis validation. Nat Methods. "
         "2024;21(2):195-212. doi:10.1038/s41592-023-02151-z",
-
+    "monai":
         "Cardoso MJ, Li W, Brown R, Ma N, Kerfoot E, Wang Y, et al. MONAI: An open-source "
         "framework for deep learning in healthcare. arXiv. 2022. doi:10.48550/arXiv.2211.02701",
-    ]))
-
-    return B
+}

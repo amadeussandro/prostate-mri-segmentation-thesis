@@ -111,19 +111,19 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h2", "Pendahuluan"))
     add(("p",
         "Kanker prostat merupakan salah satu keganasan yang paling sering didiagnosis pada pria "
-        "di seluruh dunia sekaligus penyebab utama kematian akibat kanker [1]. MRI multiparametrik "
+        "di seluruh dunia sekaligus penyebab utama kematian akibat kanker [@sung]. MRI multiparametrik "
         "telah menjadi modalitas sentral dalam deteksi, lokalisasi, dan penentuan stadium, dan "
-        "kerangka pelaporan terstruktur telah membuat interpretasi citra lebih konsisten [2,3]. "
+        "kerangka pelaporan terstruktur telah membuat interpretasi citra lebih konsisten [@turkbey,weinreb]. "
         "Interpretasi tersebut disusun berdasarkan anatomi zonal kelenjar prostat."))
     add(("p",
         "Prostat secara konvensional dibagi menjadi peripheral zone dan central gland, dengan "
-        "yang terakhir mencakup transition zone dan central zone [4]. Pembedaan ini penting secara "
+        "yang terakhir mencakup transition zone dan central zone [@mcneal]. Pembedaan ini penting secara "
         "klinis: sebagian besar karsinoma timbul pada peripheral zone, kriteria penilaian lesi "
         "berbeda antar zona, dan rasio volume zonal turut menjelaskan pembesaran jinak. "
         "Segmentasi zonal karena itu bukan sekadar tugas pemartisian abstrak, melainkan "
         "prasyarat bagi sejumlah besaran klinis turunan."))
     add(("p",
-        "Deep learning telah menjadi pendekatan baku untuk persoalan segmentasi ini [5,6]. MRI prostat "
+        "Deep learning telah menjadi pendekatan baku untuk persoalan segmentasi ini [@ronneberger,isensee]. MRI prostat "
         "bersifat sangat anisotropik, dengan resolusi in-plane satu orde lebih halus daripada "
         "ketebalan irisan, dan jaringan dua dimensi tetap merupakan pilihan yang wajar pada "
         "geometri tersebut: pendekatan ini menghindari interpolasi pada sumbu yang informasinya "
@@ -181,7 +181,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Dataset"))
     add(("p",
-        "Prostate158 digunakan sebagai landasan metodologis [7]. Dataset ini terdiri atas 158 "
+        "Prostate158 digunakan sebagai landasan metodologis [@adams_cbm]. Dataset ini terdiri atas 158 "
         "pemeriksaan MRI prostat biparametrik 3T dengan anotasi anatomi oleh pakar dalam format "
         "NIfTI. Masukan model adalah seri T2-weighted aksial dengan satu kanal. Target "
         "segmentasi adalah mask anatomi pembaca pertama dengan label bilangan bulat, di mana 0 "
@@ -231,7 +231,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Arsitektur 2D U-Net"))
     add(("p",
-        "Jaringan yang digunakan adalah U-Net encoder-decoder empat tingkat [5] dengan 32 peta fitur "
+        "Jaringan yang digunakan adalah U-Net encoder-decoder empat tingkat [@ronneberger] dengan 32 peta fitur "
         "awal, satu kanal masukan, dan tiga kanal keluaran, dengan total 7.762.531 parameter. "
         "Setiap tingkat menerapkan dua konvolusi 3x3 dengan batch normalization dan ReLU; "
         "downsampling menggunakan max pooling 2x2 dan upsampling menggunakan konvolusi transpose "
@@ -274,7 +274,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "pemeriksaan dengan jumlah irisan banyak."))
     add(("p",
         "Metrik yang dilaporkan adalah Dice, intersection over union, Hausdorff distance "
-        "persentil ke-95 (HD95), average surface distance (ASD), precision, dan recall [14,15]. Jarak "
+        "persentil ke-95 (HD95), average surface distance (ASD), precision, dan recall [@taha,maierhein]. Jarak "
         "permukaan dihitung dalam milimeter menggunakan spasi voxel masing-masing kasus. Kelas "
         "yang tidak hadir baik pada prediksi maupun anotasi diperlakukan sebagai kesesuaian "
         "trivial; kelas yang hanya absen pada salah satunya membuat jarak permukaan tidak "
@@ -350,10 +350,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "yang diambil sebagai nilai absolut determinan bagian linear affine alih-alih hasil kali "
         "spasi pada header, sehingga akuisisi yang terotasi atau tergeser ditangani secara eksak. "
         "Kesesuaian dengan volume yang diturunkan dari anotasi pakar dinilai melalui analisis "
-        "Bland-Altman [12], dengan melaporkan bias dan batas kesesuaian 95%."))
+        "Bland-Altman [@bland], dengan melaporkan bias dan batas kesesuaian 95%."))
     add(("p",
         "Volume ditelaah karena merupakan besaran yang menghubungkan segmentasi ini dengan "
-        "penggunaan klinis. Volume kelenjar total adalah penyebut pada PSA density [13], sehingga "
+        "penggunaan klinis. Volume kelenjar total adalah penyebut pada PSA density [@nordstrom], sehingga "
         "galat pada volume merambat langsung ke besaran yang digunakan dalam keputusan biopsi. "
         "Volume juga membuat kerja geometris menjadi terbaca: volume dalam mililiter adalah "
         "jumlah voxel dikalikan besaran yang dibaca dari affine, sehingga pipeline yang kehilangan "
@@ -362,7 +362,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h3", "Validasi Eksternal"))
     add(("p",
         f"Model beku diterapkan satu kali pada kohort independen berisi {e['n_cases']} pemeriksaan "
-        "PROSTATEx [8,11] dengan anotasi zonal pakar yang dirilis publik [9,10]. Tidak dilakukan pelatihan, "
+        "PROSTATEx [@litjens,clark] dengan anotasi zonal pakar yang dirilis publik [@cuocolo_ejr,cuocolo_jmri]. Tidak dilakukan pelatihan, "
         "penyetelan lanjut, pencarian ambang, maupun pemilihan model pada kohort ini; kohort "
         "digunakan murni untuk inferensi, melalui jalur kode inferensi-dan-rekonstruksi yang sama "
         "dengan evaluasi internal."))
@@ -412,7 +412,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "rasio aspek tampilan ditetapkan dari spasi voxel, sehingga grid yang sangat anisotropik "
         "tidak ditampilkan seolah-olah isotropik."))
     add(("p",
-        "Pelatihan dilakukan pada satu GPU NVIDIA Tesla T4 dengan PyTorch; konvensi label mengikuti urutan MONAI [16]. Inferensi, "
+        "Pelatihan dilakukan pada satu GPU NVIDIA Tesla T4 dengan PyTorch; konvensi label mengikuti urutan MONAI [@monai]. Inferensi, "
         "rekonstruksi, ablasi, dan analisis volumetrik tidak memerlukan GPU dan dijalankan pada "
         "CPU. Seluruh kode analisis, berkas konfigurasi, dan skrip evaluasi tersedia pada "
         "repositori publik yang disitasi di bawah."))
@@ -809,7 +809,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Akurasi yang dilaporkan di sini berada di bawah implementasi rujukan Prostate158, yang "
         "menggunakan 3D residual U-Net dan melaporkan Dice central gland sekitar 0,877 serta Dice "
-        "peripheral zone sekitar 0,754 [7]. Perbedaan tersebut konsisten dengan perbedaan arsitektur: "
+        "peripheral zone sekitar 0,754 [@adams_cbm]. Perbedaan tersebut konsisten dengan perbedaan arsitektur: "
         "jaringan 3D dapat memanfaatkan konteks through-plane yang tidak terlihat oleh jaringan "
         "2D. Kami karena itu tidak menyajikan hasil ini sebagai setara dengan rujukan tersebut, "
         "dan perbandingannya diajukan sebagai konteks, bukan sebagai klaim."))
@@ -935,8 +935,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "kepercayaan."))
 
     add(("h2", "Daftar Pustaka"))
-    from manuscript_content_en import build as _en_build
-    refs = next(p for k, p in _en_build(N) if k == "refs")
-    add(("refs", refs))
+    from manuscript_content_en import REFERENCES
+    add(("refs", REFERENCES))
 
     return B
