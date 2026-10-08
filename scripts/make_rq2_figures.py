@@ -439,3 +439,90 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Workflow diagrams
+# ---------------------------------------------------------------------------
+
+def _flow(ax, boxes, x=0.5, w=0.86, top=0.97, gap=0.015, fs=8.4):
+    """Stack labelled boxes with arrows between them."""
+    n = len(boxes)
+    h = (top - 0.03 - gap * (n - 1)) / n
+    y = top
+    for text, face, edge in boxes:
+        ax.add_patch(plt.Rectangle((x - w / 2, y - h), w, h, transform=ax.transAxes,
+                                   facecolor=face, edgecolor=edge, linewidth=1.3, zorder=2))
+        ax.text(x, y - h / 2, text, transform=ax.transAxes, ha="center", va="center",
+                fontsize=fs, color=INK, zorder=3)
+        if y - h - gap > 0.02:
+            ax.annotate("", xy=(x, y - h - gap), xytext=(x, y - h),
+                        xycoords=ax.transAxes, textcoords=ax.transAxes,
+                        arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=1.3))
+        y -= h + gap
+    ax.axis("off")
+
+
+BLUE_F, BLUE_E = "#e8f0fb", C_BLUE
+ORA_F, ORA_E = "#fdeee7", C_ORANGE
+AQUA_F, AQUA_E = "#e6f6f0", C_AQUA
+GREY_F, GREY_E = "#f2f2ef", MUTED
+
+
+def fig_study_pipeline(out: str) -> str:
+    fig, ax = plt.subplots(figsize=(6.6, 8.4))
+    _flow(ax, [
+        ("Prostate158 — 158 examinations, axial T2-weighted\n"
+         "official patient-level split 119 / 20 / 19", BLUE_F, BLUE_E),
+        ("Preprocessing: RAS orientation, per-volume z-score,\n"
+         "crop/pad to 442×442, no through-plane resampling\n"
+         "(inverse parameters retained per case)", BLUE_F, BLUE_E),
+        ("Axial 2D slice extraction, each tagged with its axial index", BLUE_F, BLUE_E),
+        ("Four single-factor training configurations\n"
+         "baseline CE · + soft Dice · + augmentation · + class-weighted CE", ORA_F, ORA_E),
+        ("Model selection on the 20 validation cases\n"
+         "rule fixed in advance: highest macro Dice", ORA_F, ORA_E),
+        ("Selected model frozen — identified by SHA-256 of its checkpoint", AQUA_F, AQUA_E),
+        ("Single evaluation on the 19 held-out test cases\n"
+         "per case, volume level, original voxel space", AQUA_F, AQUA_E),
+        ("2D → 3D reconstruction with verification  (see Figure 3)", GREY_F, GREY_E),
+        ("Reconstruction ablation · zone volumes in mL ·\n"
+         "external validation on 204 PROSTATEx examinations", GREY_F, GREY_E),
+    ], fs=8.0)
+    ax.set_title("Study workflow", fontsize=11, fontweight="bold", color=INK, pad=12)
+    fig.tight_layout()
+    fig.savefig(out)
+    plt.close(fig)
+    return out
+
+
+def fig_reconstruction_workflow(out: str) -> str:
+    fig, ax = plt.subplots(figsize=(6.8, 8.6))
+    _flow(ax, [
+        ("3D T2-weighted volume, original voxel space", BLUE_F, BLUE_E),
+        ("Preprocessing + retained transform metadata", BLUE_F, BLUE_E),
+        ("Axial 2D slice extraction", BLUE_F, BLUE_E),
+        ("Frozen 2D U-Net — per-slice inference, arg-max\n"
+         "(selected configuration, epoch 88)", AQUA_F, AQUA_E),
+        ("Reassembly by EXPLICIT axial index\n"
+         "a missing or duplicated index raises", ORA_F, ORA_E),
+        ("Inverse preprocessing in reverse order\n"
+         "nearest-neighbour throughout, labels preserved exactly", ORA_F, ORA_E),
+        ("Source affine, spacing and orientation restored\n"
+         "never a default identity affine", ORA_F, ORA_E),
+        ("Write NIfTI in original voxel space", ORA_F, ORA_E),
+        ("Check 1 — per-case geometric checklist, read back\n"
+         "from the output header: shape, affine, spacing,\n"
+         "orientation codes, label set", AQUA_F, AQUA_E),
+        ("Check 2 — model-free round-trip fidelity:\n"
+         "annotation forward and back must return unchanged\n"
+         "(reported as pass/fail, never as an accuracy)", AQUA_F, AQUA_E),
+        ("Evaluation per case against the untouched annotation,\n"
+         "plus zone volumes in millilitres", GREY_F, GREY_E),
+    ], fs=7.8)
+    ax.set_title("2D-to-3D reconstruction and verification", fontsize=11,
+                 fontweight="bold", color=INK, pad=12)
+    fig.tight_layout()
+    fig.savefig(out)
+    plt.close(fig)
+    return out
