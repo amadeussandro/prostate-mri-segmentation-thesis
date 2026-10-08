@@ -42,6 +42,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
     pz_d = t["per_class"]["pz"]["dice"]
     bg_d = t["per_class"]["background"]["dice"]
     v1, v3 = ab["V1_no_reorientation"], ab["V3_identity_affine"]
+    geo_all = (f"Seluruh {g['n']}" if g['n_all_ok'] == g['n']
+               else f"{g['n_all_ok']} dari {g['n']}")
 
     B: List[Tuple[str, object]] = []
     add = B.append
@@ -93,7 +95,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"({N['arm_sd_range'][0]:.2f}-{N['arm_sd_range'][1]:.2f}). Konfigurasi terpilih mencapai "
         f"rerata (SB) Dice tingkat volume sebesar {cg_d['mean']:.4f} ({cg_d['sd']:.4f}) untuk CG "
         f"dan {pz_d['mean']:.4f} ({pz_d['sd']:.4f}) untuk PZ pada data uji, dengan macro Dice "
-        f"{t['macro']['mean']:.4f}. Seluruh {g['n_all_ok']} dari {g['n']} rekonstruksi lolos "
+        f"{t['macro']['mean']:.4f}. {geo_all} rekonstruksi lolos "
         f"setiap pemeriksaan geometris, dengan selisih absolut affine maksimum "
         f"{g['affine_max_abs_diff']:.1f}. Ablasi menunjukkan bahwa menghilangkan tahap inversi "
         f"orientasi menghasilkan volume yang tercermin secara anatomis namun tetap lolos seluruh "
@@ -551,7 +553,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Rekonstruksi 3D dan Validasi Geometris"))
     add(("p",
-        f"Seluruh {g['n_all_ok']} dari {g['n']} rekonstruksi lolos setiap pemeriksaan geometris. "
+        f"{geo_all} rekonstruksi lolos setiap pemeriksaan geometris. "
         f"Bentuk larik, spasi voxel, dan kode orientasi sesuai dengan sumber pada setiap kasus, "
         f"himpunan label terbatas pada tiga nilai yang diharapkan, dan selisih absolut maksimum "
         f"antara matriks affine hasil rekonstruksi dan sumber adalah {g['affine_max_abs_diff']:.1f} "

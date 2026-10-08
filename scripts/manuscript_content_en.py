@@ -51,6 +51,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
     pz_d = t["per_class"]["pz"]["dice"]
     bg_d = t["per_class"]["background"]["dice"]
     v1, v3 = ab["V1_no_reorientation"], ab["V3_identity_affine"]
+    # Phrase the pass count honestly: "All N" only when none failed.
+    geo_all = (f"All {g['n']}" if g['n_all_ok'] == g['n']
+               else f"{g['n_all_ok']} of {g['n']}")
 
     B: List[Tuple[str, object]] = []
     add = B.append
@@ -102,7 +105,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"({N['arm_sd_range'][0]:.2f}-{N['arm_sd_range'][1]:.2f}). The selected configuration "
         f"achieved a mean (SD) volume-level Dice of {cg_d['mean']:.4f} ({cg_d['sd']:.4f}) for CG "
         f"and {pz_d['mean']:.4f} ({pz_d['sd']:.4f}) for PZ on the held-out set, with a macro Dice "
-        f"of {t['macro']['mean']:.4f}. All {g['n_all_ok']} of {g['n']} reconstructions passed "
+        f"of {t['macro']['mean']:.4f}. {geo_all} reconstructions passed "
         f"every geometric check, with a maximum absolute affine difference of "
         f"{g['affine_max_abs_diff']:.1f}. The ablation showed that omitting the inverse "
         f"orientation step produced an anatomically mirrored volume that passed the entire "
@@ -548,7 +551,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "3D Reconstruction and Geometric Validation"))
     add(("p",
-        f"All {g['n_all_ok']} of {g['n']} reconstructions passed every geometric check. Array "
+        f"{geo_all} reconstructions passed every geometric check. Array "
         f"shape, voxel spacing and orientation codes matched the source in every case, the label "
         f"set was confined to the three expected values, and the maximum absolute difference "
         f"between the reconstructed and source affine matrices was {g['affine_max_abs_diff']:.1f} "
