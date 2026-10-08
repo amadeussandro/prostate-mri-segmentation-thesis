@@ -715,12 +715,18 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"rather than as an established cause; confirming it would require connected-component "
         f"analysis of the affected volumes, which we did not perform."))
     add(("p",
-        f"Reconstruction behaved correctly on this cohort despite its different geometry. "
-        f"{eg['n_cropped']} of {e['n_cases']} examinations are large enough that the in-plane "
-        f"standardization crops rather than pads them, exercising a branch of the transform that "
-        f"the development data never triggers, and no case lost annotated anatomy to that crop. "
-        f"The cohort is also acquired in a different orientation convention from the development "
-        f"data, which the reconstruction handles through the same inverse transform."))
+        f"Reconstruction behaved correctly on this cohort despite its different geometry, and "
+        f"this is the stronger test of the pipeline. All {e['n_cases']} reconstructions passed "
+        f"the same per-case geometric checklist applied internally, again with a maximum "
+        f"absolute affine difference of 0.0. {eg['n_cropped']} of {e['n_cases']} examinations "
+        f"are large enough that the in-plane standardization crops rather than pads them, "
+        f"exercising a branch of the transform that the development data never triggers, and no "
+        f"case lost annotated anatomy to that crop. The cohort is also acquired in a different "
+        f"orientation convention ({eg['orientations'][0]} against LPS internally), which the "
+        f"reconstruction handles through the same inverse transform. Across both cohorts the "
+        f"reconstruction has therefore been verified on {t['n_cases'] + e['n_cases']} "
+        f"examinations spanning two orientation conventions and both branches of the in-plane "
+        f"transform."))
     add(("p",
         "These figures are not a like-for-like comparison with the internal result. The "
         "annotators, scanners, acquisition geometry and zonal definitions all differ, and the "

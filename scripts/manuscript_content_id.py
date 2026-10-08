@@ -721,13 +721,19 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"memerlukan analisis komponen terhubung pada volume yang terdampak, yang tidak kami "
         f"lakukan."))
     add(("p",
-        f"Rekonstruksi berperilaku benar pada kohort ini meskipun geometrinya berbeda. Sebanyak "
+        f"Rekonstruksi berperilaku benar pada kohort ini meskipun geometrinya berbeda, dan "
+        f"inilah uji yang lebih berat bagi pipeline. Seluruh {e['n_cases']} rekonstruksi lolos "
+        f"daftar periksa geometris per kasus yang sama dengan yang diterapkan secara internal, "
+        f"kembali dengan selisih absolut affine maksimum 0,0. Sebanyak "
         f"{eg['n_cropped']} dari {e['n_cases']} pemeriksaan berukuran cukup besar sehingga "
         f"standardisasi in-plane memotongnya alih-alih mem-padding-nya, yang menjalankan cabang "
         f"transformasi yang tidak pernah dipicu data pengembangan, dan tidak satu kasus pun "
         f"kehilangan anatomi teranotasi akibat pemotongan tersebut. Kohort ini juga diakuisisi "
-        f"dengan konvensi orientasi yang berbeda dari data pengembangan, yang ditangani "
-        f"rekonstruksi melalui transformasi balik yang sama."))
+        f"dengan konvensi orientasi yang berbeda dari data pengembangan "
+        f"({eg['orientations'][0]} berbanding LPS secara internal), yang ditangani rekonstruksi "
+        f"melalui transformasi balik yang sama. Pada kedua kohort, rekonstruksi dengan demikian "
+        f"telah diverifikasi pada {t['n_cases'] + e['n_cases']} pemeriksaan yang mencakup dua "
+        f"konvensi orientasi dan kedua cabang transformasi in-plane."))
     add(("p",
         "Angka-angka ini bukan perbandingan setara dengan hasil internal. Anotator, pemindai, "
         "geometri akuisisi, dan definisi zonanya berbeda, dan anotasi eksternal dihasilkan oleh "
