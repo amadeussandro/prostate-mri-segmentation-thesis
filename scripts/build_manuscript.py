@@ -29,8 +29,35 @@ PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PROJECT, "scripts"))
 
 TEMPLATE = os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro.docx")
-FIG_WIDTH_IN = 6.1
-MAX_FIG_WIDTH_IN = 6.3
+# The journal template gives a 6.00 inch text column; a figure wider than that
+# overflows into the margin.
+TEXT_WIDTH_IN = 6.0
+FIG_WIDTH_IN = 6.0
+TALL_FIG_WIDTH_IN = 4.1
+
+
+def apply_jmir_page_setup(doc: Document) -> dict:
+    """Force US Letter portrait with the journal template's margins.
+
+    The file this builder uses as its template carries an 11 x 8.5 inch page -
+    landscape dimensions, even though its orientation flag still reads portrait,
+    which is the inconsistent state Word produces when the page size is edited
+    directly. The journal's own template is 8.5 x 11 portrait with 1.25 inch
+    side margins and 1 inch top and bottom, giving a 6 inch text column, so that
+    is what is set here rather than whatever the previous draft happened to have.
+    """
+    from docx.enum.section import WD_ORIENT
+    for s in doc.sections:
+        s.orientation = WD_ORIENT.PORTRAIT
+        s.page_width = Inches(8.5)
+        s.page_height = Inches(11)
+        s.left_margin = s.right_margin = Inches(1.25)
+        s.top_margin = s.bottom_margin = Inches(1.0)
+    sec = doc.sections[0]
+    # Subtracting Length objects yields a plain int (EMU), so convert first.
+    text_width = sec.page_width.inches - sec.left_margin.inches - sec.right_margin.inches
+    return {"page": (sec.page_width.inches, sec.page_height.inches),
+            "text_width": text_width}
 
 
 def clear_body(doc: Document) -> None:
@@ -80,7 +107,7 @@ def _image(doc, path, caption):
     with PILImage.open(full) as im:
         w, h = im.size
     # Keep tall diagrams from overflowing the page.
-    width_in = min(MAX_FIG_WIDTH_IN, FIG_WIDTH_IN if h / w < 1.3 else 4.3)
+    width_in = FIG_WIDTH_IN if h / w < 1.3 else TALL_FIG_WIDTH_IN
     para = doc.add_paragraph()
     para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     para.add_run().add_picture(full, width=Inches(width_in))
@@ -115,6 +142,7 @@ def _table(doc, caption, headers, rows):
 
 def render(blocks: List[Tuple[str, object]], out_path: str, template: str = TEMPLATE) -> str:
     doc = Document(template) if os.path.exists(template) else Document()
+    apply_jmir_page_setup(doc)
     clear_body(doc)
 
     for kind, payload in blocks:

@@ -445,21 +445,40 @@ if __name__ == "__main__":
 # Workflow diagrams
 # ---------------------------------------------------------------------------
 
-def _flow(ax, boxes, x=0.5, w=0.86, top=0.97, gap=0.015, fs=8.4):
-    """Stack labelled boxes with arrows between them."""
+def _flow(ax, boxes, columns=1, fs=8.4, gap=0.018):
+    """Lay labelled boxes out with arrows, in one or two columns.
+
+    A single column of ten boxes makes a figure roughly 1.3 times as tall as it
+    is wide, which on a portrait page with a 6-inch text column becomes almost a
+    full page. Two columns keep the type size while halving the height.
+    """
     n = len(boxes)
-    h = (top - 0.03 - gap * (n - 1)) / n
-    y = top
-    for text, face, edge in boxes:
-        ax.add_patch(plt.Rectangle((x - w / 2, y - h), w, h, transform=ax.transAxes,
-                                   facecolor=face, edgecolor=edge, linewidth=1.3, zorder=2))
-        ax.text(x, y - h / 2, text, transform=ax.transAxes, ha="center", va="center",
-                fontsize=fs, color=INK, zorder=3)
-        if y - h - gap > 0.02:
-            ax.annotate("", xy=(x, y - h - gap), xytext=(x, y - h),
+    per = (n + columns - 1) // columns
+    col_w = (1.0 / columns) * 0.90
+    h = (0.94 - gap * (per - 1)) / per
+
+    for i, (text, face, edge) in enumerate(boxes):
+        c, r = divmod(i, per)
+        cx = (c + 0.5) / columns
+        y = 0.96 - r * (h + gap)
+        ax.add_patch(plt.Rectangle((cx - col_w / 2, y - h), col_w, h,
+                                   transform=ax.transAxes, facecolor=face,
+                                   edgecolor=edge, linewidth=1.3, zorder=2))
+        ax.text(cx, y - h / 2, text, transform=ax.transAxes, ha="center",
+                va="center", fontsize=fs, color=INK, zorder=3)
+        last_in_col = (r == per - 1) or (i == n - 1)
+        if not last_in_col:
+            ax.annotate("", xy=(cx, y - h - gap), xytext=(cx, y - h),
                         xycoords=ax.transAxes, textcoords=ax.transAxes,
                         arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=1.3))
-        y -= h + gap
+        elif c + 1 < columns and i != n - 1:
+            # carry the flow to the top of the next column
+            nx = (c + 1.5) / columns
+            ax.annotate("", xy=(nx - col_w / 2 - 0.012, 0.96 - h / 2),
+                        xytext=(cx + col_w / 2 + 0.012, y - h / 2),
+                        xycoords=ax.transAxes, textcoords=ax.transAxes,
+                        arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=1.3,
+                                        connectionstyle="arc3,rad=-0.25"))
     ax.axis("off")
 
 
@@ -470,7 +489,7 @@ GREY_F, GREY_E = "#f2f2ef", MUTED
 
 
 def fig_study_pipeline(out: str) -> str:
-    fig, ax = plt.subplots(figsize=(6.6, 8.4))
+    fig, ax = plt.subplots(figsize=(11.0, 5.0))
     _flow(ax, [
         ("Prostate158 — 158 examinations, axial T2-weighted\n"
          "official patient-level split 119 / 20 / 19", BLUE_F, BLUE_E),
@@ -488,7 +507,7 @@ def fig_study_pipeline(out: str) -> str:
         ("2D → 3D reconstruction with verification  (see Figure 3)", GREY_F, GREY_E),
         ("Reconstruction ablation · zone volumes in mL ·\n"
          "external validation on 204 PROSTATEx examinations", GREY_F, GREY_E),
-    ], fs=8.0)
+    ], columns=2, fs=8.0)
     ax.set_title("Study workflow", fontsize=11, fontweight="bold", color=INK, pad=12)
     fig.tight_layout()
     fig.savefig(out)
@@ -497,7 +516,7 @@ def fig_study_pipeline(out: str) -> str:
 
 
 def fig_reconstruction_workflow(out: str) -> str:
-    fig, ax = plt.subplots(figsize=(6.8, 8.6))
+    fig, ax = plt.subplots(figsize=(11.4, 5.2))
     _flow(ax, [
         ("3D T2-weighted volume, original voxel space", BLUE_F, BLUE_E),
         ("Preprocessing + retained transform metadata", BLUE_F, BLUE_E),
@@ -519,7 +538,7 @@ def fig_reconstruction_workflow(out: str) -> str:
          "(reported as pass/fail, never as an accuracy)", AQUA_F, AQUA_E),
         ("Evaluation per case against the untouched annotation,\n"
          "plus zone volumes in millilitres", GREY_F, GREY_E),
-    ], fs=7.8)
+    ], columns=2, fs=7.8)
     ax.set_title("2D-to-3D reconstruction and verification", fontsize=11,
                  fontweight="bold", color=INK, pad=12)
     fig.tight_layout()

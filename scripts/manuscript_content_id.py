@@ -56,67 +56,53 @@ def build(N: dict) -> List[Tuple[str, object]]:
     # ------------------------------------------------------------- abstrak
     add(("h2", "Abstrak"))
     add(("abs", ("Latar Belakang",
-        "Kanker prostat merupakan salah satu keganasan yang paling sering didiagnosis pada "
-        "pria, dan MRI multiparametrik telah menjadi modalitas utama dalam deteksi serta "
-        "penentuan stadiumnya. Interpretasi citra bergantung pada anatomi zonal kelenjar, "
-        "karena central gland (CG) dan peripheral zone (PZ) berbeda baik dalam penampakan "
-        "maupun dalam prevalensi dan signifikansi tumor yang timbul padanya. Segmentasi zonal "
-        "otomatis karena itu menjadi kebutuhan praktis bagi pembacaan berbantuan komputer. "
-        "Jaringan dua dimensi tetap menarik untuk MRI prostat yang sangat anisotropik, namun "
-        "keluarannya berupa potongan per irisan, dan penyusunan kembali keluaran tersebut "
-        "menjadi volume 3D yang valid secara spasial merupakan tahap implementasi yang lazim "
-        "dilakukan tetapi jarang diverifikasi.")))
+        "MRI multiparametrik merupakan modalitas sentral dalam deteksi dan penentuan stadium "
+        "kanker prostat, dan interpretasinya bergantung pada anatomi zonal kelenjar: central "
+        "gland (CG) dan peripheral zone (PZ) berbeda dalam penampakan maupun dalam signifikansi "
+        "tumor yang timbul padanya. Jaringan dua dimensi tetap menarik untuk MRI prostat yang "
+        "anisotropik, namun keluarannya berupa potongan per irisan, dan penyusunan kembali "
+        "keluaran tersebut menjadi volume 3D yang valid secara spasial merupakan tahap "
+        "implementasi yang lazim dilakukan tetapi jarang diverifikasi.")))
     add(("abs", ("Tujuan",
-        "Penelitian ini memiliki dua tujuan: mengevaluasi 2D U-Net untuk segmentasi zona "
-        "anatomi pada MRI prostat di bawah protokol pemilihan model yang ditetapkan di muka, "
-        "serta mengimplementasikan dan memvalidasi rekonstruksi prediksi per irisan tersebut ke "
-        "ruang voxel tiga dimensi aslinya. Tujuan tambahan adalah mengukur biaya tahap "
-        "rekonstruksi ketika operasi-operasi penyusunnya dihilangkan, dan menyatakan hasilnya "
-        "dalam satuan yang bermakna secara klinis.")))
+        "Mengevaluasi 2D U-Net untuk segmentasi zona anatomi di bawah protokol pemilihan model "
+        "yang ditetapkan di muka; mengimplementasikan dan memvalidasi rekonstruksi prediksi per "
+        "irisannya ke ruang voxel 3D asli; serta mengukur biaya rekonstruksi tersebut ketika "
+        "operasi penyusunnya dihilangkan, dalam satuan yang bermakna secara klinis.")))
     add(("abs", ("Metode",
-        f"Penelitian menggunakan dataset Prostate158 dengan pembagian resmi pada tingkat pasien "
-        f"(119 pelatihan, {a['e1']['n']} validasi, {t['n_cases']} uji held-out). Empat "
-        "konfigurasi pelatihan faktor-tunggal dibandingkan: baseline cross-entropy, penambahan "
-        "suku soft Dice pada CG dan PZ, penambahan augmentasi geometrik dan intensitas, serta "
-        "penambahan cross-entropy berbobot kelas. Konfigurasi dengan macro Dice tertinggi pada "
-        "data validasi dipilih sebelum data uji diperiksa, dibekukan, dan selanjutnya "
-        "diidentifikasi melalui nilai hash SHA-256 dari checkpoint-nya. Prediksi per irisan "
-        "disusun kembali berdasarkan indeks aksial eksplisit, ditransformasi balik, dan ditulis "
-        "dengan affine sumber dipulihkan, lalu dinilai per kasus di ruang voxel asli terhadap "
-        "anotasi pakar yang tidak dimodifikasi. Kebenaran rekonstruksi dinilai melalui dua cara "
-        "yang saling bebas: daftar periksa geometris per kasus, dan uji fidelitas round-trip "
-        "yang tidak melibatkan model. Sebuah ablasi menyusun ulang prediksi yang sama dengan "
-        "operasi rekonstruksi tertentu dihilangkan. Volume zona dihitung dalam mililiter dan "
-        "dibandingkan melalui analisis Bland-Altman. Model beku akhirnya diterapkan satu kali "
-        f"pada kohort independen berisi {e['n_cases']} pemeriksaan PROSTATEx.")))
+        f"Kami menggunakan Prostate158 dengan pembagian resmi tingkat pasien (119 pelatihan, "
+        f"{a['e1']['n']} validasi, {t['n_cases']} uji held-out). Empat konfigurasi pelatihan "
+        "faktor-tunggal dibandingkan: baseline cross-entropy, ditambah suku soft Dice, ditambah "
+        "augmentasi, dan ditambah cross-entropy berbobot kelas. Konfigurasi dengan macro Dice "
+        "validasi tertinggi dipilih sebelum data uji diperiksa, dibekukan, dan selanjutnya "
+        "diidentifikasi melalui hash checkpoint-nya. Prediksi disusun kembali berdasarkan indeks "
+        "aksial eksplisit, ditransformasi balik, ditulis dengan affine sumber dipulihkan, lalu "
+        "dinilai per kasus di ruang voxel asli. Kebenaran rekonstruksi dinilai melalui daftar "
+        "periksa geometris dan uji fidelitas round-trip tanpa model, serta sebuah ablasi yang "
+        "menyusun ulang prediksi yang sama dengan operasi rekonstruksi tertentu dihilangkan. "
+        "Volume zona dibandingkan melalui analisis Bland-Altman. Model beku akhirnya diterapkan "
+        f"satu kali pada {e['n_cases']} pemeriksaan PROSTATEx independen.")))
     add(("abs", ("Hasil",
-        f"Pada data validasi, keempat konfigurasi hanya terentang {N['arm_spread']:.4f} macro "
-        f"Dice, lebih kecil daripada simpangan baku antar kasus di dalam konfigurasi mana pun "
-        f"({N['arm_sd_range'][0]:.2f}-{N['arm_sd_range'][1]:.2f}). Konfigurasi terpilih mencapai "
-        f"rerata (SB) Dice tingkat volume sebesar {cg_d['mean']:.4f} ({cg_d['sd']:.4f}) untuk CG "
-        f"dan {pz_d['mean']:.4f} ({pz_d['sd']:.4f}) untuk PZ pada data uji, dengan macro Dice "
-        f"{t['macro']['mean']:.4f}. {geo_all} rekonstruksi lolos "
-        f"setiap pemeriksaan geometris, dengan selisih absolut affine maksimum "
-        f"{g['affine_max_abs_diff']:.1f}. Ablasi menunjukkan bahwa menghilangkan tahap inversi "
-        f"orientasi menghasilkan volume yang tercermin secara anatomis namun tetap lolos seluruh "
-        f"daftar periksa geometris, sementara Dice yang dilaporkan turun menjadi "
-        f"{v1['cg']['dice_vs_gt']:.4f} (CG) dan {v1['pz']['dice_vs_gt']:.4f} (PZ); menghilangkan "
-        f"pemulihan affine justru tidak mengubah Dice sama sekali namun menggeser kelenjar "
-        f"sejauh {v3['cg']['centroid_shift_mm']:.0f} mm dan menggelembungkan seluruh volume "
-        f"sebesar {v3['cg']['volume_pct_error']:.0f}%. Volume kelenjar total diremehkan sebesar "
-        f"{abs(v['whole']['bias']):.2f} mL ({abs(v['whole']['pct_of_gt']):.1f}% dari rujukan), "
-        f"yang menggelembungkan PSA density sebesar {v['psad']['mean_pct']:.1f}%. Pada kohort "
-        f"eksternal, macro Dice sebesar {e['macro']['mean']:.4f}.")))
+        f"Keempat konfigurasi terentang {N['arm_spread']:.4f} macro Dice pada validasi, lebih "
+        f"kecil daripada SB antar kasus di dalam salah satunya. Konfigurasi terpilih mencapai "
+        f"rerata (SB) Dice {cg_d['mean']:.4f} ({cg_d['sd']:.4f}) untuk CG dan {pz_d['mean']:.4f} "
+        f"({pz_d['sd']:.4f}) untuk PZ pada data uji (macro {t['macro']['mean']:.4f}). Seluruh "
+        f"{g['n']} rekonstruksi lolos setiap pemeriksaan geometris (selisih absolut affine "
+        f"maksimum {g['affine_max_abs_diff']:.1f}). Menghilangkan tahap inversi orientasi "
+        f"menghasilkan volume tercermin secara anatomis yang tetap lolos daftar periksa tersebut "
+        f"sementara Dice-nya turun menjadi {v1['cg']['dice_vs_gt']:.4f} (CG) dan "
+        f"{v1['pz']['dice_vs_gt']:.4f} (PZ); menghilangkan pemulihan affine tidak mengubah Dice "
+        f"namun menggeser kelenjar {v3['cg']['centroid_shift_mm']:.0f} mm dan menggelembungkan "
+        f"setiap volume {v3['cg']['volume_pct_error']:.0f}%. Volume kelenjar total diremehkan "
+        f"{abs(v['whole']['pct_of_gt']):.1f}%, menggelembungkan PSA density "
+        f"{v['psad']['mean_pct']:.1f}%. Macro Dice eksternal {e['macro']['mean']:.4f}.")))
     add(("abs", ("Simpulan",
         "2D U-Net standar menyegmentasi central gland secara andal dan peripheral zone kurang "
-        "demikian, dan tiga intervensi pelatihan faktor-tunggal menggeser performa lebih kecil "
-        "daripada variasi antar pasien. Temuan pada sisi rekonstruksi lebih dapat "
-        "digeneralisasi: validasi geometris dan metrik tumpang tindih masing-masing buta "
-        "terhadap kelas kesalahan rekonstruksi yang berbeda, sehingga tidak satu pun memadai "
-        "bila berdiri sendiri, dan uji fidelitas round-trip tanpa model adalah yang mendeteksi "
-        "volume dengan header benar tetapi voxel salah. Karena volume zona masuk sebagai "
-        "penyebut pada PSA density, kesalahan rekonstruksi yang tidak terlihat oleh Dice tetap "
-        "dapat mengubah besaran klinis secara substansial.")))
+        "demikian, dan tiga intervensi faktor-tunggal menggeser performa lebih kecil daripada "
+        "variasi antar pasien. Temuan pada sisi rekonstruksi lebih dapat digeneralisasi: "
+        "validasi geometris dan metrik tumpang tindih masing-masing buta terhadap kelas "
+        "kesalahan rekonstruksi yang berbeda, sehingga tidak satu pun memadai bila berdiri "
+        "sendiri. Karena volume zona masuk sebagai penyebut pada PSA density, kesalahan yang "
+        "tidak terlihat oleh Dice tetap dapat mengubah besaran klinis secara substansial.")))
     add(("abs", ("Kata Kunci",
         "kanker prostat; magnetic resonance imaging; segmentasi citra; deep learning; U-Net; "
         "rekonstruksi 3D; peripheral zone; validasi eksternal; reprodusibilitas; PSA density")))
@@ -186,7 +172,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "prapemrosesan, ekstraksi irisan 2D, pelatihan empat konfigurasi faktor-tunggal, "
         "pemilihan model pada data validasi, satu kali evaluasi pada data uji, rekonstruksi "
         "prediksi model terpilih ke ruang voxel asli beserta verifikasinya, ablasi tahap "
-        "rekonstruksi, analisis volumetrik, dan satu penerapan pada kohort eksternal independen."))
+        "rekonstruksi, analisis volumetrik, dan satu penerapan pada kohort eksternal independen (Gambar 1)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F0_study_pipeline.png",
         "Gambar 1. Alur kerja penelitian secara keseluruhan. Empat konfigurasi pelatihan "
         "faktor-tunggal dibandingkan pada data validasi; konfigurasi terpilih dibekukan dan "
@@ -251,7 +237,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "downsampling menggunakan max pooling 2x2 dan upsampling menggunakan konvolusi transpose "
         "dengan skip connection dari tingkat encoder yang bersesuaian. Dropout sebesar 0,3 "
         "diterapkan pada bottleneck. Lapisan akhir menghasilkan logit per kelas, dan prediksi "
-        "per irisan adalah arg-max atas ketiga kelas."))
+        "per irisan adalah arg-max atas ketiga kelas (Gambar 2)."))
     add(("fig", ("results/figures_manuscript/from_original/image5.png",
         "Gambar 2. Arsitektur 2D U-Net: encoder-decoder empat tingkat dengan 32 peta fitur awal, "
         "skip connection pada setiap tingkat, dan keluaran tiga kanal yang bersesuaian dengan "
@@ -308,7 +294,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "akal. Volume tersusun kemudian ditransformasi balik melalui rantai prapemrosesan dalam "
         "urutan terbalik, menggunakan interpolasi nearest-neighbour di seluruh tahap sehingga "
         "label bilangan bulat terjaga persis. Hasilnya ditulis sebagai citra NIfTI yang membawa "
-        "affine dan spasi voxel sumber, tidak pernah affine identitas bawaan."))
+        "affine dan spasi voxel sumber, tidak pernah affine identitas bawaan. Alur lengkapnya, "
+        "termasuk dua tahap verifikasi yang diuraikan di bawah, disajikan pada Gambar 3."))
     add(("fig", (f"{FIG_DIR_RQ2}/F5_reconstruction_workflow.png",
         "Gambar 3. Alur rekonstruksi 2D ke 3D beserta verifikasinya. Prediksi disusun berdasarkan "
         "indeks aksial eksplisit, ditransformasi balik dalam urutan terbalik dengan interpolasi "
@@ -599,7 +586,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "periksa geometris mendeteksi affine yang hilang dan buta terhadap volume yang tercermin. "
         "Pipeline yang hanya melaporkan metrik akurasi dan pipeline yang hanya memvalidasi header "
         "masing-masing buta terhadap salah satunya, dan inilah alasan untuk menjalankan kedua "
-        "pemeriksaan sekaligus uji fidelitas round-trip yang membandingkan voxel alih-alih header."))
+        "pemeriksaan sekaligus uji fidelitas round-trip yang membandingkan voxel alih-alih header "
+        "(Gambar 4). Gambar 5 menyajikan satu kasus di bawah kedua perlakuan, dengan putusan "
+        "daftar periksa tercetak pada masing-masing."))
     add(("p",
         "Dua dari empat pintasan tidak menimbulkan kerusakan terukur pada kohort ini, dengan "
         "alasan yang berbeda dan layak dibedakan. Pemotongan terpusat aman secara struktural, "
@@ -670,7 +659,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "Kami menekankan batas kesesuaian di atas nilai bias. Bias sebesar beberapa mililiter "
         "akan saling meniadakan pada tingkat kohort; batas kesesuaian yang terentang lebih dari "
         "27 mL pada kelenjar berukuran sekitar 54 mL menggambarkan apa yang dapat terjadi pada "
-        "pasien perorangan, dan pasien peroranganlah yang menjadi sasaran perhitungan PSA density."))
+        "pasien perorangan, dan pasien peroranganlah yang menjadi sasaran perhitungan PSA density "
+        "(Gambar 6)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F2_zone_volume_agreement.png",
         "Gambar 6. Kesesuaian volume zona. Plot Bland-Altman untuk central gland dan peripheral "
         "zone, serta galat PSA density per kasus yang dihasilkannya.")))
@@ -740,7 +730,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "geometri akuisisi, dan definisi zonanya berbeda, dan anotasi eksternal dihasilkan oleh "
         "kelompok berbeda di bawah protokol berbeda. Besaran yang menjadi perhatian adalah besar "
         "selisihnya, yang ditafsirkan berdampingan dengan pergeseran kovariat yang sebagian "
-        "menjelaskannya."))
+        "menjelaskannya (Gambar 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
         "Gambar 7. Validasi eksternal. Dice internal dan eksternal berdampingan; distribusi HD95 "
         "central gland pada kohort eksternal, yang menunjukkan ekor berat alih-alih pergeseran "
@@ -769,7 +759,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"berskor terendah central gland berhasil dipulihkan sementara peripheral zone "
         f"ter-undersegmentasi secara substansial, dengan central gland meluas ke wilayah yang oleh "
         f"anotasi ditetapkan sebagai peripheral zone - yakni kekeliruan kelas pada antarmuka "
-        f"zonal, bukan kegagalan menemukan prostat."))
+        f"zonal, bukan kegagalan menemukan prostat (Gambar 8 dan 9)."))
     add(("fig", (f"{VIZ}/patient_{t['representatives']['good']}/"
                  f"patient_{t['representatives']['good']}_slice_016.png",
         f"Gambar 8. Kasus representatif dengan performa tinggi (kasus "

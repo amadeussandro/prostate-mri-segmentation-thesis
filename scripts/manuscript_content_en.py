@@ -67,65 +67,53 @@ def build(N: dict) -> List[Tuple[str, object]]:
     # ------------------------------------------------------------- abstract
     add(("h2", "Abstract"))
     add(("abs", ("Background",
-        "Prostate cancer is among the most frequently diagnosed malignancies in men, and "
-        "multiparametric MRI has become central to its detection and staging. Interpretation "
-        "depends on the zonal anatomy of the gland, because the central gland (CG) and the "
-        "peripheral zone (PZ) differ in both appearance and in the prevalence and significance "
-        "of tumours arising in them. Automated zonal segmentation is therefore a practical "
-        "requirement for computer-assisted reading. Two-dimensional networks remain attractive "
-        "for anisotropic prostate MRI, but they produce slice-wise output, and reassembling that "
-        "output into a spatially valid 3D volume is an implementation step that is widely "
-        "performed and rarely verified.")))
+        "Multiparametric MRI is central to prostate cancer detection and staging, and its "
+        "interpretation depends on the zonal anatomy of the gland: the central gland (CG) and "
+        "peripheral zone (PZ) differ in appearance and in the significance of tumours arising in "
+        "them. Two-dimensional networks remain attractive for anisotropic prostate MRI, but they "
+        "produce slice-wise output, and reassembling that output into a spatially valid 3D "
+        "volume is an implementation step that is widely performed and rarely verified.")))
     add(("abs", ("Objective",
-        "This study had two aims: to evaluate a 2D U-Net for anatomical zone segmentation on "
-        "prostate MRI under a pre-specified model-selection protocol, and to implement and "
-        "validate the reconstruction of its slice-wise predictions into the original 3D voxel "
-        "space. A secondary aim was to quantify what the reconstruction step costs when its "
-        "individual operations are omitted, and to express the result in units that carry "
+        "To evaluate a 2D U-Net for anatomical zone segmentation under a pre-specified "
+        "model-selection protocol; to implement and validate the reconstruction of its "
+        "slice-wise predictions into the original 3D voxel space; and to quantify what that "
+        "reconstruction costs when its individual operations are omitted, in units that carry "
         "clinical meaning.")))
     add(("abs", ("Methods",
-        f"We used the Prostate158 dataset with its official patient-level split "
-        f"({a['baseline']['n'] and 119} training, {a['e1']['n']} validation, {t['n_cases']} "
-        "held-out test). Four single-factor training configurations were compared: a "
-        "cross-entropy baseline, the addition of a soft Dice term on CG and PZ, the addition of "
-        "geometric and intensity augmentation, and the addition of class-weighted cross-entropy. "
-        "The configuration with the highest macro Dice on the validation split was selected "
-        "before the test set was examined, frozen, and identified thereafter by the SHA-256 hash "
-        "of its checkpoint. Slice-wise predictions were reassembled by explicit axial index, "
-        "inverse-transformed, and written with the source affine restored, then scored per case "
-        "in original voxel space against the untouched expert annotation. Reconstruction "
-        "correctness was assessed in two independent ways: a per-case geometric checklist, and a "
-        "model-free round-trip fidelity test. An ablation rebuilt the same predictions with "
-        "individual reconstruction operations omitted. Zone volumes were computed in millilitres "
-        "and compared by Bland-Altman analysis. The frozen model was finally applied once to an "
-        f"independent cohort of {e['n_cases']} PROSTATEx examinations.")))
+        f"We used Prostate158 with its official patient-level split (119 training, "
+        f"{a['e1']['n']} validation, {t['n_cases']} held-out test). Four single-factor training "
+        "configurations were compared: a cross-entropy baseline, plus a soft Dice term, plus "
+        "augmentation, and plus class-weighted cross-entropy. The one with the highest "
+        "validation macro Dice was selected before the test set was examined, frozen, and "
+        "identified thereafter by its checkpoint hash. Predictions were reassembled by explicit "
+        "axial index, inverse-transformed, written with the source affine restored, and scored "
+        "per case in original voxel space. Reconstruction correctness was assessed by a "
+        "geometric checklist and by a model-free round-trip fidelity test, and an ablation "
+        "rebuilt the same predictions with individual reconstruction operations omitted. Zone "
+        "volumes were compared by Bland-Altman analysis. The frozen model was finally applied "
+        f"once to {e['n_cases']} independent PROSTATEx examinations.")))
     add(("abs", ("Results",
-        f"On the validation split the four configurations spanned {N['arm_spread']:.4f} macro "
-        f"Dice, smaller than the per-case standard deviation within any single configuration "
-        f"({N['arm_sd_range'][0]:.2f}-{N['arm_sd_range'][1]:.2f}). The selected configuration "
-        f"achieved a mean (SD) volume-level Dice of {cg_d['mean']:.4f} ({cg_d['sd']:.4f}) for CG "
-        f"and {pz_d['mean']:.4f} ({pz_d['sd']:.4f}) for PZ on the held-out set, with a macro Dice "
-        f"of {t['macro']['mean']:.4f}. {geo_all} reconstructions passed "
-        f"every geometric check, with a maximum absolute affine difference of "
-        f"{g['affine_max_abs_diff']:.1f}. The ablation showed that omitting the inverse "
-        f"orientation step produced an anatomically mirrored volume that passed the entire "
-        f"geometric checklist while its reported Dice fell to {v1['cg']['dice_vs_gt']:.4f} (CG) "
-        f"and {v1['pz']['dice_vs_gt']:.4f} (PZ); omitting affine restoration left Dice unchanged "
-        f"while displacing the gland by {v3['cg']['centroid_shift_mm']:.0f} mm and inflating "
-        f"every volume by {v3['cg']['volume_pct_error']:.0f}%. Whole-gland volume was "
-        f"under-estimated by {abs(v['whole']['bias']):.2f} mL "
-        f"({abs(v['whole']['pct_of_gt']):.1f}% of the reference), which inflates PSA density by "
-        f"{v['psad']['mean_pct']:.1f}% on average. On the external cohort macro Dice was "
-        f"{e['macro']['mean']:.4f}.")))
+        f"The four configurations spanned {N['arm_spread']:.4f} macro Dice on validation, "
+        f"smaller than the per-case SD within any one of them. The selected configuration "
+        f"achieved a mean (SD) Dice of {cg_d['mean']:.4f} ({cg_d['sd']:.4f}) for CG and "
+        f"{pz_d['mean']:.4f} ({pz_d['sd']:.4f}) for PZ on the held-out set (macro "
+        f"{t['macro']['mean']:.4f}). All {g['n']} reconstructions passed every geometric check "
+        f"(maximum absolute affine difference {g['affine_max_abs_diff']:.1f}). Omitting the "
+        f"inverse orientation step produced an anatomically mirrored volume that still passed "
+        f"that checklist while its reported Dice fell to {v1['cg']['dice_vs_gt']:.4f} (CG) and "
+        f"{v1['pz']['dice_vs_gt']:.4f} (PZ); omitting affine restoration left Dice unchanged but "
+        f"displaced the gland by {v3['cg']['centroid_shift_mm']:.0f} mm and inflated every "
+        f"volume by {v3['cg']['volume_pct_error']:.0f}%. Whole-gland volume was under-estimated "
+        f"by {abs(v['whole']['pct_of_gt']):.1f}%, inflating PSA density by "
+        f"{v['psad']['mean_pct']:.1f}%. External macro Dice was {e['macro']['mean']:.4f}.")))
     add(("abs", ("Conclusions",
         "A standard 2D U-Net segments the central gland reliably and the peripheral zone less "
-        "so, and three single-factor training interventions moved performance by less than the "
-        "variation between patients. The reconstruction findings are the more transferable "
-        "result: geometric validation and overlap metrics are each blind to a different class of "
-        "reconstruction error, so neither alone is sufficient, and a model-free round-trip "
-        "fidelity test is what detects a volume whose header is correct and whose voxels are "
-        "not. Because zone volumes enter PSA density as a denominator, a reconstruction error "
-        "that leaves Dice untouched can still change a clinical quantity substantially.")))
+        "so, and three single-factor interventions moved performance by less than the variation "
+        "between patients. The reconstruction findings are the more transferable result: "
+        "geometric validation and overlap metrics are each blind to a different class of "
+        "reconstruction error, so neither alone is sufficient. Because zone volumes enter PSA "
+        "density as a denominator, an error invisible to Dice can still change a clinical "
+        "quantity substantially.")))
     add(("abs", ("Keywords",
         "prostate cancer; magnetic resonance imaging; image segmentation; deep learning; U-Net; "
         "3D reconstruction; peripheral zone; external validation; reproducibility; PSA density")))
@@ -192,7 +180,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "validation split, a single evaluation on the held-out test split, reconstruction of the "
         "selected model's predictions into original voxel space with verification, an ablation "
         "of the reconstruction stage, volumetric analysis, and one application to an independent "
-        "external cohort."))
+        "external cohort (Figure 1)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F0_study_pipeline.png",
         "Figure 1. Overall study workflow. Four single-factor training configurations are "
         "compared on the validation split; the selected configuration is frozen and evaluated "
@@ -254,7 +242,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "2x2 max pooling and upsampling used transposed convolutions with skip connections from "
         "the matching encoder level. Dropout of 0.3 was applied at the bottleneck. The final "
         "layer produced per-class logits, and the per-slice prediction was the arg-max over the "
-        "three classes."))
+        "three classes (Figure 2)."))
     add(("fig", ("results/figures_manuscript/from_original/image5.png",
         "Figure 2. The 2D U-Net architecture: a four-level encoder-decoder with 32 initial "
         "feature maps, skip connections at each level, and a three-channel output corresponding "
@@ -309,7 +297,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "inverse-transformed through the preprocessing chain in reverse order, using "
         "nearest-neighbour interpolation throughout so that integer labels are preserved exactly. "
         "The result was written as a NIfTI image carrying the original source affine and voxel "
-        "spacing, never a default identity affine."))
+        "spacing, never a default identity affine. The complete workflow, including the two "
+        "verification steps described below, is shown in Figure 3."))
     add(("fig", (f"{FIG_DIR_RQ2}/F5_reconstruction_workflow.png",
         "Figure 3. The 2D-to-3D reconstruction and verification workflow. Predictions are "
         "assembled by explicit axial index, inverse-transformed in reverse order with "
@@ -597,7 +586,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "lost affine and is blind to the mirrored volume. A pipeline reporting only accuracy "
         "metrics and a pipeline validating only headers are each blind to one of them, which is "
         "the argument for performing both checks and for the round-trip fidelity test that "
-        "compares voxels rather than headers."))
+        "compares voxels rather than headers (Figure 4). Figure 5 shows one case under both "
+        "treatments, with the checklist verdict printed on each."))
     add(("p",
         "Two of the four shortcuts caused no measurable damage on this cohort, and the reasons "
         "differ in a way worth distinguishing. Centre-cropping is safe structurally, because this "
@@ -666,7 +656,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "We emphasise the limits of agreement over the bias. A bias of a few millilitres averages "
         "out across a cohort; limits of agreement spanning more than 27 mL on a gland of roughly "
         "54 mL describe what can happen to an individual patient, and it is the individual "
-        "patient for whom PSA density is computed."))
+        "patient for whom PSA density is computed (Figure 6)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F2_zone_volume_agreement.png",
         "Figure 6. Zone-volume agreement. Bland-Altman plots for the central gland and peripheral "
         "zone, and the resulting per-case error in PSA density.")))
@@ -733,7 +723,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "annotators, scanners, acquisition geometry and zonal definitions all differ, and the "
         "external annotations were produced by a different group under a different protocol. The "
         "quantity of interest is the size of the gap, interpreted alongside the covariate shift "
-        "that partly explains it."))
+        "that partly explains it (Figure 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
         "Figure 7. External validation. Internal and external Dice side by side; the distribution "
         "of central-gland HD95 on the external cohort, showing a heavy tail rather than a uniform "
@@ -762,7 +752,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"lowest-scoring case the central gland is recovered while the peripheral zone is "
         f"substantially under-segmented, with the central gland extending into territory the "
         f"annotation assigns to the peripheral zone - a class confusion at the zonal interface "
-        f"rather than a failure to find the prostate."))
+        f"rather than a failure to find the prostate (Figures 8 and 9)."))
     add(("fig", (f"{VIZ}/patient_{t['representatives']['good']}/"
                  f"patient_{t['representatives']['good']}_slice_016.png",
         f"Figure 8. Representative high-performing case (case {t['representatives']['good']}). "
