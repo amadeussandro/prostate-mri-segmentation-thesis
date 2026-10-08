@@ -375,7 +375,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "dengan evaluasi internal."))
     add(("p",
         "Anotasi sumber mendistribusikan peripheral zone dan sisa kelenjar sebagai dua mask biner "
-        "terpisah. Keduanya digabungkan ke dalam konvensi tiga label milik model menggunakan uji "
+        "terpisah, yang terakhir didefinisikan oleh penulisnya sebagai transition zone, central "
+        "zone, dan anterior fibromuscular stroma secara bersama-sama. Definisi ini mendekati, "
+        "namun tidak identik dengan, central gland pada data pengembangan yang mencakup "
+        "transition zone dan central zone; rujukan eksternal untuk kelas tersebut karena itu "
+        "memuat struktur yang tidak dilatihkan kepada model. Keduanya digabungkan ke dalam konvensi tiga label milik model menggunakan uji "
         "lebih-besar-dari-nol alih-alih kesamaan, setelah ditemukan satu kasus yang memuat satu "
         "voxel bernilai 2 pada mask peripheral zone-nya yang akan terbuang oleh uji kesamaan. "
         "Sifat saling lepas kedua mask diukur ulang untuk setiap kasus, bukan diasumsikan. Kasus "
@@ -428,8 +432,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Penelitian ini menggunakan dataset publik yang telah dinyatakan anonim dan tidak "
         "melibatkan partisipan manusia, perekrutan, maupun intervensi. Persetujuan komite etik "
-        "dan informed consent karena itu tidak diperlukan. Dataset digunakan sesuai lisensinya "
-        "masing-masing, dan anotasi dikreditkan kepada penulis aslinya."))
+        "dan informed consent karena itu tidak diperlukan. Anotasi zonal eksternal didistribusikan "
+        "di bawah lisensi Creative Commons Attribution 4.0 International (CC BY 4.0), yang "
+        "mengizinkan penggunaan ulang dengan atribusi; anotasi tersebut dikreditkan kepada "
+        "penulis aslinya, demikian pula arsip citra yang mendasarinya."))
 
     add(("tbl", ("Tabel 1. Karakteristik dataset dan konfigurasi eksperimen.",
         ["Butir", "Nilai"],
@@ -772,9 +778,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"telah diverifikasi pada {t['n_cases'] + e['n_cases']} pemeriksaan yang mencakup dua "
         f"konvensi orientasi dan kedua cabang transformasi in-plane."))
     add(("p",
-        "Angka-angka ini bukan perbandingan setara dengan hasil internal. Anotator, pemindai, "
-        "geometri akuisisi, dan definisi zonanya berbeda, dan anotasi eksternal dihasilkan oleh "
-        "kelompok berbeda di bawah protokol berbeda. Besaran yang menjadi perhatian adalah besar "
+        "Angka-angka ini bukan perbandingan setara dengan hasil internal. Anotator, pemindai, dan "
+        "geometri akuisisinya berbeda, demikian pula definisi zonanya: rujukan eksternal untuk "
+        "central gland turut memuat anterior fibromuscular stroma, sehingga sebagian "
+        "ketidaksesuaian yang terukur merupakan perbedaan pada apa yang dianotasi, bukan pada "
+        "apa yang diprediksi. Besaran yang menjadi perhatian adalah besar "
         "selisihnya, yang ditafsirkan berdampingan dengan pergeseran kovariat yang sebagian "
         "menjelaskannya (Gambar 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
@@ -968,8 +976,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h2", "Ketersediaan Data dan Kode"))
     add(("p",
-        "Kedua dataset yang digunakan dalam penelitian ini tersedia publik dari sumber aslinya di "
-        "bawah lisensi masing-masing. Seluruh kode analisis, berkas konfigurasi, skrip evaluasi, "
+        "Kedua dataset yang digunakan dalam penelitian ini tersedia publik dari sumber aslinya. "
+        "Anotasi zonal eksternal dirilis di bawah CC BY 4.0 dan disitasi sebagaimana mestinya; "
+        "citra yang mendasarinya didistribusikan melalui arsip publik aslinya. Seluruh kode analisis, berkas konfigurasi, skrip evaluasi, "
         "dan kode pembangkit gambar tersedia pada "
         "https://github.com/amadeussandro/prostate-mri-segmentation-thesis. Setiap nilai "
         "kuantitatif yang dilaporkan dalam naskah ini diturunkan secara terprogram dari artefak "

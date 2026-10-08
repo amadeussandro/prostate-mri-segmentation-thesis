@@ -376,7 +376,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "evaluation."))
     add(("p",
         "The source annotations distribute the peripheral zone and the remainder of the gland as "
-        "two separate binary masks. These were combined into the model's three-label convention "
+        "two separate binary masks, the latter defined by its authors as the transition zone, "
+        "central zone and anterior fibromuscular stroma taken together. This is close to, but "
+        "not identical with, the central gland of the development data, which comprises the "
+        "transition and central zones; the external reference for that class therefore "
+        "includes a structure the model was not trained to label. These were combined into the model's three-label convention "
         "using a greater-than-zero test rather than equality, after one case was found to carry a "
         "stray voxel of value 2 in its peripheral-zone mask that an equality test would have "
         "discarded. Mutual exclusivity of the two masks was re-measured for every case rather "
@@ -429,9 +433,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "This study used publicly available, de-identified datasets and involved no human "
         "participants, no recruitment and no intervention. Institutional review board approval "
-        "and informed consent were therefore not required. The datasets were used in accordance "
-        "with their respective licences, and the annotations are credited to their original "
-        "authors."))
+        "and informed consent were therefore not required. The external zonal annotations are "
+        "distributed under the Creative Commons Attribution 4.0 International licence "
+        "(CC BY 4.0), which permits reuse with attribution; they are credited to their "
+        "original authors, as is the underlying imaging archive."))
 
     add(("tbl", ("Table 1. Dataset characteristics and experimental configuration.",
         ["Item", "Value"],
@@ -765,8 +770,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"transform."))
     add(("p",
         "These figures are not a like-for-like comparison with the internal result. The "
-        "annotators, scanners, acquisition geometry and zonal definitions all differ, and the "
-        "external annotations were produced by a different group under a different protocol. The "
+        "annotators, scanners and acquisition geometry all differ, and so do the zone "
+        "definitions: the external reference for the central gland additionally includes the "
+        "anterior fibromuscular stroma, so part of the measured disagreement is a difference in "
+        "what was annotated rather than in what was predicted. The "
         "quantity of interest is the size of the gap, interpreted alongside the covariate shift "
         "that partly explains it (Figure 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
@@ -954,8 +961,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h2", "Data and Code Availability"))
     add(("p",
-        "Both datasets used in this study are publicly available from their original sources "
-        "under their respective licences. All analysis code, configuration files, evaluation "
+        "Both datasets used in this study are publicly available from their original sources. The "
+        "external zonal annotations are released under CC BY 4.0 and are cited accordingly; "
+        "the underlying imaging is distributed through its original public archive. All analysis code, configuration files, evaluation "
         "scripts and the figure-generation code are available at "
         "https://github.com/amadeussandro/prostate-mri-segmentation-thesis. Every quantitative "
         "value reported in this manuscript is derived programmatically from the result artifacts "
