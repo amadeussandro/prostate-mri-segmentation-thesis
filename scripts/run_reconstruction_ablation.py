@@ -217,7 +217,8 @@ def caught_by_geometry_check(vol: np.ndarray, affine: np.ndarray, source_geometr
 
 def measure_case(pid: str, ref_vol: np.ndarray, ref_aff: np.ndarray,
                  var_vol: np.ndarray, var_aff: np.ndarray,
-                 variant: str, caught: bool) -> List[Dict[str, object]]:
+                 variant: str, caught: bool,
+                 gt: Optional[np.ndarray] = None) -> List[Dict[str, object]]:
     rows = []
     for cid, cname in CLASS_NAMES.items():
         ref_ml = volume_ml(ref_vol, ref_aff, cid)
@@ -239,6 +240,13 @@ def measure_case(pid: str, ref_vol: np.ndarray, ref_aff: np.ndarray,
             "affine_match": bool(np.allclose(var_aff, ref_aff, atol=1e-4)),
             "caught_by_geometry_check": caught,
         })
+        if gt is not None:
+            # The number a reader would actually see. The comparison against the
+            # correct reconstruction isolates the damage; this says how far the
+            # REPORTED accuracy moves when the shortcut is taken, which is the
+            # claim that matters to someone reading a results table.
+            rows[-1]["dice_vs_gt_correct"] = dice(ref_vol, gt, cid)
+            rows[-1]["dice_vs_gt_variant"] = dice(var_vol, gt, cid)
     return rows
 
 
@@ -246,7 +254,8 @@ def measure_case(pid: str, ref_vol: np.ndarray, ref_aff: np.ndarray,
 # Orchestration
 # ---------------------------------------------------------------------------
 
-def run(rq2_dir: str, output_dir: str) -> dict:
+def run(rq2_dir: str, output_dir: str, gt_root: str = None,
+        mask_name: str = "t2_anatomy_reader1.nii.gz") -> dict:
     pred_files = sorted(glob.glob(os.path.join(rq2_dir, "predictions_2d", "pred_*.npz")))
     if not pred_files:
         raise FileNotFoundError(f"No 2D predictions found under {rq2_dir}/predictions_2d/")
@@ -270,6 +279,16 @@ def run(rq2_dir: str, output_dir: str) -> dict:
             gate_failures.append(pid)
             continue
 
+        gt = None
+        if gt_root:
+            gt_path = os.path.join(gt_root, pid, mask_name)
+            if not os.path.exists(gt_path):
+                raise FileNotFoundError(f"--gt-root given but no mask for case {pid}: {gt_path}")
+            gt = np.round(nib.load(gt_path).get_fdata()).astype(np.int64)
+            if gt.shape != ref_vol.shape:
+                raise ValueError(
+                    f"{pid}: GT shape {gt.shape} != reconstruction {ref_vol.shape}")
+
         source_geometry = read_geometry(nib.Nifti1Image(ref_vol, ref_aff))
         for name, _desc in VARIANTS:
             if name == "V0_correct":
@@ -277,7 +296,7 @@ def run(rq2_dir: str, output_dir: str) -> dict:
             var_vol, var_aff = build_variant(name, meta, pred, slice_indices)
             caught = caught_by_geometry_check(var_vol, var_aff, source_geometry)
             all_rows.extend(
-                measure_case(pid, ref_vol, ref_aff, var_vol, var_aff, name, caught))
+                measure_case(pid, ref_vol, ref_aff, var_vol, var_aff, name, caught, gt))
 
     if gate_failures:
         raise RuntimeError(
@@ -337,6 +356,7 @@ def aggregate(rows: List[Dict[str, object]]) -> List[Dict[str, object]]:
             d, shift, pct, absml = arr("dice_vs_correct"), arr("centroid_shift_mm"), \
                 arr("volume_pct_error"), arr("volume_abs_error_ml")
             fin = lambda a: a[np.isfinite(a)]  # noqa: E731
+            has_gt = "dice_vs_gt_variant" in sel[0]
             out.append({
                 "variant": name,
                 "class_id": cid,
@@ -351,6 +371,9 @@ def aggregate(rows: List[Dict[str, object]]) -> List[Dict[str, object]]:
                 "centroid_shift_mm_max": float(fin(shift).max()) if fin(shift).size else float("nan"),
                 "volume_abs_error_ml_mean": float(fin(absml).mean()) if fin(absml).size else float("nan"),
                 "volume_pct_error_mean": float(fin(pct).mean()) if fin(pct).size else float("nan"),
+                **({"dice_vs_gt_correct_mean": float(fin(arr("dice_vs_gt_correct")).mean()),
+                    "dice_vs_gt_variant_mean": float(fin(arr("dice_vs_gt_variant")).mean())}
+                   if has_gt else {}),
             })
     return out
 
@@ -382,15 +405,29 @@ def write_report(path: str, payload: dict, summary: List[Dict[str, object]]) -> 
         md.append(f"| `{k}` | {v} |\n")
 
     md.append("\n## 3. Results\n")
-    md.append("| Variant | Class | Dice vs correct | Centroid shift (mm) | Volume error (mL) "
-              "| Volume error (%) | Caught by geometry check |\n")
-    md.append("|---|---|---|---|---|---|---|\n")
+    has_gt = "dice_vs_gt_variant_mean" in (summary[0] if summary else {})
+    gt_hdr = " Reported Dice vs GT |" if has_gt else ""
+    gt_sep = "---|" if has_gt else ""
+    md.append("| Variant | Class | Dice vs correct |" + gt_hdr +
+              " Centroid shift (mm) | Volume error (mL) | Volume error (%) "
+              "| Caught by geometry check |\n")
+    md.append("|---|---|---|" + gt_sep + "---|---|---|---|\n")
     for s in summary:
+        gt_cell = f" {_f(s['dice_vs_gt_variant_mean'])} |" if has_gt else ""
         md.append(
             f"| `{s['variant']}` | {s['class_name'].split('_')[0]} | "
-            f"{_f(s['dice_vs_correct_mean'])} | {_f(s['centroid_shift_mm_mean'], 2)} | "
+            f"{_f(s['dice_vs_correct_mean'])} |" + gt_cell +
+            f" {_f(s['centroid_shift_mm_mean'], 2)} | "
             f"{_f(s['volume_abs_error_ml_mean'], 2)} | {_f(s['volume_pct_error_mean'], 1)} | "
             f"{s['n_caught_by_geometry_check']}/{s['n_cases']} |\n")
+    if has_gt:
+        c = summary[0]
+        md.append(
+            f"\nThe correct pipeline reports Dice {_f(c['dice_vs_gt_correct_mean'])} (CG) and "
+            f"{_f(summary[1]['dice_vs_gt_correct_mean'])} (PZ) against the expert annotation. "
+            "The **Reported Dice vs GT** column is the number a reader would see in a results "
+            "table if that shortcut had been taken -- the same model, the same predictions, "
+            "only the reconstruction done differently.\n")
 
     md.append("\n## 4. The finding that matters\n")
     md.append(
@@ -408,11 +445,19 @@ def write_report(path: str, payload: dict, summary: List[Dict[str, object]]) -> 
         "of returning 1.0. **This is the concrete justification for that test.** A "
         "round-trip Dice of 1.0 is not an inflated accuracy claim -- it is the only gate "
         "in the pipeline that detects a correct-looking file containing wrong voxels.\n\n"
-        "Conversely, `V3_identity_affine` keeps the voxels perfect (Dice 1.0) and still "
-        "misplaces the zones by ~180-205 mm in scanner coordinates and inflates every "
-        "volume by ~47%, because a 1 mm isotropic voxel is not a 0.47 x 0.47 x 3.0 mm "
-        "one. Voxel-overlap metrics alone would have called this flawless. The two "
-        "failure modes are complementary, and neither single check finds both.\n")
+        "Conversely, `V3_identity_affine` keeps the voxels perfect (Dice 1.0 against the "
+        "correct reconstruction, and an **unchanged** Dice against the annotation) while "
+        "misplacing the zones by ~180-205 mm in scanner coordinates and inflating every "
+        "volume by ~47%, because a 1 mm isotropic voxel is not a 0.47 x 0.47 x 3.0 mm one. "
+        "Dice is computed on voxel indices, so it cannot see an affine error at all.\n\n"
+        "The two failure modes are exactly complementary:\n\n"
+        "| Failure | Dice detects it | Geometry checklist detects it |\n"
+        "|---|---|---|\n"
+        "| Orientation inversion (`V1`) | **yes** (0.84 -> 0.60 CG, 0.69 -> 0.18 PZ) | no |\n"
+        "| Lost affine (`V3`) | no (unchanged) | **yes** |\n\n"
+        "**Neither check alone finds both.** A pipeline that reports only overlap metrics "
+        "and a pipeline that validates only headers are each blind to one of these, which "
+        "is the argument for running both.\n")
 
     md.append("\n## 4. How to read this\n")
     md.append(
@@ -443,8 +488,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="RQ2 reconstruction ablation (CPU, no inference).")
     ap.add_argument("--rq2-dir", default="results/rq2_e1_epoch88")
     ap.add_argument("--output-dir", default="results/rq2_ablation_naive")
+    ap.add_argument("--gt-root", default=None,
+                    help="Test case root. Adds what the REPORTED accuracy becomes "
+                         "under each shortcut, not just the damage versus the correct run.")
+    ap.add_argument("--mask-name", default="t2_anatomy_reader1.nii.gz")
     args = ap.parse_args()
-    res = run(args.rq2_dir, args.output_dir)
+    res = run(args.rq2_dir, args.output_dir, args.gt_root, args.mask_name)
     print(f"Ablation complete over {res['n_cases']} cases.")
     for k in ("per_case", "summary", "report"):
         print(f"  {k:9s}: {res[k]}")

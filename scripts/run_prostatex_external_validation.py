@@ -98,6 +98,16 @@ def harmonize_case(row: dict, prostatex_root: str, out_root: str) -> dict:
     (re-measured here, not assumed), so no precedence rule is needed.
     """
     cid = row["case_id"]
+    case_dir_existing = os.path.join(out_root, cid)
+    done_marker = os.path.join(case_dir_existing, "harmonized.json")
+    if os.path.exists(done_marker) and \
+            os.path.exists(os.path.join(case_dir_existing, "anatomy.nii.gz")) and \
+            os.path.exists(os.path.join(case_dir_existing, "t2.nii.gz")):
+        # Already built and recorded by an earlier run. Harmonization is a pure
+        # function of the source masks, so rebuilding it would reproduce the
+        # same bytes at the cost of re-reading every mask.
+        return json.load(open(done_marker, encoding="utf-8"))
+
     t2_path = os.path.join(prostatex_root, row["t2_path"])
     pz_path = os.path.join(prostatex_root, row["pz_mask_path"])
     rest_path = os.path.join(prostatex_root, row["rest_mask_path"])
@@ -140,7 +150,7 @@ def harmonize_case(row: dict, prostatex_root: str, out_root: str) -> dict:
             shutil.copy2(t2_path, link)
 
     zooms = [float(z) for z in t2_nii.header.get_zooms()[:3]]
-    return {
+    record = {
         "case_id": cid,
         "shape": tuple(int(s) for s in t2_nii.shape),
         "spacing_mm": zooms,
@@ -152,6 +162,9 @@ def harmonize_case(row: dict, prostatex_root: str, out_root: str) -> dict:
         "pz_rest_overlap": overlap,
         "stray_label_values_in_pz": sorted(int(v) for v in np.unique(pz) if v not in (0, 1)),
     }
+    with open(done_marker, "w", encoding="utf-8") as fh:
+        json.dump(record, fh, default=list)
+    return record
 
 
 def prepare(prostatex_root: str, work_dir: str, expected_cases: int) -> List[dict]:
@@ -213,12 +226,14 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
     from src.dataset import ProstateZonal2DDataset
     from src.evaluate import predict_case_reconstructed
     from src.metrics import (
+        CaseMetrics,
         aggregate_case_results,
         evaluate_case_volume,
         write_case_metrics_csv,
         write_summary_csv,
     )
     from src.model import build_model
+    from src.reconstruction import validate_reconstruction_geometry
     from src.transforms import PreprocessingConfig
     from src.utils import get_device
 
@@ -258,8 +273,32 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
     print(f"preprocessing rebuilt from the checkpoint: target_size={preproc.target_size}, "
           f"z_resample={preproc.z_resample}, mode={preproc.spatial_mode}")
 
+    # Saved per case so a long run is resumable and so the predicted volumes
+    # survive for later analysis (zone volumes, connected-component diagnosis)
+    # without paying for inference again.
+    recon_dir = os.path.join(output_dir, "reconstructions_3d")
+    cache_dir = os.path.join(output_dir, "_case_metrics")
+    os.makedirs(recon_dir, exist_ok=True)
+    os.makedirs(cache_dir, exist_ok=True)
+
     case_results, geometry_rows = [], []
     for i, cid in enumerate(case_ids, 1):
+        cache_path = os.path.join(cache_dir, f"{cid}.json")
+        recon_path = os.path.join(recon_dir, f"pred_{cid}.nii.gz")
+
+        # Resume: a case whose metrics AND volume both survived an earlier run
+        # is replayed from disk. Inference is deterministic (eval mode, no TTA,
+        # fixed weights), so a replayed case is identical to a recomputed one.
+        if os.path.exists(cache_path) and os.path.exists(recon_path):
+            cached = json.load(open(cache_path, encoding="utf-8"))
+            case_results.append(CaseMetrics(
+                patient_id=cid,
+                per_class={int(k): v for k, v in cached["per_class"].items()}))
+            geometry_rows.append(cached["geometry_row"])
+            if i % 25 == 0 or i == len(case_ids):
+                print(f"  {i}/{len(case_ids)} cases (resumed)")
+            continue
+
         dataset = ProstateZonal2DDataset(
             dataset_root=cases_root, patient_ids=[cid],
             image_name="t2.nii.gz", mask_name="anatomy.nii.gz",
@@ -271,6 +310,10 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
         if not set(labels).issubset(set(CLASS_IDS)):
             raise RuntimeError(f"{cid}: prediction carries labels outside {CLASS_IDS}: {labels}")
 
+        # Keep the volume: it is what makes zone volumes and any post-hoc error
+        # analysis possible without re-running inference over the whole cohort.
+        nib.save(cp.pred_nii, recon_path)
+
         cm = evaluate_case_volume(pred=cp.pred_original, gt=cp.gt_original,
                                   spacing=cp.geometry.zooms, class_ids=CLASS_IDS,
                                   patient_id=cid)
@@ -278,16 +321,27 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
 
         rec = next(r for r in prep if r["case_id"] == cid)
         loss = crop_loss_report(cp.gt_original, cp.transform_meta)
-        geometry_rows.append({
+        # Geometry validation on a cohort whose orientation, spacing and
+        # crop/pad branch all differ from Prostate158 is stronger evidence for
+        # the reconstruction's generality than 19 homogeneous cases.
+        val = validate_reconstruction_geometry(cp.pred_nii, cp.geometry, valid_labels=CLASS_IDS)
+        row = {
             "case_id": cid, "shape": str(rec["shape"]),
             "inplane_mm": rec["inplane_mm"], "through_plane_mm": rec["spacing_mm"][2],
             "scale_vs_prostate158": rec["scale_vs_prostate158"],
             "orientation": rec["orientation"],
             "inplane_exceeds_target": max(rec["shape"][0], rec["shape"][1]) > preproc.target_size[0],
+            "geometry_all_ok": val["all_ok"],
+            "affine_max_abs_diff": val["affine_max_abs_diff"],
             **loss,
-        })
+        }
+        geometry_rows.append(row)
+
+        with open(cache_path, "w", encoding="utf-8") as fh:
+            json.dump({"per_class": cm.per_class, "geometry_row": row}, fh, default=float)
+
         if i % 25 == 0 or i == len(case_ids):
-            print(f"  {i}/{len(case_ids)} cases")
+            print(f"  {i}/{len(case_ids)} cases", flush=True)
 
     summary = aggregate_case_results(case_results, class_ids=CLASS_IDS)
     per_case = write_case_metrics_csv(os.path.join(output_dir, "metrics_per_case.csv"),
