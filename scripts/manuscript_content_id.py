@@ -98,7 +98,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"namun menggeser kelenjar {v3['cg']['centroid_shift_mm']:.0f} mm dan menggelembungkan "
         f"setiap volume {v3['cg']['volume_pct_error']:.0f}%. Volume kelenjar total diremehkan "
         f"{abs(v['whole']['pct_of_gt']):.1f}%, menggelembungkan PSA density "
-        f"{v['psad']['mean_pct']:.1f}%. Macro Dice eksternal {e['macro']['mean']:.4f}.")))
+        f"{v['psad']['mean_pct']:.1f}%. Macro Dice eksternal {e['macro']['mean']:.4f}. "
+        f"Akurasi bergantung pada ukuran kelenjar: Dice central gland eksternal naik dari "
+        f"{gs['external']['cg']['tertiles'][0]['dice_mean']:.4f} pada tertil ukuran terkecil "
+        f"menjadi {gs['external']['cg']['tertiles'][2]['dice_mean']:.4f} pada tertil terbesar.")))
     add(("abs", ("Simpulan",
         "2D U-Net standar menyegmentasi central gland secara andal dan peripheral zone kurang "
         "demikian, dan tiga intervensi faktor-tunggal menggeser performa lebih kecil daripada "
@@ -1141,6 +1144,18 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "namun tidak menetapkan mengapa komponen palsu tersebut muncul di tempatnya; "
         "mengaitkannya dengan medan pandang yang lebih luas tetap merupakan inferensi dari "
         "geometri, bukan hasil terkendali."))
+    add(("p",
+        f"Akurasi tidak merata di seluruh rentang anatomi yang akan ditemui model. Pada kohort "
+        f"eksternal, Dice central gland naik dari "
+        f"{gs['external']['cg']['tertiles'][0]['dice_mean']:.4f} pada tertil ukuran terkecil "
+        f"menjadi {gs['external']['cg']['tertiles'][2]['dice_mean']:.4f} pada tertil terbesar "
+        f"(Spearman r={gs['external']['cg']['corr']['spearman_r']:.3f}). Kelenjar kecil bukan "
+        f"kasus pinggiran yang langka - ia temuan lazim pada pria yang lebih muda dan pada "
+        f"mereka yang tidak mengalami pembesaran jinak - sehingga hal ini membatasi populasi "
+        f"tempat keluaran model dapat dipakai tanpa pemeriksaan lanjutan. Apakah kekurangan itu "
+        f"berlipat pada densitas PSA telah diuji dan tidak terbukti, namun dengan 19 kasus "
+        f"internal uji tersebut berdaya rendah, sehingga ketiadaan bukti tidak boleh dibaca "
+        f"sebagai bukti ketiadaan."))
     add(("p",
         "Terakhir, tidak dilakukan reader study, dan tidak ada klaim yang dibuat mengenai "
         "kegunaan klinis, kesiapan penerapan, maupun dampak terhadap luaran pasien. Analisis "
