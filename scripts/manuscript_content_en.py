@@ -120,7 +120,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "quantity substantially.")))
     add(("abs", ("Keywords",
         "prostate cancer; magnetic resonance imaging; image segmentation; deep learning; U-Net; "
-        "3D reconstruction; peripheral zone; external validation; reproducibility; PSA density")))
+        "3D reconstruction; peripheral zone; external validation; spatial verification; PSA density")))
 
     # ---------------------------------------------------------- introduction
     add(("h2", "Introduction"))
@@ -493,7 +493,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "convention follows the MONAI ordering [@monai]. Inference, "
         "reconstruction, ablation and volumetric analysis require no GPU and were executed on "
         "CPU. All analysis code, configuration files and the exact evaluation scripts are "
-        "available in the public repository cited below."))
+        "available in the public repository named under Data and Code Availability."))
 
     add(("h3", "Ethics"))
     add(("p",

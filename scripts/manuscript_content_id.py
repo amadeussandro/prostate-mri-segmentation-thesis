@@ -109,7 +109,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "tidak terlihat oleh Dice tetap dapat mengubah besaran klinis secara substansial.")))
     add(("abs", ("Kata Kunci",
         "kanker prostat; magnetic resonance imaging; segmentasi citra; deep learning; U-Net; "
-        "rekonstruksi 3D; peripheral zone; validasi eksternal; reprodusibilitas; PSA density")))
+        "rekonstruksi 3D; peripheral zone; validasi eksternal; verifikasi spasial; PSA density")))
 
     # -------------------------------------------------------------- pendahuluan
     add(("h2", "Pendahuluan"))
@@ -496,7 +496,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "Pelatihan dilakukan pada satu GPU NVIDIA Tesla T4 dengan PyTorch; konvensi label mengikuti urutan MONAI [@monai]. Inferensi, "
         "rekonstruksi, ablasi, dan analisis volumetrik tidak memerlukan GPU dan dijalankan pada "
         "CPU. Seluruh kode analisis, berkas konfigurasi, dan skrip evaluasi tersedia pada "
-        "repositori publik yang disitasi di bawah."))
+        "repositori publik yang disebutkan pada bagian Ketersediaan Data dan Kode."))
 
     add(("h3", "Etika"))
     add(("p",
