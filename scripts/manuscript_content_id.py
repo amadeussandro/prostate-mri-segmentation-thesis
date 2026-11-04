@@ -24,6 +24,7 @@ CORR = ("Penulis korespondensi: Benedict Amadeus Sandro, Program Studi Informati
         "Tangerang, Banten, Indonesia. ORCID: 0009-0000-1459-9139")
 
 FIG_DIR_RQ2 = "results/figures_rq2"
+FIG_SUP = "results/figures_supervisor"
 VIZ = "results/rq2_e1_epoch88/visualizations"
 
 
@@ -179,7 +180,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "pemilihan model pada data validasi, satu kali evaluasi pada data uji, rekonstruksi "
         "prediksi model terpilih ke ruang voxel asli beserta verifikasinya, ablasi tahap "
         "rekonstruksi, analisis volumetrik, dan satu penerapan pada kohort eksternal independen (Gambar 1)."))
-    add(("fig", (f"{FIG_DIR_RQ2}/F0_study_pipeline.png",
+    add(("fig", (f"{FIG_SUP}/fig_alur_penelitian.png",
         "Gambar 1. Alur kerja penelitian secara keseluruhan. Empat konfigurasi pelatihan "
         "faktor-tunggal dibandingkan pada data validasi; konfigurasi terpilih dibekukan dan "
         "dievaluasi satu kali pada data uji, lalu digunakan untuk rekonstruksi, ablasi, analisis "
@@ -262,10 +263,26 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "dengan skip connection dari tingkat encoder yang bersesuaian. Dropout sebesar 0,3 "
         "diterapkan pada bottleneck. Lapisan akhir menghasilkan logit per kelas, dan prediksi "
         "per irisan adalah arg-max atas ketiga kelas (Gambar 2)."))
-    add(("fig", ("results/figures_manuscript/from_original/image5.png",
-        "Gambar 2. Arsitektur 2D U-Net: encoder-decoder empat tingkat dengan 32 peta fitur awal, "
-        "skip connection pada setiap tingkat, dan keluaran tiga kanal yang bersesuaian dengan "
-        "latar belakang, central gland, dan peripheral zone.")))
+    add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
+        "Gambar 2. 2D U-Net yang digunakan pada penelitian ini. Encoder (biru, kiri) memangkas "
+        "resolusi spasial menjadi separuh dan menggandakan lebar kanal pada tiap tingkat dari "
+        "empat tingkat - 32, 64, 128, 256 - hingga mencapai bottleneck 512 kanal tempat dropout "
+        "diterapkan; decoder (hijau, kanan) mencerminkan jalur itu kembali ke resolusi penuh. "
+        "Panah oranye putus-putus adalah skip connection, yang menggabungkan tiap tingkat "
+        "encoder ke tingkat decoder beresolusi sama. Masukan satu kanal T2-weighted, keluaran "
+        "tiga kanal untuk latar belakang, central gland, dan peripheral zone. Setiap blok "
+        "konvolusi berupa dua pengulangan konvolusi 3x3, batch normalization, dan ReLU; "
+        "downsampling memakai max pooling 2x2, upsampling memakai konvolusi transpos 2x2, dan "
+        "lapisan kepala berupa konvolusi 1x1.")))
+    add(("p",
+        "Dua ciri pada Gambar 2 menopang rancangannya. Skip connection adalah sebabnya jaringan "
+        "yang memampatkan citra hingga bottleneck 512 kanal tetap dapat menempatkan batas secara "
+        "presisi: masing-masing mengembalikan detail spasial halus yang dibuang downsampling ke "
+        "tingkat decoder yang membutuhkannya, dan presisi batas justru hal yang menentukan pada "
+        "tugas ini. Keluarannya tiga kanal, bukan satu, sehingga latar belakang dan kedua zona "
+        "bersaing pada setiap piksel melalui satu arg-max; prediksinya karena itu merupakan "
+        "partisi secara konstruksi, bukan dua mask yang diambang secara terpisah dan dapat "
+        "saling tumpang tindih atau menyisakan piksel tanpa kelas."))
 
     add(("h3", "Konfigurasi Pelatihan dan Pemilihan Model"))
     add(("p",
@@ -323,12 +340,26 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "label bilangan bulat terjaga persis. Hasilnya ditulis sebagai citra NIfTI yang membawa "
         "affine dan spasi voxel sumber, tidak pernah affine identitas bawaan. Alur lengkapnya, "
         "termasuk dua tahap verifikasi yang diuraikan di bawah, disajikan pada Gambar 3."))
-    add(("fig", (f"{FIG_DIR_RQ2}/F5_reconstruction_workflow.png",
-        "Gambar 3. Alur rekonstruksi 2D ke 3D beserta verifikasinya. Prediksi disusun berdasarkan "
-        "indeks aksial eksplisit, ditransformasi balik dalam urutan terbalik dengan interpolasi "
-        "nearest-neighbour, dan ditulis dengan affine sumber dipulihkan. Dua pemeriksaan yang "
-        "saling bebas menyusul: daftar periksa geometris per kasus dan uji fidelitas round-trip "
-        "tanpa model.")))
+    add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
+        "Gambar 3. Rekonstruksi 2D ke 3D beserta verifikasinya. Kolom kiri adalah jalur maju: "
+        "volume diprapemrosesan dengan parameter transformasinya dicatat per kasus, diiris "
+        "secara aksial dengan setiap irisan ditandai indeksnya, dilewatkan melalui jaringan yang "
+        "telah dibekukan satu irisan pada satu waktu, lalu disusun kembali. Penyusunan ulang "
+        "menumpuk prediksi berdasarkan indeks yang tercatat alih-alih urutan kedatangan dan "
+        "memunculkan galat bila ada indeks yang hilang atau ganda; membalik prapemrosesan dalam "
+        "urutan terbalik dengan interpolasi nearest-neighbour sepenuhnya sehingga nilai label "
+        "tidak pernah berubah; serta memulihkan affine, spasi, dan orientasi sumber alih-alih "
+        "menulis affine identitas. Kolom kanan adalah verifikasinya: Pemeriksaan 1 membaca "
+        "kembali geometri dari header berkas keluaran itu sendiri dan membandingkannya dengan "
+        "sumber, dan Pemeriksaan 2 adalah round-trip tanpa model atas anotasi pakar melalui kode "
+        "yang sama, dilaporkan sebagai lulus atau gagal dan tidak pernah sebagai skor akurasi.")))
+    add(("p",
+        "Kedua pemeriksaan pada kolom kanan Gambar 3 tidak saling menggantikan, dan ablasi di "
+        "bawah menunjukkan sebabnya. Pemeriksaan 1 memeriksa metadata, sehingga tidak dapat "
+        "melihat voxel yang benar bentuknya namun salah isinya. Pemeriksaan 2 membandingkan "
+        "voxel, sehingga tidak dapat melihat header yang telah diganti. Masing-masing buta tepat "
+        "terhadap kegagalan yang ditangkap yang lain, dan itulah alasan keduanya muncul pada "
+        "diagram alih-alih salah satunya mewakili yang lain."))
 
     add(("h3", "Validasi Geometris dan Fidelitas"))
     add(("p",

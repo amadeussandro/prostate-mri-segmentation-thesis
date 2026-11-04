@@ -29,6 +29,7 @@ CORR = ("Corresponding author: Benedict Amadeus Sandro, Department of Informatic
 
 FIG_DIR_RQ1 = "results/figures_rq1"
 FIG_DIR_RQ2 = "results/figures_rq2"
+FIG_SUP = "results/figures_supervisor"
 VIZ = "results/rq2_e1_epoch88/visualizations"
 
 
@@ -186,7 +187,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "selected model's predictions into original voxel space with verification, an ablation "
         "of the reconstruction stage, volumetric analysis, and one application to an independent "
         "external cohort (Figure 1)."))
-    add(("fig", (f"{FIG_DIR_RQ2}/F0_study_pipeline.png",
+    add(("fig", (f"{FIG_SUP}/fig_alur_penelitian.png",
         "Figure 1. Overall study workflow. Four single-factor training configurations are "
         "compared on the validation split; the selected configuration is frozen and evaluated "
         "once on the held-out test split, then used for reconstruction, ablation, volumetric "
@@ -267,10 +268,25 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "the matching encoder level. Dropout of 0.3 was applied at the bottleneck. The final "
         "layer produced per-class logits, and the per-slice prediction was the arg-max over the "
         "three classes (Figure 2)."))
-    add(("fig", ("results/figures_manuscript/from_original/image5.png",
-        "Figure 2. The 2D U-Net architecture: a four-level encoder-decoder with 32 initial "
-        "feature maps, skip connections at each level, and a three-channel output corresponding "
-        "to background, central gland and peripheral zone.")))
+    add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
+        "Figure 2. The 2D U-Net used in this study. The encoder (blue, left) halves the spatial "
+        "resolution and doubles the channel width at each of four levels - 32, 64, 128, 256 - "
+        "reaching a 512-channel bottleneck where dropout is applied; the decoder (green, right) "
+        "mirrors that path back to full resolution. The dashed orange arrows are the skip "
+        "connections, which concatenate each encoder level onto the decoder level of matching "
+        "resolution. Input is one T2-weighted channel, output is three channels for background, "
+        "central gland and peripheral zone. Each convolution block is two repetitions of 3x3 "
+        "convolution, batch normalization and ReLU; downsampling is 2x2 max pooling, upsampling "
+        "is 2x2 transposed convolution, and the head is a 1x1 convolution.")))
+    add(("p",
+        "Two features of Figure 2 carry the design. The skip connections are why a network that "
+        "compresses the image down to a 512-channel bottleneck can still place a boundary "
+        "precisely: each one hands the fine spatial detail that downsampling discarded back to "
+        "the decoder level that needs it, and boundary precision is exactly what this task turns "
+        "on. The output is three channels rather than one, so background and the two zones "
+        "compete at every pixel through a single arg-max; the prediction is therefore a "
+        "partition by construction, not two independently thresholded masks that could overlap "
+        "or leave a pixel unassigned."))
 
     add(("h3", "Training Configurations and Model Selection"))
     add(("p",
@@ -326,12 +342,25 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "The result was written as a NIfTI image carrying the original source affine and voxel "
         "spacing, never a default identity affine. The complete workflow, including the two "
         "verification steps described below, is shown in Figure 3."))
-    add(("fig", (f"{FIG_DIR_RQ2}/F5_reconstruction_workflow.png",
-        "Figure 3. The 2D-to-3D reconstruction and verification workflow. Predictions are "
-        "assembled by explicit axial index, inverse-transformed in reverse order with "
-        "nearest-neighbour interpolation, and written with the source affine restored. Two "
-        "independent checks follow: a per-case geometric checklist and a model-free round-trip "
-        "fidelity test.")))
+    add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
+        "Figure 3. The 2D-to-3D reconstruction and its verification. The left column is the "
+        "forward path: a volume is preprocessed with its transform parameters retained per case, "
+        "sliced axially with each slice tagged by its index, passed through the frozen network "
+        "one slice at a time, then reassembled. The reassembly stacks predictions by the stored "
+        "index rather than by arrival order and raises an error on a missing or duplicated "
+        "index; inverts preprocessing in reverse order using nearest-neighbour interpolation "
+        "throughout so label values are never altered; and restores the source affine, spacing "
+        "and orientation rather than writing an identity affine. The right column is the "
+        "verification: Check 1 reads the geometry back from the written file's own header and "
+        "compares it to the source, and Check 2 is a model-free round-trip of the expert "
+        "annotation through the same code, reported as pass or fail and never as an accuracy "
+        "score.")))
+    add(("p",
+        "The two checks in the right column of Figure 3 are not redundant, and the ablation "
+        "below shows why. Check 1 inspects metadata, so it cannot see voxels that are correct in "
+        "shape but wrong in content. Check 2 compares voxels, so it cannot see a header that has "
+        "been replaced. Each is blind to precisely the failure the other catches, which is the "
+        "reason both appear in the diagram instead of one standing in for the other."))
 
     add(("h3", "Geometric and Fidelity Validation"))
     add(("p",
