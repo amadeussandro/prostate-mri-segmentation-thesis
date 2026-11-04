@@ -217,17 +217,20 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "operasi dengan alasan keberadaannya dan dengan apa yang dicatatnya agar operasi itu "
         "dapat dibalik kemudian. Kolom terakhir itulah yang menentukan bagi RQ2: tahap yang "
         "mengubah volume tanpa mencatat kebalikannya tidak akan dapat dipulihkan, dan tahap "
-        "rekonstruksi memainkan ulang kolom tersebut dalam urutan terbalik."))
+        "rekonstruksi memainkan ulang kolom tersebut dalam urutan terbalik. Dua baris pada "
+        "gambar itu merupakan penghilangan, bukan tindakan, dan keduanya disengaja. Normalisasi "
+        "intensitas dikenakan hanya pada citra dan tidak pernah pada peta label, sebab mengubah "
+        "nilai label berarti mengubah kelasnya. Sumbu through-plane dibiarkan tanpa resampling "
+        "karena ia sumbu dengan informasi paling jarang, sehingga menginterpolasinya sama "
+        "dengan mengarang anatomi di antara irisan; standardisasi in-plane memotong dan "
+        "menambah tepi alih-alih mengubah ukuran dengan alasan yang sama. Keduanya menjaga "
+        "jalur mask sepenuhnya bebas interpolasi, dan itulah yang kemudian memungkinkan "
+        "rekonstruksi bersifat penyusunan ulang voxel yang eksak alih-alih hampiran."))
     add(("fig", (f"{FIG_DIR_RQ2}/F6_preprocessing.png",
         "Gambar 2. Tahap prapemrosesan. Setiap baris memuat satu operasi, tujuan yang "
-        "dilayaninya, dan besaran yang dicatat per kasus agar operasi itu dapat dibalik. Dua "
-        "keputusan merupakan penghilangan yang disengaja, bukan tindakan: normalisasi "
-        "intensitas diterapkan hanya pada citra dan tidak pernah pada peta label, dan sumbu "
-        "through-plane dibiarkan tanpa resampling karena ia sumbu yang paling jarang "
-        "informasinya sehingga menginterpolasinya berarti mengarang anatomi di antara irisan. "
-        "Standardisasi in-plane memakai pemotongan dan penambahan tepi alih-alih pengubahan "
-        "ukuran dengan alasan yang sama, agar tidak ada interpolasi yang pernah dikenakan pada "
-        "label.")))
+        "dilayaninya, dan besaran yang dicatat per kasus agar operasi itu dapat dibalik "
+        "kemudian. Dua di antara barisnya merupakan penghilangan yang disengaja, bukan "
+        "tindakan.")))
     add(("p",
         "Setiap operasi geometris diterapkan secara identik pada citra dan mask-nya, hanya "
         "berbeda pada orde interpolasi: linear untuk citra dan nearest-neighbour untuk mask, "
@@ -281,15 +284,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "per irisan adalah arg-max atas ketiga kelas (Gambar 3)."))
     add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
         "Gambar 3. 2D U-Net yang digunakan pada penelitian ini. Encoder (biru, kiri) memangkas "
-        "resolusi spasial menjadi separuh dan menggandakan lebar kanal pada tiap tingkat dari "
-        "empat tingkat - 32, 64, 128, 256 - hingga mencapai bottleneck 512 kanal tempat dropout "
-        "diterapkan; decoder (hijau, kanan) mencerminkan jalur itu kembali ke resolusi penuh. "
-        "Panah oranye putus-putus adalah skip connection, yang menggabungkan tiap tingkat "
-        "encoder ke tingkat decoder beresolusi sama. Masukan satu kanal T2-weighted, keluaran "
-        "tiga kanal untuk latar belakang, central gland, dan peripheral zone. Setiap blok "
-        "konvolusi berupa dua pengulangan konvolusi 3x3, batch normalization, dan ReLU; "
-        "downsampling memakai max pooling 2x2, upsampling memakai konvolusi transpos 2x2, dan "
-        "lapisan kepala berupa konvolusi 1x1.")))
+        "resolusi spasial menjadi separuh dan menggandakan lebar kanal sepanjang empat tingkat, "
+        "32 hingga 256, sampai mencapai bottleneck 512 kanal tempat dropout diterapkan; decoder "
+        "(hijau, kanan) mencerminkan jalur itu kembali ke resolusi penuh. Panah oranye "
+        "putus-putus adalah skip connection. Masukan satu kanal T2-weighted; keluaran tiga "
+        "kanal, untuk latar belakang, central gland, dan peripheral zone.")))
     add(("p",
         "Dua ciri pada Gambar 3 menopang rancangannya. Skip connection adalah sebabnya jaringan "
         "yang memampatkan citra hingga bottleneck 512 kanal tetap dapat menempatkan batas secara "
@@ -357,18 +356,22 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "affine dan spasi voxel sumber, tidak pernah affine identitas bawaan. Alur lengkapnya, "
         "termasuk dua tahap verifikasi yang diuraikan di bawah, disajikan pada Gambar 4."))
     add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
-        "Gambar 4. Rekonstruksi 2D ke 3D beserta verifikasinya. Kolom kiri adalah jalur maju: "
-        "volume diprapemrosesan dengan parameter transformasinya dicatat per kasus, diiris "
-        "secara aksial dengan setiap irisan ditandai indeksnya, dilewatkan melalui jaringan yang "
-        "telah dibekukan satu irisan pada satu waktu, lalu disusun kembali. Penyusunan ulang "
-        "menumpuk prediksi berdasarkan indeks yang tercatat alih-alih urutan kedatangan dan "
-        "memunculkan galat bila ada indeks yang hilang atau ganda; membalik prapemrosesan dalam "
-        "urutan terbalik dengan interpolasi nearest-neighbour sepenuhnya sehingga nilai label "
-        "tidak pernah berubah; serta memulihkan affine, spasi, dan orientasi sumber alih-alih "
-        "menulis affine identitas. Kolom kanan adalah verifikasinya: Pemeriksaan 1 membaca "
-        "kembali geometri dari header berkas keluaran itu sendiri dan membandingkannya dengan "
-        "sumber, dan Pemeriksaan 2 adalah round-trip tanpa model atas anotasi pakar melalui kode "
-        "yang sama, dilaporkan sebagai lulus atau gagal dan tidak pernah sebagai skor akurasi.")))
+        "Gambar 4. Rekonstruksi 2D ke 3D beserta verifikasinya. Kolom kiri adalah jalur maju, "
+        "dari volume sumber melalui prapemrosesan, pengirisan, dan inferensi per irisan hingga "
+        "volume yang disusun kembali. Kolom kanan adalah dua pemeriksaan yang menyusulinya: "
+        "Pemeriksaan 1 membaca kembali geometri dari header berkas keluaran itu sendiri dan "
+        "membandingkannya dengan sumber, dan Pemeriksaan 2 adalah round-trip tanpa model atas "
+        "anotasi pakar melalui kode yang sama, dilaporkan sebagai lulus atau gagal alih-alih "
+        "sebagai skor akurasi.")))
+    add(("p",
+        "Tiga ketentuan mengatur tahap penyusunan ulang pada kolom kiri Gambar 4, dan masing-"
+        "masing ada karena ketiadaannya hanya dapat dipulihkan bila ia memang tidak pernah "
+        "dilanggar. Prediksi ditumpuk berdasarkan indeks aksial yang tercatat alih-alih urutan "
+        "kedatangan, dan indeks yang hilang maupun ganda memunculkan galat alih-alih "
+        "menghasilkan volume yang tampak masuk akal. Prapemrosesan dibalik dalam urutan "
+        "terbalik dengan interpolasi nearest-neighbour sepenuhnya, sehingga nilai label tidak "
+        "pernah berubah. Affine, spasi, dan orientasi sumber dipulihkan alih-alih dibiarkan "
+        "sebagai affine identitas."))
     add(("p",
         "Kedua pemeriksaan pada kolom kanan Gambar 4 tidak saling menggantikan, dan ablasi di "
         "bawah menunjukkan sebabnya. Pemeriksaan 1 memeriksa metadata, sehingga tidak dapat "

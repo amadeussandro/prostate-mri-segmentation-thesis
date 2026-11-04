@@ -223,16 +223,18 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "the reason it is there and with what it writes down so that it can later be undone. "
         "The last column is the one that matters for RQ2: a step that altered the volume "
         "without recording its inverse would be unrecoverable, and the reconstruction stage "
-        "replays that column in reverse order."))
+        "replays that column in reverse order. Two rows in the figure are omissions rather "
+        "than actions, and both are deliberate. Intensity normalization is applied to the "
+        "image alone and never to the label map, since altering a label value would alter its "
+        "class. The through-plane axis is left unresampled because it is the sparsest axis, so "
+        "interpolating it would invent anatomy between slices; in-plane standardization crops "
+        "and pads rather than resizes for the same reason. Together these keep the mask path "
+        "free of interpolation entirely, which is what later allows the reconstruction to be "
+        "exact voxel reassembly rather than an approximation."))
     add(("fig", (f"{FIG_DIR_RQ2}/F6_preprocessing.png",
         "Figure 2. The preprocessing stage. Each row gives an operation, the purpose it "
-        "serves, and the quantity retained per case so the operation can be inverted. Two "
-        "decisions are deliberate omissions rather than actions: intensity normalization is "
-        "applied to the image alone and never to the label map, and the through-plane axis is "
-        "left unresampled because it is the sparsest axis and interpolating it would invent "
-        "anatomy between slices. In-plane standardization uses cropping and padding rather "
-        "than resizing for the same reason, so that no interpolation is ever applied to a "
-        "label.")))
+        "serves, and the quantity retained per case so that the operation can be inverted "
+        "later. Two of the rows are deliberate omissions rather than actions.")))
     add(("p",
         "Every geometric operation was applied identically to the image and its mask, differing "
         "only in interpolation order: linear for the image, nearest-neighbour for the mask, so "
@@ -285,14 +287,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "three classes (Figure 3)."))
     add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
         "Figure 3. The 2D U-Net used in this study. The encoder (blue, left) halves the spatial "
-        "resolution and doubles the channel width at each of four levels - 32, 64, 128, 256 - "
-        "reaching a 512-channel bottleneck where dropout is applied; the decoder (green, right) "
-        "mirrors that path back to full resolution. The dashed orange arrows are the skip "
-        "connections, which concatenate each encoder level onto the decoder level of matching "
-        "resolution. Input is one T2-weighted channel, output is three channels for background, "
-        "central gland and peripheral zone. Each convolution block is two repetitions of 3x3 "
-        "convolution, batch normalization and ReLU; downsampling is 2x2 max pooling, upsampling "
-        "is 2x2 transposed convolution, and the head is a 1x1 convolution.")))
+        "resolution and doubles the channel width across four levels, 32 to 256, reaching a "
+        "512-channel bottleneck where dropout is applied; the decoder (green, right) mirrors "
+        "that path back to full resolution. The dashed orange arrows are the skip connections. "
+        "Input is one T2-weighted channel; output is three channels, for background, central "
+        "gland and peripheral zone.")))
     add(("p",
         "Two features of Figure 3 carry the design. The skip connections are why a network that "
         "compresses the image down to a 512-channel bottleneck can still place a boundary "
@@ -359,17 +358,19 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "verification steps described below, is shown in Figure 4."))
     add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
         "Figure 4. The 2D-to-3D reconstruction and its verification. The left column is the "
-        "forward path: a volume is preprocessed with its transform parameters retained per case, "
-        "sliced axially with each slice tagged by its index, passed through the frozen network "
-        "one slice at a time, then reassembled. The reassembly stacks predictions by the stored "
-        "index rather than by arrival order and raises an error on a missing or duplicated "
-        "index; inverts preprocessing in reverse order using nearest-neighbour interpolation "
-        "throughout so label values are never altered; and restores the source affine, spacing "
-        "and orientation rather than writing an identity affine. The right column is the "
-        "verification: Check 1 reads the geometry back from the written file's own header and "
-        "compares it to the source, and Check 2 is a model-free round-trip of the expert "
-        "annotation through the same code, reported as pass or fail and never as an accuracy "
-        "score.")))
+        "forward path, from source volume through preprocessing, slicing and per-slice "
+        "inference to the reassembled volume. The right column is the two checks that follow: "
+        "Check 1 reads the geometry back from the written file's own header and compares it to "
+        "the source, and Check 2 is a model-free round-trip of the expert annotation through "
+        "the same code, reported as pass or fail rather than as an accuracy score.")))
+    add(("p",
+        "Three rules govern the reassembly step in the left column of Figure 4, and each one "
+        "exists because its absence is recoverable only if it was never broken. Predictions are "
+        "stacked by the stored axial index rather than by arrival order, and a missing or "
+        "duplicated index raises an error instead of producing a plausible-looking volume. "
+        "Preprocessing is inverted in reverse order with nearest-neighbour interpolation "
+        "throughout, so label values are never altered. The source affine, spacing and "
+        "orientation are restored rather than left as an identity affine."))
     add(("p",
         "The two checks in the right column of Figure 4 are not redundant, and the ablation "
         "below shows why. Check 1 inspects metadata, so it cannot see voxels that are correct in "
