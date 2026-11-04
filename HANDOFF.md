@@ -483,6 +483,23 @@ student's own statement and was left untouched.
 
 ### B. Supervisor review of the manuscript — student's action
 
+Not defects. The three automated checks are clean (§8); what is left needs the
+student's or the supervisor's judgement, not a fix:
+
+- **Title.** The journal uses an extended title ("Spatially Validated …") while
+  the skripsi uses the locked Indonesian one. Deliberate, but the pair should be
+  a conscious choice rather than drift.
+- **Multimedia Appendix.** JMIR allows one. Nothing currently needs it; the
+  per-case tables are the obvious candidate if a reviewer asks.
+- **Bimbingan item 4 — clinical framing.** Which angle: the model as an aid to a
+  radiologist, or as a way of making a rarely performed measurement routine? The
+  two read differently and the supervisor's phrasing fits either.
+- **Bimbingan item 11 — reduce narrative.** Purely stylistic now: the paper is
+  2,306 words *shorter* than the accepted JMIR paper supplied as the model, so
+  this is a preference about voice, not a length problem.
+- **Single supervisor** — noted 2026-11-04; affects the skripsi front matter
+  (`\pembimbingb`), not the manuscript.
+
 ### C. Optional, not blocking
 
 - **Manuscript length — mostly settled.** Body prose is now EN 6,295 / ID 5,672
@@ -565,8 +582,45 @@ python scripts/build_manuscript.py --lang id --template <a clean copy of the doc
 - The Indonesian build needs a `--template` pointing at a *clean* docx, because
   it would otherwise use the English output as its template.
 
-Current state: EN ~7.7k words, ID ~7.0k; abstracts 449 / 418; 20 references;
-9 figures; 6 tables; portrait 8.5×11".
+Current state: EN 10,949 words, ID 9,743; abstracts 448 / 364; 29 references;
+10 figures; 7 tables; portrait 8.5×11". Both 4.8 MB.
+
+### Verification — run all three after every rebuild
+
+```bash
+python scripts/check_manuscript_submission.py    # 17 format checks, EN + ID
+python scripts/check_manuscript_content_en.py    # content checks, EN
+python scripts/check_manuscript_content_id.py    # content checks, ID + EN↔ID numbers
+```
+
+They print per-item results and end in `FAILURES: 0` / `ISSUES: 0`. All three are
+clean as of 2026-11-04. Each takes the journal folder as `argv[1]` or `$JOURNAL_DIR`.
+
+The content checks are not a format pass. They test what a reviewer reads:
+whether every headline number is stated identically everywhere, whether any claim
+is stronger than the statistics support, whether Limitations covers what Results
+revealed, whether the abstract carries each finding, and whether the p = .055
+result stays hedged. The ID check additionally **cross-checks every reported
+number against the EN version** — 114 three- and four-decimal values, all
+matching. The two language modules are independent, so this is the only thing
+that catches a number drifting in one and not the other.
+
+Two defects these checks found, both invisible to a format pass:
+
+- Results promised the gland-size effect was "reported in Limitations". It was
+  in neither Limitations nor the abstract. Fixed; the abstract was at 449/450
+  words, so room was made by tightening rather than by exceeding the limit.
+- The ID introduction said cited work *membuktikan* ("proves") where the EN said
+  "demonstrate". The translation overstated someone else's claim. Now
+  *memperlihatkan bahwa*.
+
+A caution for whoever extends these checks: a comma between digits cannot be
+classified by shape. Indonesian `0,766` is a decimal and English `2,000` is a
+thousands separator, and one rule for both destroys every three-decimal
+Indonesian number — it reported 13 false mismatches before being normalised per
+language. Avoid `\b` in regexes written through a shell heredoc; backslash
+mangling turns it into a literal backspace and the pattern silently stops
+matching.
 
 **No AI/tool attribution anywhere** — not in the text, not in document metadata.
 This is a hard requirement.
