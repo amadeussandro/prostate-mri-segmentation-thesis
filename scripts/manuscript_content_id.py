@@ -213,6 +213,22 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Prapemrosesan Citra"))
     add(("p",
+        "Prapemrosesan diuraikan tahap demi tahap pada Gambar 2, yang memasangkan setiap "
+        "operasi dengan alasan keberadaannya dan dengan apa yang dicatatnya agar operasi itu "
+        "dapat dibalik kemudian. Kolom terakhir itulah yang menentukan bagi RQ2: tahap yang "
+        "mengubah volume tanpa mencatat kebalikannya tidak akan dapat dipulihkan, dan tahap "
+        "rekonstruksi memainkan ulang kolom tersebut dalam urutan terbalik."))
+    add(("fig", (f"{FIG_DIR_RQ2}/F6_preprocessing.png",
+        "Gambar 2. Tahap prapemrosesan. Setiap baris memuat satu operasi, tujuan yang "
+        "dilayaninya, dan besaran yang dicatat per kasus agar operasi itu dapat dibalik. Dua "
+        "keputusan merupakan penghilangan yang disengaja, bukan tindakan: normalisasi "
+        "intensitas diterapkan hanya pada citra dan tidak pernah pada peta label, dan sumbu "
+        "through-plane dibiarkan tanpa resampling karena ia sumbu yang paling jarang "
+        "informasinya sehingga menginterpolasinya berarti mengarang anatomi di antara irisan. "
+        "Standardisasi in-plane memakai pemotongan dan penambahan tepi alih-alih pengubahan "
+        "ukuran dengan alasan yang sama, agar tidak ada interpolasi yang pernah dikenakan pada "
+        "label.")))
+    add(("p",
         "Setiap operasi geometris diterapkan secara identik pada citra dan mask-nya, hanya "
         "berbeda pada orde interpolasi: linear untuk citra dan nearest-neighbour untuk mask, "
         "sehingga label bilangan bulat tidak pernah tercampur. Volume direorientasi ke kerangka "
@@ -262,9 +278,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "downsampling menggunakan max pooling 2x2 dan upsampling menggunakan konvolusi transpose "
         "dengan skip connection dari tingkat encoder yang bersesuaian. Dropout sebesar 0,3 "
         "diterapkan pada bottleneck. Lapisan akhir menghasilkan logit per kelas, dan prediksi "
-        "per irisan adalah arg-max atas ketiga kelas (Gambar 2)."))
+        "per irisan adalah arg-max atas ketiga kelas (Gambar 3)."))
     add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
-        "Gambar 2. 2D U-Net yang digunakan pada penelitian ini. Encoder (biru, kiri) memangkas "
+        "Gambar 3. 2D U-Net yang digunakan pada penelitian ini. Encoder (biru, kiri) memangkas "
         "resolusi spasial menjadi separuh dan menggandakan lebar kanal pada tiap tingkat dari "
         "empat tingkat - 32, 64, 128, 256 - hingga mencapai bottleneck 512 kanal tempat dropout "
         "diterapkan; decoder (hijau, kanan) mencerminkan jalur itu kembali ke resolusi penuh. "
@@ -275,7 +291,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "downsampling memakai max pooling 2x2, upsampling memakai konvolusi transpos 2x2, dan "
         "lapisan kepala berupa konvolusi 1x1.")))
     add(("p",
-        "Dua ciri pada Gambar 2 menopang rancangannya. Skip connection adalah sebabnya jaringan "
+        "Dua ciri pada Gambar 3 menopang rancangannya. Skip connection adalah sebabnya jaringan "
         "yang memampatkan citra hingga bottleneck 512 kanal tetap dapat menempatkan batas secara "
         "presisi: masing-masing mengembalikan detail spasial halus yang dibuang downsampling ke "
         "tingkat decoder yang membutuhkannya, dan presisi batas justru hal yang menentukan pada "
@@ -339,9 +355,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "urutan terbalik, menggunakan interpolasi nearest-neighbour di seluruh tahap sehingga "
         "label bilangan bulat terjaga persis. Hasilnya ditulis sebagai citra NIfTI yang membawa "
         "affine dan spasi voxel sumber, tidak pernah affine identitas bawaan. Alur lengkapnya, "
-        "termasuk dua tahap verifikasi yang diuraikan di bawah, disajikan pada Gambar 3."))
+        "termasuk dua tahap verifikasi yang diuraikan di bawah, disajikan pada Gambar 4."))
     add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
-        "Gambar 3. Rekonstruksi 2D ke 3D beserta verifikasinya. Kolom kiri adalah jalur maju: "
+        "Gambar 4. Rekonstruksi 2D ke 3D beserta verifikasinya. Kolom kiri adalah jalur maju: "
         "volume diprapemrosesan dengan parameter transformasinya dicatat per kasus, diiris "
         "secara aksial dengan setiap irisan ditandai indeksnya, dilewatkan melalui jaringan yang "
         "telah dibekukan satu irisan pada satu waktu, lalu disusun kembali. Penyusunan ulang "
@@ -354,7 +370,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "sumber, dan Pemeriksaan 2 adalah round-trip tanpa model atas anotasi pakar melalui kode "
         "yang sama, dilaporkan sebagai lulus atau gagal dan tidak pernah sebagai skor akurasi.")))
     add(("p",
-        "Kedua pemeriksaan pada kolom kanan Gambar 3 tidak saling menggantikan, dan ablasi di "
+        "Kedua pemeriksaan pada kolom kanan Gambar 4 tidak saling menggantikan, dan ablasi di "
         "bawah menunjukkan sebabnya. Pemeriksaan 1 memeriksa metadata, sehingga tidak dapat "
         "melihat voxel yang benar bentuknya namun salah isinya. Pemeriksaan 2 membandingkan "
         "voxel, sehingga tidak dapat melihat header yang telah diganti. Masing-masing buta tepat "
@@ -488,6 +504,12 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "mengizinkan penggunaan ulang dengan atribusi; anotasi tersebut dikreditkan kepada "
         "penulis aslinya, demikian pula arsip citra yang mendasarinya."))
 
+    add(("p",
+        "Tabel 1 menghimpun fakta yang jika tidak disajikan demikian harus dirakit pembaca dari "
+        "beberapa paragraf: apa datanya, bagaimana dibagi, apa yang ditahan tetap pada keempat "
+        "konfigurasi, dan apa yang diubah masing-masing konfigurasi. Tabel ini diletakkan di "
+        "sini agar setiap perbandingan selanjutnya dapat dibaca terhadap satu pernyataan tunggal "
+        "mengenai apa yang boleh dan tidak boleh bervariasi."))
     add(("tbl", ("Tabel 1. Karakteristik dataset dan konfigurasi eksperimen.",
         ["Butir", "Nilai"],
         [
@@ -653,7 +675,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "Pipeline yang hanya melaporkan metrik akurasi dan pipeline yang hanya memvalidasi header "
         "masing-masing buta terhadap salah satunya, dan inilah alasan untuk menjalankan kedua "
         "pemeriksaan sekaligus uji fidelitas round-trip yang membandingkan voxel alih-alih header "
-        "(Gambar 4). Gambar 5 menyajikan satu kasus di bawah kedua perlakuan, dengan putusan "
+        "(Gambar 5). Gambar 6 menyajikan satu kasus di bawah kedua perlakuan, dengan putusan "
         "daftar periksa tercetak pada masing-masing."))
     add(("p",
         "Dua dari empat pintasan tidak menimbulkan kerusakan terukur pada kohort ini, dengan "
@@ -666,12 +688,12 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "sifat rekonstruksi, dan dapat berubah tanpa perubahan apa pun pada kode rekonstruksi. "
         "Keduanya tidak boleh dibaca sebagai bukti bahwa tahap tersebut tidak diperlukan."))
     add(("fig", (f"{FIG_DIR_RQ2}/F1_reconstruction_ablation.png",
-        "Gambar 4. Biaya terukur dari setiap tahap rekonstruksi yang dihilangkan. Panel A "
+        "Gambar 5. Biaya terukur dari setiap tahap rekonstruksi yang dihilangkan. Panel A "
         "menyajikan Dice yang akan dilaporkan setiap pintasan terhadap anotasi pakar, dari "
         "prediksi yang identik, berdampingan dengan pipeline yang benar. Panel B menunjukkan "
         "pemeriksaan mana yang mendeteksi kegagalan yang mana.")))
     add(("fig", (f"{FIG_DIR_RQ2}/F4_mirrored_volume_passes.png",
-        "Gambar 5. Kasus yang sama direkonstruksi secara benar (baris atas) dan dengan tahap "
+        "Gambar 6. Kasus yang sama direkonstruksi secara benar (baris atas) dan dengan tahap "
         "inversi orientasi dihilangkan (baris bawah). Kedua volume lolos setiap pemeriksaan "
         "geometris, karena header keduanya benar dan hanya data voxel yang berbeda. Volume pada "
         "baris bawah tercermin secara anatomis dan Dice peripheral zone-nya runtuh.")))
@@ -694,6 +716,15 @@ def build(N: dict) -> List[Tuple[str, object]]:
             return f"terdeteksi, {r['n_caught']}/{r['n_cases']}"
         return f"TERLEWAT, {r['n_caught']}/{r['n_cases']}"
 
+    add(("p",
+        "Tabel 4 adalah pengukuran yang menjadi alasan keberadaan penelitian ini, dan dibaca "
+        "menurun pada dua kolom terakhir, bukan melintang per baris. Kolom Dice menyatakan apa "
+        "yang akan dilihat pembaca laporan; kolom deteksi menyatakan apa yang akan dikatakan "
+        "pemeriksaan milik pipeline itu sendiri. Di tempat keduanya berselisih, di situlah "
+        "kegagalan senyap berada: volume tercermin tertangkap Dice namun lolos dari daftar "
+        "periksa, sedangkan affine yang hilang tertangkap daftar periksa namun tidak terlihat "
+        "oleh Dice. Dua varian lain tidak mengubah apa pun yang terukur, dan teks di bawah "
+        "menjelaskan mengapa itu tidak sama dengan tidak diperlukan."))
     add(("tbl", ("Tabel 4. Ablasi rekonstruksi. Setiap varian disusun ulang dari prediksi 2D yang "
                  "sama, sehingga perbedaan dapat diatribusikan pada tahap rekonstruksi semata. "
                  "Dice yang dilaporkan adalah angka yang akan dilihat pembaca terhadap anotasi "
@@ -745,11 +776,17 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "akan saling meniadakan pada tingkat kohort; batas kesesuaian yang terentang lebih dari "
         "27 mL pada kelenjar berukuran sekitar 54 mL menggambarkan apa yang dapat terjadi pada "
         "pasien perorangan, dan pasien peroranganlah yang menjadi sasaran perhitungan PSA density "
-        "(Gambar 6)."))
+        "(Gambar 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F2_zone_volume_agreement.png",
-        "Gambar 6. Kesesuaian volume zona. Plot Bland-Altman untuk central gland dan peripheral "
+        "Gambar 7. Kesesuaian volume zona. Plot Bland-Altman untuk central gland dan peripheral "
         "zone, serta galat PSA density per kasus yang dihasilkannya.")))
 
+    add(("p",
+        "Tabel 5 menyatakan galat yang sama dalam satuan yang dipakai klinisi. Kolom bias "
+        "menunjukkan arahnya dan batas kesepakatan menunjukkan sebarannya, dan bagi pasien "
+        "perorangan justru yang kedua yang menentukan: bias masih dapat dikoreksi, batas yang "
+        "lebar tidak. Baris peripheral zone yang perlu dibaca lebih dulu, sebab kekurangannya "
+        "paling besar secara proporsional sekaligus yang merambat ke densitas PSA."))
     add(("tbl", (f"Tabel 5. Volume zona pada {v['n']} kasus uji, dalam mililiter, dengan "
                  f"kesesuaian Bland-Altman terhadap anotasi pakar. Batas kesesuaian adalah "
                  f"bias +/- 1,96 SB.",
@@ -850,12 +887,18 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "yang kurang menjangkau di luar domain, bukan struktur yang gagal dikenali model. "
         "Besaran yang menjadi perhatian adalah besar "
         "selisihnya, yang ditafsirkan berdampingan dengan pergeseran kovariat yang sebagian "
-        "menjelaskannya (Gambar 7)."))
+        "menjelaskannya (Gambar 8)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
-        "Gambar 7. Validasi eksternal. Dice internal dan eksternal berdampingan; distribusi HD95 "
+        "Gambar 8. Validasi eksternal. Dice internal dan eksternal berdampingan; distribusi HD95 "
         "central gland pada kohort eksternal, yang menunjukkan ekor berat alih-alih pergeseran "
         "merata; serta hubungan antara HD95 dan precision.")))
 
+    add(("p",
+        "Tabel 6 menyandingkan kedua kohort metrik demi metrik. Baris yang perlu dicermati "
+        "adalah recall peripheral zone berbanding precision-nya: recall turun sementara "
+        "precision naik, dan itulah tanda model yang menjadi lebih berhati-hati, bukan menjadi "
+        "kurang akurat. Model yang sekadar gagal di luar domain akan kehilangan keduanya "
+        "sekaligus."))
     add(("tbl", (f"Tabel 6. Performa internal berbanding eksternal. Internal: {t['n_cases']} kasus "
                  f"uji Prostate158. Eksternal: {e['n_cases']} pemeriksaan PROSTATEx, inferensi "
                  f"saja. Nilai berupa rerata (SB).",
@@ -920,15 +963,15 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"berskor terendah central gland berhasil dipulihkan sementara peripheral zone "
         f"ter-undersegmentasi secara substansial, dengan central gland meluas ke wilayah yang oleh "
         f"anotasi ditetapkan sebagai peripheral zone - yakni kekeliruan kelas pada antarmuka "
-        f"zonal, bukan kegagalan menemukan prostat (Gambar 8 dan 9)."))
+        f"zonal, bukan kegagalan menemukan prostat (Gambar 9 dan 10)."))
     add(("fig", (f"{VIZ}/patient_{t['representatives']['good']}/"
                  f"patient_{t['representatives']['good']}_slice_016.png",
-        f"Gambar 8. Kasus representatif dengan performa tinggi (kasus "
+        f"Gambar 9. Kasus representatif dengan performa tinggi (kasus "
         f"{t['representatives']['good']}). Dari kiri: citra T2-weighted, anotasi pakar, prediksi, "
         f"tampilan bertumpuk, dan peta galat.")))
     add(("fig", (f"{VIZ}/patient_{t['representatives']['challenging']}/"
                  f"patient_{t['representatives']['challenging']}_slice_015.png",
-        f"Gambar 9. Kasus representatif yang menantang (kasus "
+        f"Gambar 10. Kasus representatif yang menantang (kasus "
         f"{t['representatives']['challenging']}). Central gland berhasil dipulihkan sementara "
         f"peripheral zone ter-undersegmentasi pada antarmuka zonal.")))
 

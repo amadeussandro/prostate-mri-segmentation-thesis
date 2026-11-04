@@ -219,6 +219,21 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Image Preprocessing"))
     add(("p",
+        "Preprocessing is set out step by step in Figure 2, which pairs each operation with "
+        "the reason it is there and with what it writes down so that it can later be undone. "
+        "The last column is the one that matters for RQ2: a step that altered the volume "
+        "without recording its inverse would be unrecoverable, and the reconstruction stage "
+        "replays that column in reverse order."))
+    add(("fig", (f"{FIG_DIR_RQ2}/F6_preprocessing.png",
+        "Figure 2. The preprocessing stage. Each row gives an operation, the purpose it "
+        "serves, and the quantity retained per case so the operation can be inverted. Two "
+        "decisions are deliberate omissions rather than actions: intensity normalization is "
+        "applied to the image alone and never to the label map, and the through-plane axis is "
+        "left unresampled because it is the sparsest axis and interpolating it would invent "
+        "anatomy between slices. In-plane standardization uses cropping and padding rather "
+        "than resizing for the same reason, so that no interpolation is ever applied to a "
+        "label.")))
+    add(("p",
         "Every geometric operation was applied identically to the image and its mask, differing "
         "only in interpolation order: linear for the image, nearest-neighbour for the mask, so "
         "that integer labels are never blended. Volumes were reoriented to a canonical RAS frame, "
@@ -267,9 +282,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "2x2 max pooling and upsampling used transposed convolutions with skip connections from "
         "the matching encoder level. Dropout of 0.3 was applied at the bottleneck. The final "
         "layer produced per-class logits, and the per-slice prediction was the arg-max over the "
-        "three classes (Figure 2)."))
+        "three classes (Figure 3)."))
     add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
-        "Figure 2. The 2D U-Net used in this study. The encoder (blue, left) halves the spatial "
+        "Figure 3. The 2D U-Net used in this study. The encoder (blue, left) halves the spatial "
         "resolution and doubles the channel width at each of four levels - 32, 64, 128, 256 - "
         "reaching a 512-channel bottleneck where dropout is applied; the decoder (green, right) "
         "mirrors that path back to full resolution. The dashed orange arrows are the skip "
@@ -279,7 +294,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "convolution, batch normalization and ReLU; downsampling is 2x2 max pooling, upsampling "
         "is 2x2 transposed convolution, and the head is a 1x1 convolution.")))
     add(("p",
-        "Two features of Figure 2 carry the design. The skip connections are why a network that "
+        "Two features of Figure 3 carry the design. The skip connections are why a network that "
         "compresses the image down to a 512-channel bottleneck can still place a boundary "
         "precisely: each one hands the fine spatial detail that downsampling discarded back to "
         "the decoder level that needs it, and boundary precision is exactly what this task turns "
@@ -341,9 +356,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "nearest-neighbour interpolation throughout so that integer labels are preserved exactly. "
         "The result was written as a NIfTI image carrying the original source affine and voxel "
         "spacing, never a default identity affine. The complete workflow, including the two "
-        "verification steps described below, is shown in Figure 3."))
+        "verification steps described below, is shown in Figure 4."))
     add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
-        "Figure 3. The 2D-to-3D reconstruction and its verification. The left column is the "
+        "Figure 4. The 2D-to-3D reconstruction and its verification. The left column is the "
         "forward path: a volume is preprocessed with its transform parameters retained per case, "
         "sliced axially with each slice tagged by its index, passed through the frozen network "
         "one slice at a time, then reassembled. The reassembly stacks predictions by the stored "
@@ -356,7 +371,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "annotation through the same code, reported as pass or fail and never as an accuracy "
         "score.")))
     add(("p",
-        "The two checks in the right column of Figure 3 are not redundant, and the ablation "
+        "The two checks in the right column of Figure 4 are not redundant, and the ablation "
         "below shows why. Check 1 inspects metadata, so it cannot see voxels that are correct in "
         "shape but wrong in content. Check 2 compares voxels, so it cannot see a header that has "
         "been replaced. Each is blind to precisely the failure the other catches, which is the "
@@ -488,6 +503,18 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "(CC BY 4.0), which permits reuse with attribution; they are credited to their "
         "original authors, as is the underlying imaging archive."))
 
+    add(("p",
+        "Table 1 collects the facts a reader would otherwise have to assemble from several "
+        "paragraphs: what the data are, how they were divided, what was held fixed across the "
+        "four configurations, and what each configuration changed. It is placed here so that "
+        "every later comparison can be read against a single statement of what was and was not "
+        "allowed to vary."))
+    add(("p",
+        "Table 1 collects the facts a reader would otherwise have to assemble from several "
+        "paragraphs: what the data are, how they were divided, what was held fixed across the "
+        "four configurations, and what each configuration changed. It is placed here so that "
+        "every later comparison can be read against a single statement of what was and was not "
+        "allowed to vary."))
     add(("tbl", ("Table 1. Dataset characteristics and experimental configuration.",
         ["Item", "Value"],
         [
@@ -649,7 +676,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "lost affine and is blind to the mirrored volume. A pipeline reporting only accuracy "
         "metrics and a pipeline validating only headers are each blind to one of them, which is "
         "the argument for performing both checks and for the round-trip fidelity test that "
-        "compares voxels rather than headers (Figure 4). Figure 5 shows one case under both "
+        "compares voxels rather than headers (Figure 5). Figure 6 shows one case under both "
         "treatments, with the checklist verdict printed on each."))
     add(("p",
         "Two of the four shortcuts caused no measurable damage on this cohort, and the reasons "
@@ -662,12 +689,12 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "to the reconstruction code. Neither should be read as evidence that the step is "
         "unnecessary."))
     add(("fig", (f"{FIG_DIR_RQ2}/F1_reconstruction_ablation.png",
-        "Figure 4. The measured cost of each omitted reconstruction step. Panel A gives the Dice "
+        "Figure 5. The measured cost of each omitted reconstruction step. Panel A gives the Dice "
         "each shortcut would have reported against the expert annotation, from identical "
         "predictions, next to the correct pipeline. Panel B shows which check detects which "
         "failure.")))
     add(("fig", (f"{FIG_DIR_RQ2}/F4_mirrored_volume_passes.png",
-        "Figure 5. The same case reconstructed correctly (upper row) and with the inverse "
+        "Figure 6. The same case reconstructed correctly (upper row) and with the inverse "
         "orientation step omitted (lower row). Both volumes pass every geometric check, because "
         "the header is correct in each and only the voxel data differs. The lower volume is "
         "anatomically mirrored and its peripheral-zone Dice collapses.")))
@@ -689,6 +716,24 @@ def build(N: dict) -> List[Tuple[str, object]]:
             return f"detected, {r['n_caught']}/{r['n_cases']}"
         return f"MISSED, {r['n_caught']}/{r['n_cases']}"
 
+    add(("p",
+        "Table 4 is the measurement this study exists to make, and it should be read down the "
+        "last two columns rather than across the rows. The Dice columns say what a reader of "
+        "the paper would have seen; the detection column says what the pipeline's own checks "
+        "would have said. Where those two disagree is where a silent failure lives: the "
+        "mirrored volume is caught by Dice and missed by the checklist, the lost affine is "
+        "caught by the checklist and invisible to Dice. Two further variants change nothing "
+        "measurable, and the text below explains why that is not the same as being "
+        "unnecessary."))
+    add(("p",
+        "Table 4 is the measurement this study exists to make, and it should be read down the "
+        "last two columns rather than across the rows. The Dice columns say what a reader of "
+        "the paper would have seen; the detection column says what the pipeline's own checks "
+        "would have said. Where those two disagree is where a silent failure lives: the "
+        "mirrored volume is caught by Dice and missed by the checklist, the lost affine is "
+        "caught by the checklist and invisible to Dice. Two further variants change nothing "
+        "measurable, and the text below explains why that is not the same as being "
+        "unnecessary."))
     add(("tbl", ("Table 4. Reconstruction ablation. Every variant is rebuilt from the same 2D "
                  "predictions, so differences are attributable to the reconstruction stage alone. "
                  "Reported Dice is what a reader would have seen against the expert annotation. "
@@ -738,11 +783,23 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "We emphasise the limits of agreement over the bias. A bias of a few millilitres averages "
         "out across a cohort; limits of agreement spanning more than 27 mL on a gland of roughly "
         "54 mL describe what can happen to an individual patient, and it is the individual "
-        "patient for whom PSA density is computed (Figure 6)."))
+        "patient for whom PSA density is computed (Figure 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F2_zone_volume_agreement.png",
-        "Figure 6. Zone-volume agreement. Bland-Altman plots for the central gland and peripheral "
+        "Figure 7. Zone-volume agreement. Bland-Altman plots for the central gland and peripheral "
         "zone, and the resulting per-case error in PSA density.")))
 
+    add(("p",
+        "Table 5 restates the same error in the unit a clinician would use. The bias column "
+        "shows the direction and the limits of agreement show the spread, and for an individual "
+        "patient it is the second that matters: a bias can be corrected for, a wide limit "
+        "cannot. The peripheral-zone row is the one to read first, because its shortfall is "
+        "both the largest in proportional terms and the one that propagates into PSA density."))
+    add(("p",
+        "Table 5 restates the same error in the unit a clinician would use. The bias column "
+        "shows the direction and the limits of agreement show the spread, and for an individual "
+        "patient it is the second that matters: a bias can be corrected for, a wide limit "
+        "cannot. The peripheral-zone row is the one to read first, because its shortfall is "
+        "both the largest in proportional terms and the one that propagates into PSA density."))
     add(("tbl", (f"Table 5. Zone volumes on the {v['n']} held-out cases, in millilitres, with "
                  f"Bland-Altman agreement against the expert annotation. Limits of agreement are "
                  f"bias +/- 1.96 SD.",
@@ -838,12 +895,24 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "but they do not account for the shortfall, which instead takes the form of reference "
         "central gland left as background at the posterior extent of the gland - the "
         "whole-gland boundary falling short out of domain rather than a structure the model "
-        "failed to recognise (Figure 7)."))
+        "failed to recognise (Figure 8)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
-        "Figure 7. External validation. Internal and external Dice side by side; the distribution "
+        "Figure 8. External validation. Internal and external Dice side by side; the distribution "
         "of central-gland HD95 on the external cohort, showing a heavy tail rather than a uniform "
         "shift; and the relationship between HD95 and precision.")))
 
+    add(("p",
+        "Table 6 puts the two cohorts side by side metric for metric. The row worth dwelling on "
+        "is peripheral-zone recall against peripheral-zone precision: recall falls while "
+        "precision rises, which is the signature of a model that has become more cautious "
+        "rather than less accurate. A model that was simply failing out of domain would lose "
+        "both at once."))
+    add(("p",
+        "Table 6 puts the two cohorts side by side metric for metric. The row worth dwelling on "
+        "is peripheral-zone recall against peripheral-zone precision: recall falls while "
+        "precision rises, which is the signature of a model that has become more cautious "
+        "rather than less accurate. A model that was simply failing out of domain would lose "
+        "both at once."))
     add(("tbl", (f"Table 6. Internal versus external performance. Internal: {t['n_cases']} "
                  f"Prostate158 held-out cases. External: {e['n_cases']} PROSTATEx examinations, "
                  f"inference only. Values are mean (SD).",
@@ -907,14 +976,14 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"lowest-scoring case the central gland is recovered while the peripheral zone is "
         f"substantially under-segmented, with the central gland extending into territory the "
         f"annotation assigns to the peripheral zone - a class confusion at the zonal interface "
-        f"rather than a failure to find the prostate (Figures 8 and 9)."))
+        f"rather than a failure to find the prostate (Figures 9 and 10)."))
     add(("fig", (f"{VIZ}/patient_{t['representatives']['good']}/"
                  f"patient_{t['representatives']['good']}_slice_016.png",
-        f"Figure 8. Representative high-performing case (case {t['representatives']['good']}). "
+        f"Figure 9. Representative high-performing case (case {t['representatives']['good']}). "
         f"From left: T2-weighted image, expert annotation, prediction, overlay, and error map.")))
     add(("fig", (f"{VIZ}/patient_{t['representatives']['challenging']}/"
                  f"patient_{t['representatives']['challenging']}_slice_015.png",
-        f"Figure 9. Representative challenging case (case "
+        f"Figure 10. Representative challenging case (case "
         f"{t['representatives']['challenging']}). The central gland is recovered while the "
         f"peripheral zone is under-segmented at the zonal interface.")))
 
