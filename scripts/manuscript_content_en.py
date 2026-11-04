@@ -25,7 +25,7 @@ AFFIL = ["Department of Informatics, Faculty of Engineering and Informatics, "
          "Universitas Multimedia Nusantara, Tangerang, Indonesia"]
 CORR = ("Corresponding author: Benedict Amadeus Sandro, Department of Informatics, "
         "Faculty of Engineering and Informatics, Universitas Multimedia Nusantara, "
-        "Tangerang, Banten, Indonesia")
+        "Tangerang, Banten, Indonesia. ORCID: 0009-0000-1459-9139")
 
 FIG_DIR_RQ1 = "results/figures_rq1"
 FIG_DIR_RQ2 = "results/figures_rq2"
@@ -47,6 +47,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
     e = N["external"]
     eg = e["geometry"]
     hd = N["hd95_tail"]
+    st = N["anterior_stroma"]
+    gs = N["gland_size"]
 
     cg_d = t["per_class"]["cg"]["dice"]
     pz_d = t["per_class"]["pz"]["dice"]
@@ -135,7 +137,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "benign enlargement. Zonal segmentation is therefore not an abstract partitioning task "
         "but a prerequisite for several downstream clinical quantities."))
     add(("p",
-        "Deep learning has become the standard approach to this segmentation problem [@ronneberger,isensee]. Prostate "
+        "Deep learning has become the standard approach to this segmentation problem "
+        "[@ronneberger,isensee], and more broadly the dominant method in medical image analysis "
+        "[@litjens_survey], to the point where its clinical adoption is now discussed in terms of "
+        "deployment rather than feasibility [@topol]. Prostate "
         "MRI is strongly anisotropic, with in-plane resolution an order of magnitude finer than "
         "slice thickness, and two-dimensional networks remain a reasonable choice under that "
         "geometry: they avoid interpolating along the axis where information is sparsest, and "
@@ -164,11 +169,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "We frame the contribution conservatively. This study proposes no new architecture and "
         "does not claim state-of-the-art accuracy; the 2D U-Net is a component, and the "
-        "reproducibility of the pipeline is a property rather than a finding. The contributions "
-        "are the empirical comparison of training configurations under a pre-specified rule, "
-        "including the negative result that three interventions failed to move performance "
-        "beyond between-patient variation, and the measured demonstration that geometric "
-        "validation alone is insufficient to establish that a reconstructed volume is correct."))
+        "reproducibility of the pipeline is a property rather than a finding. What the study "
+        "adds is a negative result - three interventions failed to move performance beyond "
+        "between-patient variation - and the measured demonstration that geometric validation "
+        "alone cannot establish that a reconstructed volume is correct."))
 
     # -------------------------------------------------------------- methods
     add(("h2", "Methods"))
@@ -237,8 +241,25 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "2D U-Net Architecture"))
     add(("p",
-        "The choice and configuration of a 2D U-Net for this task follow prior work that optimised "
-        "its components for prostate MRI [@astono]. The network was a four-level encoder-decoder "
+        "The architecture was chosen for three reasons, and the choice is deliberate rather than "
+        "a default. First, the geometry of the data favours it: prostate MRI is strongly "
+        "anisotropic, with in-plane resolution an order of magnitude finer than slice thickness, "
+        "so a two-dimensional network avoids interpolating along the axis where information is "
+        "sparsest, and every slice becomes a training example in its own right. Second, the "
+        "architecture is deliberately unremarkable. A survey of the field shows the "
+        "encoder-decoder with skip connections to be the standard form for medical segmentation "
+        "[@litjens_survey], and self-configuring pipelines demonstrate that a U-Net without "
+        "architectural modification remains competitive when its preprocessing and training "
+        "configuration are right [@isensee]. Because this study measures what the reconstruction "
+        "stage is worth rather than what a network can achieve, a standard component is the "
+        "correct choice: a novel architecture would confound the two. Third, prior work has "
+        "already optimised the components of a 2D U-Net specifically for prostate MRI [@astono], "
+        "which fixes the configuration on published grounds instead of on a search performed "
+        "here. The cost of the choice is stated plainly in the Discussion: a three-dimensional "
+        "network can use through-plane context that this one cannot, and the accuracy reported "
+        "here is correspondingly lower than the dataset's own reference implementation."))
+    add(("p",
+        "The network was a four-level encoder-decoder "
         "U-Net [@ronneberger] with 32 initial feature maps, a "
         "single input channel and three output channels, totalling 7,762,531 parameters. Each "
         "level applied two 3x3 convolutions with batch normalization and ReLU; downsampling used "
@@ -388,8 +409,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "file-naming that cannot be derived from the case identifier."))
     add(("p",
         f"This cohort differs from the development data in ways that were measured rather than "
-        f"described qualitatively. Its in-plane resolution spans {eg['inplane_min']}-"
-        f"{eg['inplane_max']} mm against {0.46875} mm internally, its through-plane spacing spans "
+        f"described qualitatively. Its in-plane resolution spans {eg['inplane_min']:.2f}-"
+        f"{eg['inplane_max']:.2f} mm against {0.46875} mm internally, its through-plane spacing spans "
         f"{eg['through_min']}-{eg['through_max']} mm, and its axial field of view averages "
         f"{eg['fov_mean']:.0f} mm against {eg['fov_internal']:.1f} mm, a factor of "
         f"{eg['fov_ratio']:.2f}. Because the pipeline performs no in-plane resampling, the "
@@ -730,10 +751,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"boundary that is uniformly wrong. HD95 correlates negatively with precision across the "
         f"cohort (r={e['hd95_cg']['corr_with_precision']:+.2f}), consistent with that reading."))
     add(("p",
-        f"The mechanism is the field-of-view difference, and we tested it rather than "
-        f"asserting it. The external examinations cover {eg['fov_mean']:.0f} mm in plane against "
-        f"{eg['fov_internal']:.1f} mm internally, a factor of {eg['fov_ratio']:.2f}, so they "
-        f"contain pelvic structures the model never encountered during training. Decomposing "
+        f"The mechanism is the {eg['fov_ratio']:.2f}-fold wider field of view described above, "
+        f"which exposes the model to pelvic structures it never encountered during training, and "
+        f"we tested it rather than asserting it. Decomposing "
         f"each predicted central gland into connected components shows that every one of the "
         f"{hd['tail']['n']} tail cases carries more than one component, against "
         f"{hd['rest']['multi_component_frac']*100:.0f}% of the remainder, and that in those "
@@ -772,10 +792,24 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "These figures are not a like-for-like comparison with the internal result. The "
         "annotators, scanners and acquisition geometry all differ, and so do the zone "
         "definitions: the external reference for the central gland additionally includes the "
-        "anterior fibromuscular stroma, so part of the measured disagreement is a difference in "
-        "what was annotated rather than in what was predicted. The "
-        "quantity of interest is the size of the gap, interpreted alongside the covariate shift "
-        "that partly explains it (Figure 7)."))
+        "anterior fibromuscular stroma. It would be natural to attribute part of the gap to "
+        "that difference, and we tested it rather than assuming it. Because the stroma lies at "
+        "the anterior edge of the gland, the attribution makes a spatial prediction, and the "
+        "internal cohort provides the control: central-gland Dice was recomputed separately on "
+        "the anterior and posterior halves of the gland, the anterior-posterior axis "
+        f"taken from each volume's own affine and its sign verified against anatomy in all "
+        f"{st['external']['n_cases']} external and {st['internal']['n_cases']} internal cases. "
+        "The prediction fails. The anterior half, where the stroma lies, is where the two "
+        f"cohorts agree most closely (a gap of {st['gap']['cg_dice_anterior']:+.4f}), while the "
+        f"gap concentrates posteriorly ({st['gap']['cg_dice_posterior']:+.4f}), with the same "
+        "ordering when the dividing plane is taken on the whole-gland rather than the "
+        "central-gland extent. The direction of the anterior deficit is in fact reversed between "
+        "cohorts: internally the anterior half is the weaker one, externally the posterior half "
+        f"is (P={st['gap']['anterior_deficit_p']:.3f}). The differing zone definitions are real, "
+        "but they do not account for the shortfall, which instead takes the form of reference "
+        "central gland left as background at the posterior extent of the gland - the "
+        "whole-gland boundary falling short out of domain rather than a structure the model "
+        "failed to recognise (Figure 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
         "Figure 7. External validation. Internal and external Dice side by side; the distribution "
         "of central-gland HD95 on the external cohort, showing a heavy tail rather than a uniform "
@@ -793,6 +827,46 @@ def build(N: dict) -> List[Tuple[str, object]]:
          for m, name in (("dice", "Dice"), ("iou", "IoU"), ("hd95_mm", "HD95 (mm)"),
                          ("asd_mm", "ASD (mm)"), ("precision", "Precision"),
                          ("recall", "Recall"))])))
+
+    add(("h3", "Consistency Across Gland Size"))
+    add(("p",
+        "A cohort mean says nothing about whether accuracy holds across the range of anatomy the "
+        "model will meet, and gland size is the axis where that question matters most: a small "
+        "gland is the normal finding in younger men and in those without benign enlargement, and "
+        "it is also the denominator of PSA density. Dice was therefore regressed on reference "
+        "zone volume in both cohorts, using Spearman correlation because nothing requires the "
+        "relationship to be linear, and reported additionally as mean Dice within size tertiles "
+        "so that the size of the effect is legible in Dice units."))
+    add(("p",
+        f"The model is not consistent across sizes, and the effect is large. On the external "
+        f"cohort, central-gland Dice rises monotonically with reference volume "
+        f"(Spearman r={gs['external']['cg']['corr']['spearman_r']:.3f}, P<.001): "
+        f"{gs['external']['cg']['tertiles'][0]['dice_mean']:.4f} in the smallest third "
+        f"({gs['external']['cg']['tertiles'][0]['vol_min']:.1f}-"
+        f"{gs['external']['cg']['tertiles'][0]['vol_max']:.1f} mL) against "
+        f"{gs['external']['cg']['tertiles'][2]['dice_mean']:.4f} in the largest "
+        f"({gs['external']['cg']['tertiles'][2]['vol_min']:.1f}-"
+        f"{gs['external']['cg']['tertiles'][2]['vol_max']:.1f} mL), a gap of "
+        f"{gs['external']['cg']['tertiles'][2]['dice_mean'] - gs['external']['cg']['tertiles'][0]['dice_mean']:.3f} "
+        f"Dice. The peripheral zone shows the same direction more weakly "
+        f"(r={gs['external']['pz']['corr']['spearman_r']:.3f}, P<.001; gap "
+        f"{gs['external']['pz']['tertiles'][2]['dice_mean'] - gs['external']['pz']['tertiles'][0]['dice_mean']:.3f}). "
+        f"The internal cohort points the same way for the central gland "
+        f"(r={gs['internal']['cg']['corr']['spearman_r']:.3f}, "
+        f"P={gs['internal']['cg']['corr']['spearman_p']:.2f}) but with "
+        f"{gs['internal']['n_cases']} cases it is underpowered, so the external cohort carries "
+        f"the finding."))
+    add(("p",
+        "Whether that shortfall propagates to the clinical quantity was tested rather than "
+        "assumed. If the relative volume error also grew as the gland shrank, the two effects "
+        "would compound, because PSA density divides by exactly this volume. It does not: on the "
+        f"internal cohort the correlation between reference gland volume and absolute percentage "
+        f"volume error is {gs['volume_error_vs_size']['spearman_r']:+.3f} "
+        f"(P={gs['volume_error_vs_size']['spearman_p']:.2f}), and the tertile means are "
+        "non-monotone. With 19 cases this test has low power, so the honest statement is that no "
+        "evidence of compounding was found, not that none exists. The size effect on overlap, "
+        "however, is established on 204 independent examinations and is reported in Limitations "
+        "as a constraint on where this model can be trusted."))
 
     add(("h3", "Qualitative Results"))
     add(("p",
@@ -835,12 +909,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "For RQ2 the principal result is that geometric validation, which is the verification "
         "most commonly reported when it is reported at all, is not sufficient. A reconstruction "
         "with a perfectly correct header and mirrored voxel data passes every check in the "
-        "checklist - shape, affine, spacing, orientation codes and label set - while its reported "
-        "Dice falls by roughly a quarter for the central gland and by three quarters for the "
-        "peripheral zone. The complementary failure, a correct voxel array written with a default "
-        "affine, is invisible to overlap metrics because those metrics are computed on voxel "
-        "indices, yet it displaces the gland by nearly two hundred millimetres and inflates every "
-        "volume by almost half."))
+        "checklist, while the complementary failure - a correct voxel array written with a "
+        "default affine - is invisible to overlap metrics, because those are computed on voxel "
+        "indices. Each check is blind to precisely the failure the other detects, which is why "
+        "neither is sufficient alone."))
     add(("p",
         "This is what gives the round-trip fidelity test its purpose. Passing the expert "
         "annotation forward through preprocessing and back through the same reconstruction code, "
@@ -857,7 +929,27 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "consistent with the architectural difference: a 3D network can use through-plane context "
         "that a 2D network does not see. We therefore do not present the present results as "
         "competitive with that reference, and the comparison is offered as context rather than as "
-        "a claim."))
+        "a claim. Table 7 sets the two side by side on the same dataset and the same official "
+        "split."))
+    add(("tbl", (
+        "Table 7. Reported zonal segmentation accuracy on Prostate158, against the dataset's own "
+        "reference implementation. Both rows use the same official patient-level split. Only "
+        "values the respective papers report are listed; the last column is the ratio of this "
+        "study's Dice to the reference, expressed as a percentage.",
+        ["Study", "Architecture", "CG Dice", "PZ Dice", "% of reference"],
+        [["Adams et al [@adams_cbm]", "3D residual U-Net", "0.877", "0.754", "reference"],
+         ["This study", "2D U-Net", f"{cg_d['mean']:.4f}", f"{pz_d['mean']:.4f}",
+          f"CG {cg_d['mean'] / 0.877 * 100:.1f}%, PZ {pz_d['mean'] / 0.754 * 100:.1f}%"]])))
+    add(("p",
+        f"The gap is real but narrow for the central gland, where this study reaches "
+        f"{cg_d['mean'] / 0.877 * 100:.1f}% of the reference value with a network that sees one "
+        f"slice at a time, and wider for the peripheral zone at "
+        f"{pz_d['mean'] / 0.754 * 100:.1f}%. The peripheral zone is where through-plane context "
+        "should help most, since its boundary with the central gland runs obliquely to the axial "
+        "plane, so the larger shortfall there is what the architectural explanation predicts. "
+        "What this study adds is on a different axis from accuracy: the frozen model was carried "
+        "to an independent cohort of 204 examinations, and the reconstruction that turns "
+        "slice-wise output into a volume was verified rather than assumed."))
     add(("p",
         "The relationship between the two zones is also reported inconsistently across studies on "
         "this dataset. Several report the central gland as the easier zone [@bardis,cuocolo_jmri]; at least one reports "
@@ -869,13 +961,37 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "the label mapping explicitly for that reason."))
     add(("p",
         "On the reconstruction side, the literature treats spatial consistency predominantly as a "
-        "model property, addressed through cross-slice attention or post-processing, and where reassembly is described it is usually as a step rather than as something verified [@cheng]. The "
-        "reassembly step itself, and its verification, is usually described in a sentence if at "
-        "all. We are not aware of prior work that measures what the individual operations in that "
+        "model property, addressed through cross-slice attention or post-processing, and where "
+        "reassembly is described it is usually as a step rather than as something verified "
+        "[@cheng]. We are not aware of prior work that measures what the individual operations in that "
         "step are worth by omitting them. That measurement is what we consider this study's "
         "transferable contribution, and it is not specific to prostate imaging: any pipeline that "
         "produces slice-wise predictions and reassembles them is exposed to the same two failure "
-        "modes."))
+        "modes. The exposure is growing rather than shrinking, because adapting two-dimensional "
+        "and video-derived models to three-dimensional medical data is an active direction in "
+        "its own right [@yamagishi], and every such adaptation ends in the same reassembly step."))
+    add(("p",
+        "This points at a gap the current reporting guidelines do not close. CLAIM asks that "
+        "imaging studies report preprocessing, data handling and sources of bias, and that code "
+        "be made available [@claim]; TRIPOD+AI asks that model development and validation be "
+        "described in enough detail to be appraised [@tripod_ai]. Both are necessary and neither "
+        "is sufficient here, because a pipeline can satisfy every item on those checklists and "
+        "still emit an anatomically mirrored volume: the ablation reported above shows that such "
+        "a volume carries a correct header, a correct shape, correct spacing and a correct label "
+        "set. What is missing from current practice is not disclosure but a check that compares "
+        "voxels rather than metadata. The round-trip fidelity test is one such check, it costs a "
+        "single forward and inverse pass of an existing annotation, and we suggest it belongs in "
+        "the reported methods of any study that reconstructs volumes from slice-wise output."))
+    add(("p",
+        "Two further caveats of the field are worth naming because they bear on how this study "
+        "should be read. Segmentation work concentrates heavily on a small number of public "
+        "benchmarks, which makes reported accuracy a property of those benchmarks as much as of "
+        "the methods [@iratni] - one reason the frozen model here was carried to an independent "
+        "cohort. And syntheses of medical-imaging deep learning repeatedly find that reported "
+        "accuracy is sensitive to study design and that external evaluation is the exception "
+        "rather than the rule [@feng_mvi,fotopoulos]. Within prostate imaging specifically, the "
+        "published work is weighted toward lesion-level and staging tasks [@zhang_epe], which "
+        "makes the zonal segmentation that those tasks depend on comparatively under-examined."))
 
     add(("h3", "Clinical Implications"))
     add(("p",
@@ -916,7 +1032,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "The external cohort was annotated by a different group under a different protocol, so "
         "the external figures confound model generalization with annotation differences and "
-        "cannot be decomposed into the two. The pipeline performs no in-plane resampling, so part "
+        "cannot be decomposed into the two beyond the one difference tested above, where the "
+        "spatial test rules out the stroma as the driver without isolating what replaces it. "
+        "The pipeline performs no in-plane resampling, so part "
         "of the external gap is attributable to pixel-scale shift rather than to model failure; "
         "separating the two would require a second run with a resampling adapter, which we did "
         "not perform. The connected-component analysis explains the boundary-error tail but "
@@ -987,6 +1105,43 @@ def build(N: dict) -> List[Tuple[str, object]]:
 # emits only the ones actually cited, so adding or removing a reference cannot
 # leave the numbering inconsistent with the text.
 REFERENCES = {
+    "yamagishi":
+        "Yamagishi Y, Hanaoka S, Kikuchi T, Nakao T, Nakamura Y, Nomura Y, et al. Using Segment "
+        "Anything Model 2 for Zero-Shot 3D Segmentation of Abdominal Organs in Computed "
+        "Tomography Scans to Adapt Video Tracking Capabilities for 3D Medical Imaging: "
+        "Algorithm Development and Validation. JMIR AI. 2025;4:e72109. doi:10.2196/72109",
+    "iratni":
+        "Iratni M, Abdullah A, Aldhaheri M, Elharrouss O, Abd-alrazaq A, Rustamov Z, et al. "
+        "Transformers for Neuroimage Segmentation: Scoping Review. J Med Internet Res. "
+        "2025;27:e57723. doi:10.2196/57723",
+    "zhang_epe":
+        "Zhang X, Qi Y, Wang X, Chen H, Li J. Artificial Intelligence-Enabled Imaging for "
+        "Predicting Preoperative Extraprostatic Extension in Prostate Cancer: Systematic Review "
+        "and Meta-Analysis. J Med Internet Res. 2025;27:e80981. doi:10.2196/80981",
+    "fotopoulos":
+        "Fotopoulos D, Ladakis I, Filos D, Moreno-Sanchez PA, van Gils M, Chouvarda I. "
+        "Explainable AI in Cancer Imaging: Scoping Review of Methods, Modalities, and Clinical "
+        "Integration. J Med Internet Res. 2026;28:e80645. doi:10.2196/80645",
+    "feng_mvi":
+        "Feng W, Qu B, Han S. Accuracy of Medical Image-Based Deep Learning for Detecting "
+        "Microvascular Invasion in Hepatocellular Carcinoma. J Med Internet Res. "
+        "2026;28:e82000. doi:10.2196/82000",
+    "claim":
+        "Tejani AS, Klontzas ME, Gatti AA, Mongan JT, Moy L, Park SH, et al. Checklist for "
+        "Artificial Intelligence in Medical Imaging (CLAIM): 2024 Update. Radiol Artif Intell. "
+        "2024;6(4):e240300. doi:10.1148/ryai.240300",
+    "tripod_ai":
+        "Collins GS, Moons KGM, Dhiman P, Riley RD, Beam AL, Van Calster B, et al. TRIPOD+AI "
+        "statement: updated guidance for reporting clinical prediction models that use "
+        "regression or machine learning methods. BMJ. 2024;385:e078378. "
+        "doi:10.1136/bmj-2023-078378",
+    "litjens_survey":
+        "Litjens G, Kooi T, Bejnordi BE, Setio AAA, Ciompi F, Ghafoorian M, et al. A survey on "
+        "deep learning in medical image analysis. Med Image Anal. 2017;42:60-88. "
+        "doi:10.1016/j.media.2017.07.005",
+    "topol":
+        "Topol EJ. High-performance medicine: the convergence of human and artificial "
+        "intelligence. Nat Med. 2019;25(1):44-56. doi:10.1038/s41591-018-0300-7",
     "sung":
         "Sung H, Ferlay J, Siegel RL, Laversanne M, Soerjomataram I, Jemal A, Bray F. Global "
         "Cancer Statistics 2020: GLOBOCAN Estimates of Incidence and Mortality Worldwide for 36 "

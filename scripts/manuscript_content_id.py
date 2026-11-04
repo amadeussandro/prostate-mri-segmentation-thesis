@@ -21,7 +21,7 @@ AFFIL = ["Program Studi Informatika, Fakultas Teknik dan Informatika, "
          "Universitas Multimedia Nusantara, Tangerang, Indonesia"]
 CORR = ("Penulis korespondensi: Benedict Amadeus Sandro, Program Studi Informatika, "
         "Fakultas Teknik dan Informatika, Universitas Multimedia Nusantara, "
-        "Tangerang, Banten, Indonesia")
+        "Tangerang, Banten, Indonesia. ORCID: 0009-0000-1459-9139")
 
 FIG_DIR_RQ2 = "results/figures_rq2"
 VIZ = "results/rq2_e1_epoch88/visualizations"
@@ -38,6 +38,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
     e = N["external"]
     eg = e["geometry"]
     hd = N["hd95_tail"]
+    st = N["anterior_stroma"]
+    gs = N["gland_size"]
 
     cg_d = t["per_class"]["cg"]["dice"]
     pz_d = t["per_class"]["pz"]["dice"]
@@ -124,7 +126,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "Segmentasi zonal karena itu bukan sekadar tugas pemartisian abstrak, melainkan "
         "prasyarat bagi sejumlah besaran klinis turunan."))
     add(("p",
-        "Deep learning telah menjadi pendekatan baku untuk persoalan segmentasi ini [@ronneberger,isensee]. MRI prostat "
+        "Deep learning telah menjadi pendekatan baku untuk persoalan segmentasi ini "
+        "[@ronneberger,isensee], dan secara lebih luas merupakan metode dominan pada analisis "
+        "citra medis [@litjens_survey], sampai pada titik adopsi klinisnya kini dibicarakan dalam "
+        "kerangka penerapan alih-alih kelayakan [@topol]. MRI prostat "
         "bersifat sangat anisotropik, dengan resolusi in-plane satu orde lebih halus daripada "
         "ketebalan irisan, dan jaringan dua dimensi tetap merupakan pilihan yang wajar pada "
         "geometri tersebut: pendekatan ini menghindari interpolasi pada sumbu yang informasinya "
@@ -157,11 +162,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Kontribusi penelitian ini dirumuskan secara konservatif. Penelitian ini tidak "
         "mengusulkan arsitektur baru dan tidak mengklaim akurasi state-of-the-art; 2D U-Net "
-        "adalah komponen, dan reprodusibilitas pipeline merupakan sifat, bukan temuan. "
-        "Kontribusinya adalah perbandingan empiris konfigurasi pelatihan di bawah aturan yang "
-        "ditetapkan di muka, termasuk hasil negatif bahwa tiga intervensi gagal menggeser "
-        "performa melampaui variasi antar pasien, serta demonstrasi terukur bahwa validasi "
-        "geometris semata tidak memadai untuk menegakkan bahwa suatu volume hasil rekonstruksi "
+        "adalah komponen, dan reprodusibilitas pipeline merupakan sifat, bukan temuan. Yang "
+        "ditambahkan penelitian ini adalah sebuah hasil negatif - tiga intervensi gagal "
+        "menggeser performa melampaui variasi antar pasien - serta demonstrasi terukur bahwa "
+        "validasi geometris semata tidak dapat menegakkan bahwa suatu volume hasil rekonstruksi "
         "sudah benar."))
 
     # ------------------------------------------------------------------ metode
@@ -233,8 +237,24 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Arsitektur 2D U-Net"))
     add(("p",
-        "Pemilihan dan konfigurasi 2D U-Net untuk tugas ini mengikuti karya terdahulu yang "
-        "mengoptimalkan komponennya untuk MRI prostat [@astono]. "
+        "Arsitektur ini dipilih atas tiga alasan, dan pemilihannya disengaja, bukan bawaan. "
+        "Pertama, geometri datanya mendukung: MRI prostat sangat anisotropik, dengan resolusi "
+        "in-plane satu orde lebih halus daripada ketebalan irisan, sehingga jaringan dua dimensi "
+        "menghindari interpolasi pada sumbu yang informasinya paling jarang, dan setiap irisan "
+        "menjadi satu contoh pelatihan tersendiri. Kedua, arsitekturnya memang sengaja biasa "
+        "saja. Tinjauan bidang ini menunjukkan encoder-decoder dengan skip connection sebagai "
+        "bentuk baku untuk segmentasi medis [@litjens_survey], dan pipeline yang mengonfigurasi "
+        "dirinya sendiri membuktikan U-Net tanpa modifikasi arsitektural tetap kompetitif bila "
+        "prapemrosesan dan konfigurasi pelatihannya tepat [@isensee]. Karena penelitian ini "
+        "mengukur nilai tahap rekonstruksi alih-alih kemampuan sebuah jaringan, komponen baku "
+        "justru pilihan yang benar: arsitektur baru akan mencampuradukkan keduanya. Ketiga, "
+        "penelitian terdahulu telah mengoptimalkan komponen 2D U-Net khusus untuk MRI prostat "
+        "[@astono], sehingga konfigurasinya ditetapkan atas dasar yang telah dipublikasikan, "
+        "bukan atas pencarian yang dilakukan di sini. Konsekuensi pilihan ini dinyatakan terbuka "
+        "pada Pembahasan: jaringan tiga dimensi dapat memakai konteks through-plane yang tidak "
+        "dapat dipakai jaringan ini, dan akurasi yang dilaporkan di sini memang lebih rendah "
+        "daripada implementasi rujukan datanya sendiri."))
+    add(("p",
         "Jaringan yang digunakan adalah U-Net encoder-decoder empat tingkat [@ronneberger] dengan 32 peta fitur "
         "awal, satu kanal masukan, dan tiga kanal keluaran, dengan total 7.762.531 parameter. "
         "Setiap tingkat menerapkan dua konvolusi 3x3 dengan batch normalization dan ReLU; "
@@ -388,7 +408,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         f"Kohort ini berbeda dari data pengembangan dalam hal-hal yang kami ukur, bukan sekadar "
         f"dideskripsikan secara kualitatif. Resolusi in-plane-nya terentang "
-        f"{eg['inplane_min']}-{eg['inplane_max']} mm berbanding 0,46875 mm pada data internal, "
+        f"{eg['inplane_min']:.2f}-{eg['inplane_max']:.2f} mm berbanding 0,46875 mm pada data internal, "
         f"spasi through-plane-nya terentang {eg['through_min']}-{eg['through_max']} mm, dan "
         f"medan pandang aksialnya rata-rata {eg['fov_mean']:.0f} mm berbanding "
         f"{eg['fov_internal']:.1f} mm, yakni sebesar {eg['fov_ratio']:.2f} kali. Karena pipeline "
@@ -737,11 +757,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"di seluruh kohort (r={e['hd95_cg']['corr_with_precision']:+.2f}), konsisten dengan "
         f"pembacaan tersebut."))
     add(("p",
-        f"Mekanismenya adalah perbedaan medan pandang, dan kami mengujinya alih-alih "
-        f"menyatakannya begitu saja. Pemeriksaan eksternal mencakup {eg['fov_mean']:.0f} mm "
-        f"secara in-plane berbanding {eg['fov_internal']:.1f} mm pada data internal, yakni "
-        f"{eg['fov_ratio']:.2f} kali, sehingga memuat struktur panggul yang tidak pernah ditemui "
-        f"model selama pelatihan. Penguraian setiap prediksi central gland menjadi komponen "
+        f"Mekanismenya adalah medan pandang yang {eg['fov_ratio']:.2f} kali lebih luas seperti "
+        f"diuraikan di atas, yang memapar model pada struktur panggul yang tidak pernah "
+        f"ditemuinya selama pelatihan, dan kami mengujinya alih-alih menyatakannya begitu saja. "
+        f"Penguraian setiap prediksi central gland menjadi komponen "
         f"terhubung menunjukkan bahwa seluruh {hd['tail']['n']} kasus berekor memiliki lebih dari "
         f"satu komponen, berbanding {hd['rest']['multi_component_frac']*100:.0f}% pada sisanya, "
         f"dan bahwa pada kasus-kasus tersebut komponen di luar yang terbesar menampung "
@@ -780,9 +799,25 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Angka-angka ini bukan perbandingan setara dengan hasil internal. Anotator, pemindai, dan "
         "geometri akuisisinya berbeda, demikian pula definisi zonanya: rujukan eksternal untuk "
-        "central gland turut memuat anterior fibromuscular stroma, sehingga sebagian "
-        "ketidaksesuaian yang terukur merupakan perbedaan pada apa yang dianotasi, bukan pada "
-        "apa yang diprediksi. Besaran yang menjadi perhatian adalah besar "
+        "central gland turut memuat anterior fibromuscular stroma. Wajar bila sebagian selisih "
+        "diatribusikan pada perbedaan tersebut, dan hal ini diuji alih-alih diasumsikan. Karena "
+        "stroma terletak pada tepi anterior kelenjar, atribusi itu memunculkan prediksi spasial, "
+        "dan kohort internal berperan sebagai kontrol: Dice central gland dihitung ulang secara "
+        "terpisah pada paruh anterior dan posterior kelenjar, dengan sumbu anterior-posterior "
+        "diambil dari affine masing-masing volume dan tandanya diverifikasi terhadap anatomi "
+        f"pada seluruh {st['external']['n_cases']} kasus eksternal dan "
+        f"{st['internal']['n_cases']} kasus internal. Prediksi tersebut gagal. Paruh anterior, "
+        "tempat stroma berada, justru merupakan bagian dengan kesepakatan terdekat antara kedua "
+        f"kohort (selisih {st['gap']['cg_dice_anterior']:+.4f}), sementara selisihnya memusat di "
+        f"posterior ({st['gap']['cg_dice_posterior']:+.4f}), dengan urutan yang sama ketika "
+        "bidang pembagi diambil pada rentang seluruh kelenjar alih-alih rentang central gland. "
+        "Arah defisit anterior bahkan berkebalikan "
+        "antarkohort: secara internal paruh anterior yang lebih lemah, sedangkan secara eksternal "
+        f"paruh posterior (P={st['gap']['anterior_deficit_p']:.3f}). Perbedaan definisi zona itu "
+        "nyata, namun tidak menjelaskan selisih yang terukur, yang justru berbentuk central gland "
+        "rujukan yang dibiarkan sebagai latar pada ujung posterior kelenjar - batas kelenjar "
+        "yang kurang menjangkau di luar domain, bukan struktur yang gagal dikenali model. "
+        "Besaran yang menjadi perhatian adalah besar "
         "selisihnya, yang ditafsirkan berdampingan dengan pergeseran kovariat yang sebagian "
         "menjelaskannya (Gambar 7)."))
     add(("fig", (f"{FIG_DIR_RQ2}/F3_external_validation.png",
@@ -802,6 +837,47 @@ def build(N: dict) -> List[Tuple[str, object]]:
          for m, name in (("dice", "Dice"), ("iou", "IoU"), ("hd95_mm", "HD95 (mm)"),
                          ("asd_mm", "ASD (mm)"), ("precision", "Precision"),
                          ("recall", "Recall"))])))
+
+    add(("h3", "Konsistensi terhadap Ukuran Kelenjar"))
+    add(("p",
+        "Rerata kohort tidak mengatakan apa pun tentang apakah akurasinya bertahan di seluruh "
+        "rentang anatomi yang akan ditemui model, dan ukuran kelenjar adalah sumbu tempat "
+        "pertanyaan itu paling berarti: kelenjar kecil merupakan temuan normal pada pria yang "
+        "lebih muda dan pada mereka yang tidak mengalami pembesaran jinak, sekaligus merupakan "
+        "penyebut densitas PSA. Karena itu Dice diregresikan terhadap volume zona acuan pada "
+        "kedua kohort, memakai korelasi Spearman karena tidak ada yang mengharuskan hubungannya "
+        "linear, dan dilaporkan pula sebagai Dice rerata per tertil ukuran agar besar efeknya "
+        "terbaca dalam satuan Dice."))
+    add(("p",
+        f"Model tidak konsisten terhadap ukuran, dan efeknya besar. Pada kohort eksternal, Dice "
+        f"central gland naik secara monoton seiring volume acuan "
+        f"(Spearman r={gs['external']['cg']['corr']['spearman_r']:.3f}, P<,001): "
+        f"{gs['external']['cg']['tertiles'][0]['dice_mean']:.4f} pada sepertiga terkecil "
+        f"({gs['external']['cg']['tertiles'][0]['vol_min']:.1f}-"
+        f"{gs['external']['cg']['tertiles'][0]['vol_max']:.1f} mL) berbanding "
+        f"{gs['external']['cg']['tertiles'][2]['dice_mean']:.4f} pada sepertiga terbesar "
+        f"({gs['external']['cg']['tertiles'][2]['vol_min']:.1f}-"
+        f"{gs['external']['cg']['tertiles'][2]['vol_max']:.1f} mL), yakni selisih "
+        f"{gs['external']['cg']['tertiles'][2]['dice_mean'] - gs['external']['cg']['tertiles'][0]['dice_mean']:.3f} "
+        f"Dice. Peripheral zone menunjukkan arah yang sama secara lebih lemah "
+        f"(r={gs['external']['pz']['corr']['spearman_r']:.3f}, P<,001; selisih "
+        f"{gs['external']['pz']['tertiles'][2]['dice_mean'] - gs['external']['pz']['tertiles'][0]['dice_mean']:.3f}). "
+        f"Kohort internal mengarah serupa untuk central gland "
+        f"(r={gs['internal']['cg']['corr']['spearman_r']:.3f}, "
+        f"P={gs['internal']['cg']['corr']['spearman_p']:.2f}) namun dengan "
+        f"{gs['internal']['n_cases']} kasus daya ujinya rendah, sehingga kohort eksternal yang "
+        f"menopang temuan ini."))
+    add(("p",
+        "Apakah kekurangan itu berlanjut sampai ke besaran klinis diuji, bukan diasumsikan. Bila "
+        "galat volume relatif ikut membesar saat kelenjar mengecil, kedua efek akan berlipat, "
+        "sebab densitas PSA membagi tepat dengan volume ini. Ternyata tidak: pada kohort internal "
+        f"korelasi antara volume kelenjar acuan dan |galat volume| persen adalah "
+        f"{gs['volume_error_vs_size']['spearman_r']:+.3f} "
+        f"(P={gs['volume_error_vs_size']['spearman_p']:.2f}), dan rerata tertilnya tidak monoton. "
+        "Dengan 19 kasus, uji ini berdaya rendah, sehingga pernyataan yang jujur adalah tidak "
+        "ditemukan bukti perlipatan, bukan bahwa efeknya tidak ada. Namun efek ukuran pada "
+        "tumpang tindih tegak di atas 204 pemeriksaan independen dan dilaporkan pada Keterbatasan "
+        "sebagai batasan mengenai di mana model ini dapat dipercaya."))
 
     add(("h3", "Hasil Kualitatif"))
     add(("p",
@@ -844,13 +920,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Bagi RQ2, hasil utamanya adalah bahwa validasi geometris - verifikasi yang paling lazim "
         "dilaporkan, itu pun bila dilaporkan - tidak memadai. Rekonstruksi dengan header yang "
-        "sepenuhnya benar dan data voxel yang tercermin lolos setiap butir daftar periksa - "
-        "bentuk, affine, spasi, kode orientasi, dan himpunan label - sementara Dice yang "
-        "dilaporkannya turun sekitar seperempat untuk central gland dan tiga perempat untuk "
-        "peripheral zone. Kegagalan komplementernya, yakni larik voxel yang benar namun ditulis "
-        "dengan affine bawaan, tidak terlihat oleh metrik tumpang tindih karena metrik tersebut "
-        "dihitung pada indeks voxel, padahal kegagalan itu menggeser kelenjar hampir dua ratus "
-        "milimeter dan menggelembungkan setiap volume hampir setengahnya."))
+        "sepenuhnya benar dan data voxel yang tercermin lolos setiap butir daftar periksa, "
+        "sementara kegagalan komplementernya - larik voxel yang benar namun ditulis dengan "
+        "affine bawaan - tidak terlihat oleh metrik tumpang tindih, karena metrik itu dihitung "
+        "pada indeks voxel. Masing-masing pemeriksaan buta tepat terhadap kegagalan yang "
+        "dideteksi pemeriksaan lainnya, dan itulah sebabnya tidak ada yang memadai sendirian."))
     add(("p",
         "Inilah yang memberi uji fidelitas round-trip alasan keberadaannya. Melewatkan anotasi "
         "pakar maju melalui prapemrosesan dan kembali melalui kode rekonstruksi yang sama, serta "
@@ -866,7 +940,28 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "peripheral zone sekitar 0,754 [@adams_cbm]. Perbedaan tersebut konsisten dengan perbedaan arsitektur: "
         "jaringan 3D dapat memanfaatkan konteks through-plane yang tidak terlihat oleh jaringan "
         "2D. Kami karena itu tidak menyajikan hasil ini sebagai setara dengan rujukan tersebut, "
-        "dan perbandingannya diajukan sebagai konteks, bukan sebagai klaim."))
+        "dan perbandingannya diajukan sebagai konteks, bukan sebagai klaim. Tabel 7 menyandingkan "
+        "keduanya pada data dan pembagian resmi yang sama."))
+    add(("tbl", (
+        "Tabel 7. Akurasi segmentasi zonal yang dilaporkan pada Prostate158, dibandingkan "
+        "terhadap implementasi rujukan data tersebut. Kedua baris memakai pembagian resmi pada "
+        "tingkat pasien yang sama. Hanya nilai yang dilaporkan masing-masing paper yang "
+        "dicantumkan; kolom terakhir adalah rasio Dice penelitian ini terhadap rujukan.",
+        ["Penelitian", "Arsitektur", "Dice CG", "Dice PZ", "% dari rujukan"],
+        [["Adams dkk. [@adams_cbm]", "3D residual U-Net", "0,877", "0,754", "rujukan"],
+         ["Penelitian ini", "2D U-Net", f"{cg_d['mean']:.4f}", f"{pz_d['mean']:.4f}",
+          f"CG {cg_d['mean'] / 0.877 * 100:.1f}%, PZ {pz_d['mean'] / 0.754 * 100:.1f}%"]])))
+    add(("p",
+        f"Selisihnya nyata namun sempit untuk central gland, tempat penelitian ini mencapai "
+        f"{cg_d['mean'] / 0.877 * 100:.1f}% nilai rujukan dengan jaringan yang hanya melihat satu "
+        f"irisan pada satu waktu, dan lebih lebar untuk peripheral zone pada "
+        f"{pz_d['mean'] / 0.754 * 100:.1f}%. Peripheral zone justru zona tempat konteks "
+        "through-plane paling membantu, sebab batasnya dengan central gland berjalan miring "
+        "terhadap bidang aksial, sehingga kekurangan yang lebih besar di sana persis seperti yang "
+        "diprediksi penjelasan arsitektural. Yang ditambahkan penelitian ini berada pada sumbu "
+        "berbeda dari akurasi: model yang dibekukan dibawa ke kohort independen berisi 204 "
+        "pemeriksaan, dan rekonstruksi yang mengubah keluaran per irisan menjadi volume "
+        "diverifikasi alih-alih diasumsikan."))
     add(("p",
         "Hubungan antara kedua zona juga dilaporkan secara tidak konsisten lintas penelitian pada "
         "dataset ini. Beberapa melaporkan central gland sebagai zona yang lebih mudah "
@@ -887,7 +982,36 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "satu kalimat, itu pun bila ada. Sepanjang pengetahuan kami belum ada penelitian "
         "terdahulu yang mengukur nilai operasi-operasi individual dalam tahap tersebut dengan cara "
         "menghilangkannya. Pengukuran itulah yang kami pandang sebagai kontribusi penelitian ini "
-        "yang dapat digeneralisasi, dan hal tersebut tidak spesifik pada pencitraan prostat: "
+        "yang dapat digeneralisasi. Paparan terhadap masalah ini justru bertambah, bukan "
+        "berkurang, karena mengadaptasi model dua dimensi dan model turunan video ke data medis "
+        "tiga dimensi merupakan arah penelitian yang aktif [@yamagishi], dan setiap adaptasi "
+        "semacam itu berakhir pada tahap penyusunan kembali yang sama."))
+    add(("p",
+        "Hal ini menunjuk celah yang belum ditutup pedoman pelaporan yang ada. CLAIM meminta "
+        "studi pencitraan melaporkan prapemrosesan, penanganan data, dan sumber bias, serta "
+        "menyediakan kode [@claim]; TRIPOD+AI meminta pengembangan dan validasi model diuraikan "
+        "cukup rinci untuk dapat dinilai [@tripod_ai]. Keduanya perlu, dan keduanya tidak memadai "
+        "di sini, karena sebuah pipeline dapat memenuhi setiap butir daftar periksa tersebut dan "
+        "tetap menghasilkan volume yang tercermin secara anatomis: ablasi di atas menunjukkan "
+        "volume semacam itu membawa header, bentuk, spasi, dan himpunan label yang semuanya "
+        "benar. Yang belum ada pada praktik saat ini bukan pengungkapan, melainkan pemeriksaan "
+        "yang membandingkan voxel alih-alih metadata. Uji fidelitas round-trip adalah salah satu "
+        "pemeriksaan semacam itu, biayanya satu lintasan maju dan balik atas anotasi yang sudah "
+        "ada, dan kami mengusulkannya menjadi bagian metode yang dilaporkan pada setiap "
+        "penelitian yang merekonstruksi volume dari keluaran per irisan."))
+    add(("p",
+        "Dua catatan lain mengenai bidang ini perlu disebut karena memengaruhi cara membaca "
+        "penelitian ini. Penelitian segmentasi terpusat berat pada sedikit tolok ukur publik, "
+        "sehingga akurasi yang dilaporkan menjadi sifat tolok ukur tersebut sebanyak sifat "
+        "metodenya [@iratni] - salah satu alasan model yang dibekukan di sini dibawa ke kohort "
+        "independen. Sintesis atas deep learning pencitraan medis juga berulang kali menemukan "
+        "bahwa akurasi yang dilaporkan peka terhadap rancangan penelitian dan bahwa evaluasi "
+        "eksternal merupakan perkecualian alih-alih kelaziman [@feng_mvi,fotopoulos]. Khusus pada "
+        "pencitraan prostat, publikasi condong ke tugas tingkat lesi dan penentuan stadium "
+        "[@zhang_epe], sehingga segmentasi zonal yang justru menjadi tumpuan tugas-tugas tersebut "
+        "relatif kurang diperiksa."))
+    add(("p",
+        "Temuan ini tidak spesifik pada pencitraan prostat: "
         "setiap pipeline yang menghasilkan prediksi per irisan lalu menyusunnya kembali terpapar "
         "pada dua mode kegagalan yang sama."))
 
@@ -931,7 +1055,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Kohort eksternal dianotasi oleh kelompok berbeda di bawah protokol berbeda, sehingga "
         "angka eksternal mencampurkan generalisasi model dengan perbedaan anotasi dan tidak dapat "
-        "diuraikan menjadi keduanya. Pipeline tidak melakukan resampling in-plane, sehingga "
+        "diuraikan menjadi keduanya di luar satu perbedaan yang diuji di atas, yang uji "
+        "spasialnya menyingkirkan stroma sebagai penyebab utama tanpa mengisolasi apa yang "
+        "menggantikannya. Pipeline tidak melakukan resampling in-plane, sehingga "
         "sebagian selisih eksternal dapat diatribusikan pada pergeseran skala piksel alih-alih "
         "kegagalan model; memisahkan keduanya memerlukan proses kedua dengan adapter resampling, "
         "yang tidak kami lakukan. Analisis komponen terhubung menjelaskan ekor galat batas, "

@@ -305,6 +305,37 @@ def hd95_tail() -> Dict[str, object]:
     return json.load(open(path, encoding="utf-8"))
 
 
+def anterior_stroma() -> Dict[str, object]:
+    """Where along the gland the external central-gland gap actually sits.
+
+    Produced by `scripts/analyse_anterior_stroma.py`. It tests whether the
+    anterior fibromuscular stroma in the external reference explains the
+    external CG shortfall, using the internal cohort as the control, and finds
+    that it does not. Loaded rather than recomputed so the manuscript quotes the
+    same summary the report does.
+    """
+    path = f"{PROJECT}/results/external_anterior_stroma/summary.json"
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            "No anterior-stroma analysis found. Run scripts/analyse_anterior_stroma.py first.")
+    return json.load(open(path, encoding="utf-8"))
+
+
+def gland_size() -> Dict[str, object]:
+    """Does accuracy depend on how large the reference zone is?
+
+    Produced by `scripts/analyse_gland_size_effect.py`. Answers a question put by
+    the supervisor, and the answer is a limitation rather than a strength: the
+    model is markedly weaker on small glands. Loaded rather than recomputed so
+    the manuscript quotes the same summary the report does.
+    """
+    path = f"{PROJECT}/results/gland_size_effect/summary.json"
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            "No gland-size analysis found. Run scripts/analyse_gland_size_effect.py first.")
+    return json.load(open(path, encoding="utf-8"))
+
+
 def all_numbers() -> Dict[str, object]:
     arms = validation_arms()
     spread = max(a["macro"] for a in arms.values()) - min(a["macro"] for a in arms.values())
@@ -322,6 +353,8 @@ def all_numbers() -> Dict[str, object]:
         "volumes": zone_volumes(),
         "external": external(),
         "hd95_tail": hd95_tail(),
+        "anterior_stroma": anterior_stroma(),
+        "gland_size": gland_size(),
     }
 
 

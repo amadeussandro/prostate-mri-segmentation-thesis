@@ -4,7 +4,7 @@ Living state document for this thesis. A new session reads this before touching
 anything: it records what is decided, what is frozen, what is settled, and what
 is open, so nothing gets re-derived or re-litigated.
 
-**Last updated:** 2026-10-08 · check `git log -1` for the current HEAD
+**Last updated:** 2026-10-15 · check `git log -1` for the current HEAD
 
 > **Keep this current.** After any change that alters a result, a decision, or
 > what remains open, update the affected section here in the same commit. A
@@ -35,8 +35,9 @@ menggunakan 2D U-Net dan Rekonstruksi 3D*
 
 1. **Journal manuscript** — JMIR format, English + Indonesian. **DONE.** This is
    a task the supervisor asked the student to help with.
-2. **Skripsi** — Bab I–V, LaTeX, campus template. **NOT STARTED.** Different
-   structure, much longer. Blocked on obtaining the UMN LaTeX template.
+2. **Skripsi** — Bab I–V, LaTeX, campus template. **DRAFTED 2026-10-15.** The
+   template arrived, so this is no longer blocked. Lives OUTSIDE this repo at
+   `D:\1.AmadeusKuliah\Skripsi\2611_Skripsi_Sandro_103840`. Not yet compiled.
 
 ---
 
@@ -55,9 +56,10 @@ menggunakan 2D U-Net dan Rekonstruksi 3D*
 | External validation, 204 cases (task D) | **done** |
 | HD95 tail mechanism | **done** — hypothesis proved |
 | Full pre-writing project audit | **done** 2026-10-08 |
-| **JMIR manuscript, EN + ID** | **done** 2026-10-08 |
+| **JMIR manuscript, EN + ID** | **done**, rebuilt 2026-10-15 |
+| Anterior-stroma test (refutes a manuscript claim) | **done** 2026-10-15 |
 | Supervisor review of the manuscript | **open** — student's action |
-| **Skripsi (Bab I–V, LaTeX)** | **open — the real remaining work** |
+| **Skripsi (Bab I–V, LaTeX)** | **drafted** 2026-10-15 — needs compiling |
 
 **No experiments remain.** Every number in the manuscript is derived
 programmatically from a result artifact.
@@ -252,6 +254,36 @@ view** (192 mm vs 108.8 mm) exposing anatomy the model never trained on.
 the method, and choosing it after seeing external scores is tuning on the
 external cohort. Reported numbers are the unmodified pipeline.
 
+### Anterior stroma — hypothesis REFUTED — `results/external_anterior_stroma/`
+
+The manuscript used to imply that part of the external CG gap came from the
+external reference including anterior fibromuscular stroma. That was tested
+with the internal cohort as the control, and **it does not hold.**
+
+| CG Dice | External | Internal | Gap |
+|---|---|---|---|
+| Whole gland (as reported) | 0.8137 | 0.8442 | −0.0304 |
+| **Posterior half** | 0.7895 | 0.8516 | **−0.0621** |
+| **Anterior half** | 0.8307 | 0.8366 | **−0.0059** |
+
+**91% of the gap sits posteriorly, 9% anteriorly.** The anterior half — exactly
+where the stroma is — is where the cohorts agree *best*. The anterior deficit is
+*reversed* between cohorts (external −0.0436, internal +0.0465, p = 0.0020).
+Robust to the dividing plane: the whole-gland plane gives −0.0677 / −0.0071.
+
+Gates passed: the anterior axis is read from each volume's affine and its sign
+checked anatomically (PZ centroid posterior to CG centroid) — **223/223 pass**;
+and the script independently reproduces CG Dice 0.8442 internally and 0.8137
+externally from the raw volumes.
+
+What the gap actually is: reference CG left as **background** at the posterior
+extent of the gland (23.2% of posterior misses go to background vs 4.3% to PZ)
+— the whole-gland boundary falling short out of domain, not a missing structure.
+
+**The differing zone definitions remain a real fact about the datasets** and the
+manuscript still states it. What it no longer claims is that the difference
+explains the shortfall. No reported number changed.
+
 ---
 
 ## 5. Decisions already made — do not reopen
@@ -299,28 +331,112 @@ external cohort. Reported numbers are the unmodified pipeline.
 
 ## 6. Open work
 
-### A. Skripsi (Bab I–V, LaTeX) — **the real remaining work**
+### A. Skripsi (Bab I–V, LaTeX) — **drafted, not compiled**
 
-Not started. Different document from the journal: different structure, much
-longer, campus template, written in LaTeX.
+**No longer blocked.** The UMN template arrived and the thesis is drafted.
 
-**BLOCKED:** needs the UMN LaTeX thesis template (`.tex`/`.cls`) or the written
-formatting guideline. Do not guess the chapter structure — guessing means
-rework.
+Location — **outside this repo**: `D:\1.AmadeusKuliah\Skripsi\2611_Skripsi_Sandro_103840`
 
-All the material exists. The work is restructuring, not new research.
+- Entry point `SKRIPSI.tex`; chapter titles come from `settings.tex`; BAB II is
+  named "Landasan Teori" by the template, with prior work as a section inside.
+- Bab1–Bab5 written (39 sections, 15 subsections, 10 tables, 9 figures,
+  7 equations), plus `07a-Abstrak.tex` and `07b-Abstract.tex`.
+- 20 references appended to the root `pustaka.bib` with the same citation keys
+  as the journal; the template's own 10 example entries were left in place.
+- Figures copied into `assets/pics/` as `fig_*.png`.
+- Map of the template and its styling rules: `claude/Thesis_Latex_Template_Guide.md`.
+
+Verified statically (no LaTeX installed on this machine): every `\ref` resolves,
+no duplicate labels, all 9 figures exist, all 20 `\cite` keys exist, braces
+balance, `\addequation` count matches the equation environments. **29 headline
+numbers cross-checked against the result artifacts.**
+
+First compile 2026-10-15 produced 66 pages, and it was audited against the
+PDF itself — glyph positions read with pdfplumber and compared to the
+14.00 cm text block, rather than estimated from the source. Findings and the
+remaining to-do list: `claude/Skripsi_PDF_Audit_TODO.md`.
+
+Fixed since that compile:
+
+- NIM filled (00000103840).
+- An unescaped underscore in a DOI, which raises "Missing $ inserted" the
+  moment the bibliography is typeset.
+- Author lists cut to IEEE's six-plus-et-al. The MONAI entry carried 56 names
+  on one 1080-character line; that is both wrong for the style and the shape
+  of input that exhausts BibTeX while IEEEtran formats each name.
+- The template's author-facing note after `\bibliography` commented out, so
+  it stops printing on the DAFTAR PUSTAKA page of the submitted document.
+- The three tables that overran the right margin: 4.5 by 2.90 cm, 4.6 by
+  1.63 cm, 4.1 by 0.29 cm. Headers moved into the captions, type size and
+  column separation reduced. The other seven were measured and left alone.
+
+`SKRIPSI-Overleaf.zip` is built by `scratchpad/make_overleaf_zip.py`, which
+refuses to package a tree that still carries placeholders, an unescaped DOI
+underscore, an over-long author list, active template guidance, or more than
+one `\documentclass`. The template's `artikel_ilmiah.tex` is deliberately left
+out: Overleaf otherwise picks it as the main document and builds a 3-page
+IEEE sample instead of the thesis, which is what happened on the first upload.
+
+### The bibliography no longer goes through BibTeX — decided 2026-10-15
+
+The BibTeX route printed the DAFTAR PUSTAKA heading with nothing under it and
+left all 23 citations as `[?]`. The heading and its TOC entry only appear when a
+`thebibliography` environment is actually processed, so BibTeX had run and emitted
+an **empty** list — which is what happens when none of the cited keys are found
+in the database it read.
+
+Cause: `\bibliography{pustaka}` resolves by **basename**, and the template ships a
+second `pustaka.bib` at `src/3.Akhir/` holding three unrelated entries. Whichever
+one the search reaches first wins.
+
+Rather than keep betting on search order, the bibliography is now plain LaTeX:
+
+- `src/3.Akhir/daftarpustaka.tex` holds a `thebibliography` with 20 `\bibitem`,
+  generated by `scratchpad/gen_daftarpustaka.py` from `pustaka.bib`. Numbering
+  follows IEEE — order of first citation — computed from the sources in the
+  order `SKRIPSI.tex` inputs them, never hand-maintained.
+- `\bibliographystyle` and `\bibliography` are commented in `SKRIPSI.tex`, with a
+  note on how to switch back. Nothing now depends on a BibTeX pass, a `.bst`,
+  or a basename lookup.
+- `pustaka.bib` stays as the machine-readable record. **To add a reference: edit
+  `pustaka.bib`, then re-run the generator.** Do not hand-edit
+  `daftarpustaka.tex`.
+
+Two bib defects were fixed on the way: an unescaped underscore in a DOI, and
+author lists past IEEE's six-plus-et-al. (the MONAI entry had 56 names on one
+1080-character line, which is also what exhausts BibTeX while IEEEtran formats
+names).
+
+**Open:** confirm on the next compile that citations print as `[1]`-`[20]`.
+Earlier state, for reference: 23 citations
+printed as `[?]` and DAFTAR PUSTAKA held no entries, which means no
+usable `.bbl` ever reached the document. The two bib defects above
+are fixed, but they do not by themselves explain it: the DOI one sits on the
+fifth cited entry, so the first four would still have printed. It needs a
+BibTeX pass that actually runs; on Overleaf, **Recompile from scratch** also
+clears a cached broken `.bbl`.
+
+Still to fill, and not guessable: `\pembimbingNIDN`, the
+administrative dates, Kata Pengantar, the persembahan/moto page, the
+publication page's leftover note, and the appendix pages that still hold
+template examples. The title uses the **locked** Indonesian title, not the
+journal's extended one.
+
+`src/1.Awal/02b-HalamanAI.tex` is the campus AI-declaration page. It is the
+student's own statement and was left untouched.
 
 ### B. Supervisor review of the manuscript — student's action
 
 ### C. Optional, not blocking
 
-- **Manuscript length.** English is ~7.7k words against JMIR's typical
-  3,000–6,000 (instructions say "no rigorous restrictions"). ~800 words could
-  come out of Limitations and Comparison With Prior Work without losing a finding.
-- **Anterior-stroma quantification.** The external CG reference includes anterior
-  fibromuscular stroma; comparing anterior vs posterior CG error would measure
-  how much of the external gap is annotation difference rather than model
-  failure. ~20 min, local.
+- **Manuscript length — mostly settled.** Body prose is now EN 6,295 / ID 5,672
+  words. The HANDOFF used to target ~800 words out of Limitations + Comparison;
+  **that target was wrong** — those two sections total 644 words and are dense,
+  every paragraph carrying a finding. Genuine redundancy was removed instead
+  (a self-repeating sentence, twice-quoted field-of-view figures, a
+  three-times-stated contribution, a Principal-Results restatement): EN −76,
+  ID −36 net, after the stroma finding *added* content. Further cuts cost
+  findings.
 - **Disk.** ~960 MB of duplication remains and is safe to delete (sources exist):
   `results/external_prostatex_e1/.../\_harmonized/cases/*/t2.nii.gz` (779 MB,
   duplicates `dataset/external/prostatex`) and `results/exp_e1_dice_ce51026/`
@@ -373,6 +489,7 @@ scripts/manuscript_content_id.py     Indonesian text
 scripts/build_manuscript.py          renders either into .docx
 scripts/make_rq2_figures.py          figures F0–F5
 scripts/analyse_external_hd95_tail.py  the tail diagnostic
+scripts/analyse_anterior_stroma.py     the anterior-stroma test (refuted)
 ```
 
 ```bash
