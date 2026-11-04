@@ -254,6 +254,62 @@ view** (192 mm vs 108.8 mm) exposing anatomy the model never trained on.
 the method, and choosing it after seeing external scores is tuning on the
 external cohort. Reported numbers are the unmodified pipeline.
 
+### Gland size — accuracy is NOT consistent — `results/gland_size_effect/`
+
+Asked by the supervisor: does a smaller reference structure get segmented
+worse, and is the model consistent? **It is not, and the effect is large.**
+
+| Cohort | Zone | Spearman r | p |
+|---|---|---|---|
+| **External (n=204)** | **CG** | **+0.766** | <1e-39 |
+| External | PZ | +0.279 | 0.0001 |
+| Internal (n=19) | CG | +0.449 | 0.054 |
+
+External CG Dice by size tertile: **0.7287** (4.6—26.2 mL) / 0.8372 /
+**0.8754** (51.6—252.1 mL) — a **0.147 Dice** gap. The internal cohort agrees
+in direction but 19 cases leave it underpowered, so the external cohort carries
+the finding.
+
+**The compounding follow-on was tested and does NOT hold.** PSA density divides
+by gland volume, so if the relative volume error also grew as the gland shrank
+the two would multiply. Correlation of reference volume against absolute
+percentage volume error: **+0.088 (p=0.72)**, tertiles non-monotone
+(13.9% / 7.8% / 15.9%). Recorded as a negative sub-result. With n=19 the honest
+statement is that no evidence was found, not that no effect exists.
+
+This is **a limitation, not a strength**, and both documents report it as one:
+a small gland is the normal finding in younger men and in those without benign
+enlargement, so it bounds where the model can be trusted.
+
+---
+
+## Supervisor review of the manuscript — acted on 2026-11-04
+
+Done: the 2D U-Net choice justified explicitly; a comparison table against the
+dataset's reference implementation (96.3% of its CG Dice, 90.9% of its PZ Dice,
+with the architectural reason); nine references added with CrossRef metadata
+(five JMIR-family, CLAIM 2024, TRIPOD+AI, two surveys) bringing both documents
+to **29 cited**; an argument for why those guidelines do not close this gap
+(they ask for disclosure, not for a check that compares voxels); ORCID
+0009-0000-1459-9139 on the corresponding-author line.
+
+Skripsi-only, deliberately kept out of the journal: hardware specification, the
+VS Code — Colab workflow and why it exists (a 4 GB GTX 1050 cannot train these
+four configurations at a comparable batch size), and three code listings taken
+from the real source.
+
+**Still open from that review:** a preprocessing figure, redrawing the study-flow
+figure, an audit that every figure and table is discussed in the text rather
+than merely referenced, trimming narrative in favour of result description, and
+studying JMIR's house structure to match it.
+
+**Length is now a real problem.** EN body prose is ~7.2k words against JMIR's
+typical 3,000—6,000. The additions above are substance, not padding, so the trim
+has to come from elsewhere — and the supervisor also asked for less narrative,
+which points the same way.
+
+---
+
 ### Anterior stroma — hypothesis REFUTED — `results/external_anterior_stroma/`
 
 The manuscript used to imply that part of the external CG gap came from the
