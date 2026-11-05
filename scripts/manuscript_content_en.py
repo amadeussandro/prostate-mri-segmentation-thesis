@@ -85,16 +85,16 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "clinical meaning.")))
     add(("abs", ("Methods",
         f"We used Prostate158 with its official patient-level split (119 training, "
-        f"{a['e1']['n']} validation, {t['n_cases']} held-out test). Four single-factor training "
+        f"{a['e1']['n']} validation, {t['n_cases']} held-out test). Four single-factor "
         "configurations were compared: a cross-entropy baseline, plus a soft Dice term, plus "
-        "augmentation, and plus class-weighted cross-entropy. The highest validation macro "
-        "Dice was selected before the test set was examined, frozen, and identified by its "
-        "checkpoint hash. Predictions were reassembled by explicit axial index, "
+        "augmentation, and plus class-weighted cross-entropy. The configuration with the highest "
+        "validation macro Dice was selected before the test set was examined, frozen, and "
+        "identified by its checkpoint hash. Predictions were reassembled by explicit axial index, "
         "inverse-transformed, written with the source affine restored, and scored per case in "
         "original voxel space. Reconstruction correctness was assessed by a geometric checklist "
         "and a model-free round-trip test, and an ablation rebuilt the same predictions with "
         "individual operations omitted. Zone volumes were compared by Bland-Altman analysis. "
-        "The frozen model was finally applied "
+        "The frozen model was then applied "
         f"once to {e['n_cases']} independent PROSTATEx examinations.")))
     add(("abs", ("Results",
         f"The four configurations spanned {N['arm_spread']:.4f} macro Dice on validation, "
@@ -111,12 +111,12 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"{abs(v['whole']['pct_of_gt']):.1f}%, inflating PSA density "
         f"{v['psad']['mean_pct']:.1f}%. External macro Dice was {e['macro']['mean']:.4f}. "
         f"Accuracy depended on gland size: external CG Dice rose from "
-        f"{gs['external']['cg']['tertiles'][0]['dice_mean']:.4f} in the smallest size tertile "
+        f"{gs['external']['cg']['tertiles'][0]['dice_mean']:.4f} in the smallest tertile "
         f"to {gs['external']['cg']['tertiles'][2]['dice_mean']:.4f} in the largest.")))
     add(("abs", ("Conclusions",
         "A standard 2D U-Net segments the central gland reliably and the peripheral zone less "
         "so, and three single-factor interventions moved performance by less than the variation "
-        "between patients. The transferable finding is the reconstruction one: geometric "
+        "between patients. The transferable finding concerns reconstruction: geometric "
         "validation and overlap metrics are each blind to a different class of error, so "
         "neither alone suffices. Because zone volumes enter PSA "
         "density as a denominator, an error invisible to Dice can still change a clinical "
@@ -320,9 +320,13 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "identical architecture, AdamW with a learning rate of 0.001 and weight decay of 0.0001, "
         "batch size 8, 100 epochs, full 32-bit precision, and a fixed random seed of 42."))
     add(("p",
-        "The selection rule was fixed before the held-out data were examined: the configuration "
-        "with the highest macro Dice on the 20 validation cases would be selected, and no test "
-        "metric would contribute to that decision. After selection the checkpoint was frozen and "
+        "Selection happened at two levels, and the rule for each was fixed before the held-out "
+        "data were examined. Within each training run, the checkpoint retained was the epoch "
+        "with the highest validation Dice computed by the training loop, a batch-level average "
+        "over 2D validation slices. Between runs, the configuration with the highest macro Dice "
+        "on the 20 validation cases, computed per case on the reconstructed volume in original "
+        "voxel space, would be selected. No test metric contributed to either decision. After "
+        "selection the checkpoint was frozen and "
         "identified by the SHA-256 hash of its weights thereafter, so that every subsequent "
         "analysis could be shown to use the same model rather than a file with the same name."))
 
@@ -534,10 +538,13 @@ def build(N: dict) -> List[Tuple[str, object]]:
                              "7,762,531 parameters"],
             ["Optimizer", "AdamW, learning rate 0.001, weight decay 0.0001"],
             ["Batch size", "8 slices"],
-            ["Training epochs", "100 (best checkpoint selected on validation)"],
+            ["Training epochs", "100"],
             ["Random seed", "42"],
             ["Precision", "FP32"],
-            ["Selection rule", "Highest macro Dice on the validation split, fixed in advance"],
+            ["Checkpoint selection (within a run)",
+             "Highest batch-level validation Dice over 2D slices"],
+            ["Configuration selection",
+             "Highest case-level macro Dice on the validation split, fixed in advance"],
             ["Model identity", "SHA-256 of the frozen checkpoint"],
             ["External cohort", f"PROSTATEx, {e['n_cases']} examinations, inference only"],
         ])))
@@ -1412,7 +1419,7 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         "the quantity used to select the checkpoint. Shading marks the epochs of the selected "
         "configuration whose history was not retained.")))
     add(("p",
-        f"The validation Dice in Figure S1 lies near 0.6 to 0.7, well below the validation "
+        f"The validation Dice in Figure S1 settles near 0.6 to 0.7, well below the validation "
         f"values in Table 2, although both are computed on the same {n_val} cases. They are not "
         f"the same quantity. The curve is the Dice computed during training on each batch of 2D "
         f"slices and averaged across batches with equal weight; Table 2 reports case-level Dice "
@@ -1448,19 +1455,23 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
 
     # ------------------------------------------------------ S3-S5
     add(("h3", "The Configuration Comparison in Detail"))
+    # What is consistent across the four arms is WHICH case is lowest, not how far
+    # below the others it sits: in the augmentation arm the gap to the next case
+    # is small. So the sentence claims identity, never distance.
     if X["hardest_same_in_all"]:
-        hardest = (f"In all four configurations that case is the same patient, case "
-                   f"{hv['e1']['case']}: whatever the intervention, the hardest case remained "
-                   f"the hardest. This is the most direct evidence that case difficulty, not the "
-                   f"choice of configuration, determines the spread of results.")
+        hardest = (f"In all four configurations the lowest-scoring case is the same patient, "
+                   f"case {hv['e1']['case']}: whatever the intervention, the hardest case "
+                   f"remained the hardest. This is the most direct evidence that case "
+                   f"difficulty, not the choice of configuration, determines the spread of "
+                   f"results.")
     else:
-        hardest = ("The lowest case is not the same patient in every configuration, so this "
-                   "figure alone does not separate case difficulty from configuration.")
+        hardest = ("The lowest-scoring case is not the same patient in every configuration, so "
+                   "this figure alone does not separate case difficulty from configuration.")
     add(("p",
         f"Figure S3 shows the per-case macro Dice of the four configurations. The distributions "
-        f"overlap almost completely, and each has one case well below the rest. {hardest} "
-        f"Figure S4 extends Table 2 to every reported metric. The pattern seen for Dice repeats "
-        f"for each, with one exception, discussed next."))
+        f"overlap almost completely. {hardest} Figure S4 extends Table 2 to every reported "
+        f"metric. The pattern seen for Dice repeats for each, with one exception, discussed "
+        f"next."))
     add(("fig", (f"{FIG_DIR_RQ1}/02_validation_percase_spread.png",
         f"Figure S3. Per-case macro Dice of the four configurations on the {n_val} validation "
         f"cases. Each point is one case, boxes mark the quartiles, and the value above each "
@@ -1481,15 +1492,15 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         f"meant to make the model claim more of it, and Figure S5 shows that it did. "
         f"Peripheral-zone recall rose from {op['e1']['recall']:.4f} to "
         f"{op['e3']['recall']:.4f}, and it rose in {m3['recall_up']} of {m3['n']} validation "
-        f"cases. The gain was paid for in kind. Precision fell from "
+        f"cases. The gain came at a matching cost. Precision fell from "
         f"{op['e1']['precision']:.4f} to {op['e3']['precision']:.4f}, again in "
         f"{m3['precision_down']} of {m3['n']} cases, so Dice, which weighs both kinds of error, "
         f"barely moved ({op['e1']['dice']:.4f} against {op['e3']['dice']:.4f}, higher in only "
-        f"{m3['dice_up']} of {m3['n']} cases). The intervention worked exactly as designed; it "
-        f"moved the operating point between the two errors without reducing either. The "
-        f"peripheral-zone shortfall is therefore not something a reweighting can fix. It "
-        f"requires a model that separates the zonal boundary better, not one that is merely "
-        f"more willing to claim it."))
+        f"{m3['dice_up']} of {m3['n']} cases). The intervention worked exactly as designed: it "
+        f"traded missed peripheral zone for peripheral zone claimed in the wrong place, and the "
+        f"overlap stayed where it was. The peripheral-zone shortfall is therefore not something "
+        f"a reweighting can fix. It requires a model that separates the zonal boundary better, "
+        f"not one that is merely more willing to claim it."))
 
     _require(op["e2"]["precision"] < op["baseline"]["precision"]
              and op["e2"]["recall"] < op["baseline"]["recall"],
@@ -1499,7 +1510,7 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         f"precision ({op['e2']['precision']:.4f}) and recall ({op['e2']['recall']:.4f}) both "
         f"sit slightly below those of the baseline ({op['baseline']['precision']:.4f} and "
         f"{op['baseline']['recall']:.4f}). It did not shift the operating point in either "
-        f"direction; it produced no measurable benefit on this data. The available evidence "
+        f"direction; it produced no measurable benefit on these data. The available evidence "
         f"does not identify why, and no claim is made."))
     add(("fig", (f"{FIG_DIR_RQ1}/04_e3_mechanism.png",
         f"Figure S5. The class-weighting mechanism on the peripheral zone, {m3['n']} validation "
@@ -1532,8 +1543,9 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         f"Figure S7 and Table S1 give the held-out results case by case. Central-gland Dice "
         f"stays within a narrow band ({t['cg_range'][0]:.4f}-{t['cg_range'][1]:.4f}), while "
         f"peripheral-zone Dice ranges far more widely "
-        f"({t['pz_range'][0]:.4f}-{t['pz_range'][1]:.4f}), {span_pz / span_cg:.1f} times the "
-        f"span. Most of the variation in macro Dice therefore comes from the peripheral zone. The "
+        f"({t['pz_range'][0]:.4f}-{t['pz_range'][1]:.4f}), a span {span_pz / span_cg:.1f} "
+        f"times as wide. Most of the variation in macro Dice therefore comes from the "
+        f"peripheral zone. The "
         f"advantage of the selected configuration over the baseline is spread across "
         f"{tb['macro']['better_in']} cases in small increments, while the largest single "
         f"deterioration ({wv['delta']:+.4f}) falls on case {chal}, the hardest case."))
@@ -1552,8 +1564,8 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
             f"{t['per_class']['pz']['hd95_mm']['mean']:.2f}"]])))
     add(("p",
         "Figure S8 places the whole sequence on one axis: the four configurations on "
-        "validation, then the single evaluation of the frozen model on the test cases, made "
-        "only after the model was frozen."))
+        "validation, then the single evaluation of the selected model on the test cases, made "
+        "only after it was frozen."))
     add(("fig", (f"{FIG_DIR_RQ1}/07_rq1_journey.png",
         "Figure S8. The first research question end to end. Left of the divider: macro Dice of "
         "the four configurations on validation (mean and SD). Right: the frozen selected model "
@@ -1563,13 +1575,17 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     _require(X["lowest_pz_case"] == chal,
              "the hardest case also has the lowest PZ Dice of the test set")
     add(("h3", "Three-Dimensional Views of the Representative Cases"))
+    # Ranks are guarded rather than printed: "ranked 19 of 19" reads as the worst
+    # case when it is the best.
+    _require(rk[good] == n_test and rk[chal] == 1 and rk[med] == n_test // 2 + 1,
+             "the representatives are the highest, median and lowest of the test cases")
     add(("p",
         f"Axial slices show one plane, but the output of this study is a volume. Figures S9-S11 "
-        f"show the three representative cases, ranked {rk[good]}, {rk[med]} and {rk[chal]} of "
-        f"{n_test} by macro Dice, as projections onto the axial, coronal and sagittal planes, "
-        f"computed in original voxel space after reconstruction. The top row is the expert "
-        f"annotation and the bottom row the prediction. The median case is the most "
-        f"representative of typical performance."))
+        f"show the three representative cases - the highest-scoring, the median and the "
+        f"lowest-scoring of the {n_test} test cases by macro Dice - as projections onto the "
+        f"axial, coronal and sagittal planes, computed in original voxel space after "
+        f"reconstruction. The top row is the expert annotation and the bottom row the "
+        f"prediction. The median case is the most representative of typical performance."))
     add(("p",
         "How to read these figures matters. A pixel is coloured if the zone occurs anywhere "
         "along the projection direction, so the figures show silhouettes, not cross-sections. "
@@ -1587,8 +1603,9 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
             f"expert annotation. Bottom: prediction. Left to right: axial, coronal and sagittal. "
             f"Orange: central gland. Blue: peripheral zone.")))
     add(("p",
-        f"In all three cases the predicted central-gland silhouette is wider than the annotated "
-        f"one, most markedly in the hardest case. In case {chal} the predicted peripheral-zone "
+        f"In all three cases the predicted central-gland silhouette is more extensive than the "
+        f"annotated one, most markedly in the hardest case. In case {chal} the predicted "
+        f"peripheral-zone "
         f"silhouette also narrows sharply in every plane: at many positions where the "
         f"annotation contains peripheral zone, the prediction contains none on any slice. This "
         f"is consistent with that case having the lowest peripheral-zone Dice of the test set "

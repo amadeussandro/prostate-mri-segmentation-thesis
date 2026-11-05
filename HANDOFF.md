@@ -427,6 +427,29 @@ Fixed since that compile:
   1.63 cm, 4.1 by 0.29 cm. Headers moved into the captions, type size and
   column separation reduced. The other seven were measured and left alone.
 
+#### Overleaf is ahead of the local copy for four pages — read before any upload
+
+Verified 2026-11-06 by hashing every `.tex` on Overleaf against the local
+source. The student edited these **directly on Overleaf**; the local copies are
+still the template:
+
+- `src/1.Awal/02b-HalamanAI.tex`, `03a-Persetujuan.tex`, `04-Publikasi.tex`,
+  `05-Persembahan.tex` (the last now carries the student's own motto).
+
+**Never upload the local versions of these four.** They are deliberately absent
+from the upload folder `D:\1.AmadeusKuliah\Skripsi\SKRIPSI-Overleaf`, which
+`scripts/sync_overleaf_folder.py` keeps current (it refuses to drop a file
+unless the source holds a byte-identical copy). Two other Overleaf-side edits
+were merged back into the source: `\small` + `\setlength{\tabcolsep}{4pt}` on
+`tab:terdahulu` in Bab2, and `[!ht]` on the reconstruction figure in Bab3.
+Hashing proved those were the only differences.
+
+State of Overleaf when the student took over the upload: `src/_generated/`,
+`01-HalamanJudul`, `Bab3`, `Bab4`, `lampiran` uploaded; the 12 new figures
+**not yet** — until they are, Overleaf fails to compile. The student uploads
+by hand from `SKRIPSI-Overleaf` (see its `README_UNGGAH.txt`); browser upload
+was abandoned as too slow.
+
 #### Expanded 2026-11-05 — more results, not more padding
 
 The project had computed far more than the thesis showed, and RQ1 — the
@@ -639,6 +662,22 @@ python scripts/build_manuscript.py --lang id --template <a clean copy of the doc
 
 Current state: EN 10,949 words, ID 9,743; abstracts 448 / 364; 29 references;
 10 figures; 7 tables; portrait 8.5×11". Both 4.8 MB.
+
+### Model selection is two-level — stated explicitly since 2026-11-06
+
+Methods (both languages), Table 1 and Bab 3 previously described only the
+between-configuration rule (highest case-level macro Dice), leaving Table 2's
+"best epoch" column unexplained. They now state both levels: **within a run**,
+the checkpoint is the epoch with the highest batch-level validation Dice
+(`save_best_metric: "val_dice"` in the config, `src/train.py:1586`); **between
+runs**, the configuration with the highest case-level macro Dice in original
+voxel space. All four epochs in Table 2 were verified: E1/E2/E3 against their
+logs, the baseline (77) against the `epoch` field stored in its checkpoint, and
+each checkpoint's stored `best_metric` equals the log maximum.
+
+The EN abstract had said "The highest validation macro Dice was selected" — the
+word "configuration" was lost when the abstract was squeezed under 450 words.
+Restored; the abstract is now 447 words.
 
 ### The extended version — `--extended`, added 2026-11-05
 

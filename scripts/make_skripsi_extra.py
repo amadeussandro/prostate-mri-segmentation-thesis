@@ -457,6 +457,90 @@ def table_cohort_geometry(out_name):
     return write_tex(out_name, L), n, ok, lost
 
 
+def table_configuration(out_name):
+    """The thesis counterpart of the journal's Table 1.
+
+    The journal types these facts into its content module; here every value is
+    read from where it actually lives: the frozen E1 config, the model class
+    itself (parameter count), the split files, and the result artifacts.
+    """
+    import yaml
+    sys.path.insert(0, PROJECT)
+    from src.model import ProstateUNet2D
+
+    cfg = yaml.safe_load(io.open(os.path.join(
+        PROJECT, "configs", "experiments", "exp_e1_dice_ce.yaml"), encoding="utf-8"))
+    pre, mod, tr = cfg["preprocessing"], cfg["model"], cfg["training"]
+    ev, val = cfg["evaluation"], cfg["validation"]
+
+    model = ProstateUNet2D(in_channels=mod["in_channels"], out_channels=mod["out_channels"],
+                           init_features=mod["init_features"],
+                           dropout_rate=mod["dropout_rate"])
+    n_params = sum(p.numel() for p in model.parameters())
+
+    drive = "G:/My Drive/THESIS_PROSTATE158"
+    def n_rows(rel):
+        with io.open(os.path.join(drive, rel), encoding="utf-8") as fh:
+            return sum(1 for _ in csv.DictReader(fh))
+    n_train = n_rows(cfg["data"]["train_csv"])
+    n_valid = n_rows(cfg["data"]["valid_csv"])
+    test_ids = {r["patient_id"] for r in csv.DictReader(io.open(os.path.join(
+        RESULTS, "rq2_e1_epoch88", "metrics_per_case.csv"), encoding="utf-8"))}
+    n_test = len(test_ids)
+    n_ext = sum(1 for _ in csv.DictReader(io.open(os.path.join(
+        RESULTS, "external_prostatex_e1_v2", "cohort_geometry.csv"), encoding="utf-8")))
+
+    def thousands(n):
+        return "{:,}".format(n).replace(",", ".")
+
+    h, w = pre["target_size"]
+    rows = [
+        ("Dataset", "Prostate158, %d pemeriksaan MRI" % (n_train + n_valid + n_test)),
+        ("Pembagian resmi",
+         "%d pelatihan / %d validasi / %d uji, tingkat pasien" % (n_train, n_valid, n_test)),
+        ("Masukan", r"T2-\textit{weighted}, %d kanal" % mod["in_channels"]),
+        ("Target", r"Mask anatomi pembaca pertama"),
+        ("Kelas", r"0 = latar, 1 = \textit{central gland}, 2 = \textit{peripheral zone}"),
+        ("Normalisasi intensitas", "per volume"),
+        (r"Penyeragaman \textit{in-plane}",
+         r"\textit{crop}/\textit{pad} ke %d $\times$ %d" % (h, w)),
+        (r"\textit{Resampling through-plane}",
+         "tidak dilakukan" if not pre["z_resample"] else "dilakukan"),
+        ("Arsitektur", r"2D U-Net, %d fitur awal, \textit{dropout} %s"
+         % (mod["init_features"], num(mod["dropout_rate"], 1))),
+        ("Jumlah parameter", thousands(n_params)),
+        (r"\textit{Optimizer}", r"%s, \textit{learning rate} %s, \textit{weight decay} %s"
+         % (tr["optimizer"], num(tr["learning_rate"], 3), num(tr["weight_decay"], 4))),
+        (r"\textit{Batch size}", "%d irisan" % tr["batch_size"]),
+        (r"Jumlah \textit{epoch}", "%d" % tr["num_epochs"]),
+        (r"\textit{Random seed}", "%d" % tr["seed"]),
+        ("Presisi", "FP32" if not tr["amp"] else "campuran (AMP)"),
+        (r"Pemilihan \textit{checkpoint}",
+         r"Dice validasi tingkat \textit{batch} tertinggi"
+         if val["save_best_metric"] == "val_dice" else val["save_best_metric"]),
+        ("Pemilihan konfigurasi", "Dice makro tingkat kasus tertinggi pada data validasi"),
+        ("Evaluasi", "per kasus, ruang voxel asli"
+         if ev["aggregation"] == "per_case" and ev["space"] == "original_voxel"
+         else "%s, %s" % (ev["aggregation"], ev["space"])),
+        ("Kohort eksternal", "PROSTATEx, %d pemeriksaan, inferensi saja" % n_ext),
+    ]
+    L = [r"\begin{table}[htbp]", r"\centering",
+         r"\caption{Karakteristik dataset dan konfigurasi eksperimen. Seluruh nilai"
+         r" dibaca dari konfigurasi model E1 yang dibekukan, dari model itu sendiri,"
+         r" dan dari berkas pembagian data.}",
+         r"\label{tab:konfigurasi-eksperimen}",
+         r"\small",
+         # Label column ~4.4 cm at \small + 7.4 cm + separators stays inside the
+         # 14.00 cm text block; 8.2 cm with the old split label reached ~15.3 cm.
+         r"\begin{tabular}{l p{7.4cm}}",
+         r"\hline",
+         r"\textbf{Butir} & \textbf{Nilai} \\",
+         r"\hline"]
+    L += [r"%s & %s \\" % (k, v) for k, v in rows]
+    L += [r"\hline", r"\end{tabular}", r"\end{table}"]
+    return write_tex(out_name, L), n_params, (n_train, n_valid, n_test), n_ext
+
+
 # ---------------------------------------------------------------- adopt
 ADOPT = [
     ("figures_rq1/01_validation_dice_overview.png", "fig_rq1_ikhtisar.png"),
@@ -522,6 +606,10 @@ def main():
     t3, n, ok, lost = table_cohort_geometry("tabel_geometri_kohort.tex")
     print("tabel: %s  (%d pemeriksaan, %d lolos geometri, %d voxel hilang)"
           % (os.path.basename(t3), n, ok, lost))
+
+    t4, n_params, split, n_ext = table_configuration("tabel_konfigurasi_eksperimen.tex")
+    print("tabel: %s  (%d parameter, pembagian %d/%d/%d, eksternal %d)"
+          % ((os.path.basename(t4), n_params) + split + (n_ext,)))
     return 0
 
 

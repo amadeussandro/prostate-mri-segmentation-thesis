@@ -318,9 +318,13 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "arsitektur identik, AdamW dengan learning rate 0,001 dan weight decay 0,0001, batch size "
         "8, 100 epoch, presisi penuh 32-bit, dan random seed tetap sebesar 42."))
     add(("p",
-        "Aturan pemilihan ditetapkan sebelum data uji diperiksa: konfigurasi dengan macro Dice "
-        "tertinggi pada 20 kasus validasi akan dipilih, dan tidak ada metrik uji yang turut "
-        "menentukan keputusan tersebut. Setelah dipilih, checkpoint dibekukan dan selanjutnya "
+        "Pemilihan dilakukan pada dua tingkat, dan aturan masing-masing ditetapkan sebelum data "
+        "uji diperiksa. Di dalam setiap run pelatihan, checkpoint yang disimpan adalah epoch "
+        "dengan Dice validasi tertinggi yang dihitung oleh loop pelatihan, yaitu rerata tingkat "
+        "batch atas irisan validasi 2D. Di antara run, konfigurasi dengan macro Dice tertinggi "
+        "pada 20 kasus validasi, yang dihitung per kasus pada volume hasil rekonstruksi di ruang "
+        "voxel asli, akan dipilih. Tidak ada metrik uji yang turut menentukan kedua keputusan "
+        "tersebut. Setelah dipilih, checkpoint dibekukan dan selanjutnya "
         "diidentifikasi melalui nilai hash SHA-256 bobotnya, sehingga setiap analisis berikutnya "
         "dapat dibuktikan menggunakan model yang sama, bukan sekadar berkas dengan nama yang sama."))
 
@@ -532,10 +536,13 @@ def build(N: dict) -> List[Tuple[str, object]]:
                            "7.762.531 parameter"],
             ["Optimizer", "AdamW, learning rate 0,001, weight decay 0,0001"],
             ["Batch size", "8 irisan"],
-            ["Jumlah epoch pelatihan", "100 (checkpoint terbaik dipilih pada data validasi)"],
+            ["Jumlah epoch pelatihan", "100"],
             ["Random seed", "42"],
             ["Presisi", "FP32"],
-            ["Aturan pemilihan", "Macro Dice tertinggi pada data validasi, ditetapkan di muka"],
+            ["Pemilihan checkpoint (dalam satu run)",
+             "Dice validasi tingkat batch tertinggi pada irisan 2D"],
+            ["Pemilihan konfigurasi",
+             "Macro Dice tingkat kasus tertinggi pada data validasi, ditetapkan di muka"],
             ["Identitas model", "SHA-256 checkpoint beku"],
             ["Kohort eksternal", f"PROSTATEx, {e['n_cases']} pemeriksaan, inferensi saja"],
         ])))
@@ -1266,9 +1273,9 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     add(("p",
         "Gambar S1 menyajikan riwayat pelatihan. Loss pelatihan digambar satu konfigurasi per "
         "panel karena ketiga konfigurasi yang tercatat mengoptimalkan fungsi objektif yang "
-        "berbeda: konfigurasi terpilih menambahkan suku Dice lunak pada cross-entropy, "
+        "berbeda: konfigurasi terpilih menambahkan suku soft Dice pada cross-entropy, "
         "konfigurasi augmentasi hanya memakai cross-entropy, dan konfigurasi pembobotan kelas "
-        "menambahkan suku Dice lunak pada cross-entropy berbobot kelas. Nilai loss "
+        "menambahkan suku soft Dice pada cross-entropy berbobot kelas. Nilai loss "
         "antarkonfigurasi karena itu tidak dapat dibandingkan, dan loss konfigurasi augmentasi "
         "yang jauh lebih kecil semata mencerminkan ketiadaan suku Dice, bukan pelatihan yang "
         "lebih baik. Hanya Dice validasi pada panel bawah yang merupakan besaran yang sama bagi "
@@ -1276,17 +1283,18 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     add(("p",
         f"Dua celah dalam catatan dinyatakan alih-alih disembunyikan. Riwayat konfigurasi "
         f"terpilih hanya mencakup epoch {tr['e1']['first']}-{tr['e1']['last']}: pelatihan "
-        f"dilanjutkan dari titik simpan, dan proses lanjutan itu menimpa catatan sebelumnya. "
+        f"dilanjutkan dari checkpoint, dan proses lanjutan itu menimpa catatan sebelumnya. "
         f"Bobot model dan hasil pemilihan tidak terpengaruh, karena nilai terbaik yang sedang "
-        f"berjalan tersimpan di dalam titik simpan itu sendiri. Konfigurasi dasar tidak "
+        f"berjalan tersimpan di dalam checkpoint itu sendiri. Baseline tidak "
         f"menyimpan riwayat pelatihan sama sekali dan tidak muncul pada gambar."))
     add(("fig", (f"{FIG_EXT}/fig_training_curves.png",
         "Gambar S1. Riwayat pelatihan. A-C: loss pelatihan setiap konfigurasi pada skalanya "
         "sendiri, karena masing-masing mengoptimalkan fungsi objektif yang berbeda. D: Dice "
-        "validasi tingkat batch, yaitu besaran yang dipakai untuk memilih titik simpan. Daerah "
+        "validasi tingkat batch, yaitu besaran yang dipakai untuk memilih checkpoint. Daerah "
         "berarsir menandai epoch konfigurasi terpilih yang riwayatnya tidak tersimpan.")))
     add(("p",
-        f"Dice validasi pada Gambar S1 berada di sekitar 0.6 hingga 0.7, jauh di bawah nilai "
+        f"Dice validasi pada Gambar S1 akhirnya mendatar di sekitar 0.6 hingga 0.7, jauh di "
+        f"bawah nilai "
         f"validasi pada Tabel 2, meskipun keduanya dihitung pada {n_val} kasus yang sama. "
         f"Keduanya bukan besaran yang sama. Kurva memuat Dice yang dihitung selama pelatihan "
         f"pada setiap batch irisan 2D lalu dirata-ratakan antar-batch dengan bobot setara; "
@@ -1302,16 +1310,16 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     _require(se["macro_best_value"] > se["macro_at_selected"],
              "the batch-level macro is higher at its own peak than at the selected epoch")
     add(("p",
-        f"Gambar S2 memperbesar epoch {se['window'][0]}-{se['window'][1]}. Kriteria yang "
+        f"Gambar S2 memperbesar rentang epoch {se['window'][0]}-{se['window'][1]}. Kriteria yang "
         f"dimaksimalkan loop pelatihan mencapai puncaknya pada epoch {se['epoch']}, tempat "
-        f"titik simpan dibekukan, dan aturan yang sama diterapkan pada setiap konfigurasi. "
+        f"checkpoint dibekukan, dan aturan yang sama diterapkan pada setiap konfigurasi. "
         f"Gambar tersebut juga memperlihatkan hal yang perlu dinyatakan secara terbuka: rerata "
         f"makro Dice central gland dan peripheral zone tingkat batch justru mencapai puncaknya "
         f"pada epoch {se['macro_best_epoch']} ({se['macro_best_value']:.4f}, berbanding "
         f"{se['macro_at_selected']:.4f} pada epoch {se['epoch']}). Seandainya besaran itu yang "
         f"menjadi kriteria, epoch yang terpilih akan berbeda. Apakah epoch "
         f"{se['macro_best_epoch']} juga lebih tinggi pada Dice tingkat kasus yang dilaporkan "
-        f"tidak dapat diuji, karena hanya titik simpan terbaik dan titik simpan terakhir yang "
+        f"tidak dapat diuji, karena hanya checkpoint terbaik dan checkpoint terakhir yang "
         f"disimpan. Hal ini tidak membatalkan pemilihan: kriteria telah ditetapkan di dalam kode "
         f"sebelum pelatihan, diterapkan seragam, dan tidak pernah melibatkan data uji. Namun hal "
         f"ini menunjukkan bahwa pilihan kriteria pemilihan itu sendiri berkonsekuensi, dan bahwa "
@@ -1324,19 +1332,19 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     # ------------------------------------------------------ S3-S5
     add(("h3", "Perbandingan Konfigurasi secara Rinci"))
     if X["hardest_same_in_all"]:
-        hardest = (f"Pada keempat konfigurasi, kasus tersebut adalah pasien yang sama, yaitu "
-                   f"kasus {hv['e1']['case']}: apa pun intervensinya, kasus tersulit tetap "
-                   f"kasus tersulit. Inilah bukti paling langsung bahwa tingkat kesulitan kasus, "
-                   f"bukan pilihan konfigurasi, yang menentukan sebaran hasil.")
+        hardest = (f"Pada keempat konfigurasi, kasus dengan skor terendah adalah pasien yang "
+                   f"sama, yaitu kasus {hv['e1']['case']}: apa pun intervensinya, kasus "
+                   f"tersulit tetap kasus tersulit. Inilah bukti paling langsung bahwa tingkat "
+                   f"kesulitan kasus, bukan pilihan konfigurasi, yang menentukan sebaran hasil.")
     else:
-        hardest = ("Kasus terendah bukan pasien yang sama pada setiap konfigurasi, sehingga "
-                   "gambar ini saja tidak memisahkan kesulitan kasus dari konfigurasi.")
+        hardest = ("Kasus dengan skor terendah bukan pasien yang sama pada setiap konfigurasi, "
+                   "sehingga gambar ini saja tidak memisahkan kesulitan kasus dari "
+                   "konfigurasi.")
     add(("p",
         f"Gambar S3 menampilkan Dice makro per kasus keempat konfigurasi. Distribusinya saling "
-        f"bertumpuk hampir sepenuhnya, dan setiap konfigurasi memiliki satu kasus yang jauh di "
-        f"bawah yang lain. {hardest} Gambar S4 memperluas Tabel 2 ke seluruh metrik yang "
-        f"dilaporkan. Pola yang terlihat pada Dice berulang pada setiap metrik, dengan satu "
-        f"pengecualian yang dibahas berikut."))
+        f"bertumpuk hampir sepenuhnya. {hardest} Gambar S4 memperluas Tabel 2 ke seluruh "
+        f"metrik yang dilaporkan. Pola yang terlihat pada Dice berulang pada setiap metrik, "
+        f"dengan satu pengecualian yang dibahas berikut."))
     add(("fig", (f"{FIG_DIR_RQ1}/02_validation_percase_spread.png",
         f"Gambar S3. Dice makro per kasus keempat konfigurasi pada {n_val} kasus validasi. "
         f"Setiap titik adalah satu kasus, kotak menandai kuartil, dan nilai di atas setiap "
@@ -1363,8 +1371,9 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         f"sehingga Dice, yang menimbang kedua jenis kesalahan, nyaris tidak bergerak "
         f"({op['e1']['dice']:.4f} berbanding {op['e3']['dice']:.4f}, lebih tinggi hanya pada "
         f"{m3['dice_up']} dari {m3['n']} kasus). Intervensi tersebut bekerja tepat seperti "
-        f"rancangannya; ia memindahkan titik operasi di antara kedua jenis kesalahan tanpa "
-        f"mengurangi salah satunya. Kekurangan pada peripheral zone karena itu bukan sesuatu yang "
+        f"rancangannya: ia menukar peripheral zone yang terlewat dengan peripheral zone yang "
+        f"diklaim di tempat yang salah, dan tumpang-tindihnya tidak berubah. "
+        f"Kekurangan pada peripheral zone karena itu bukan sesuatu yang "
         f"dapat diatasi dengan pembobotan ulang. Yang diperlukan adalah model yang lebih mampu "
         f"membedakan batas zona, bukan model yang sekadar lebih berani mengklaimnya."))
 
@@ -1374,7 +1383,7 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     add(("p",
         f"Konfigurasi augmentasi tidak memiliki penjelasan yang setara. Precision "
         f"({op['e2']['precision']:.4f}) dan recall ({op['e2']['recall']:.4f}) peripheral zone-"
-        f"nya sama-sama sedikit di bawah konfigurasi dasar ({op['baseline']['precision']:.4f} "
+        f"nya sama-sama sedikit di bawah baseline ({op['baseline']['precision']:.4f} "
         f"dan {op['baseline']['recall']:.4f}). Augmentasi tidak menggeser titik operasi ke arah "
         f"mana pun; ia semata tidak memberi manfaat yang terukur pada data ini. Bukti yang "
         f"tersedia tidak cukup untuk menentukan penyebabnya, dan tidak ada klaim yang dibuat."))
@@ -1398,7 +1407,7 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         "yang dilaporkan sebagai jawaban pertanyaan penelitian pertama."))
     add(("fig", (f"{FIG_DIR_RQ1}/05_validation_vs_test.png",
         f"Gambar S6. Kiri: Dice konfigurasi terpilih pada {n_val} kasus validasi dan {n_test} "
-        f"kasus uji, beserta selisihnya. Kanan: konfigurasi dasar dan konfigurasi terpilih pada "
+        f"kasus uji, beserta selisihnya. Kanan: baseline dan konfigurasi terpilih pada "
         f"{n_test} kasus uji yang sama.")))
 
     span_cg = t["cg_range"][1] - t["cg_range"][0]
@@ -1408,17 +1417,18 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
     add(("p",
         f"Gambar S7 dan Tabel S1 merinci hasil data uji per kasus. Dice central gland berada "
         f"dalam rentang yang sempit ({t['cg_range'][0]:.4f}-{t['cg_range'][1]:.4f}), sedangkan "
-        f"Dice peripheral zone berkisar jauh lebih lebar "
-        f"({t['pz_range'][0]:.4f}-{t['pz_range'][1]:.4f}), {span_pz / span_cg:.1f} kali "
-        f"rentangnya. Sebagian besar variasi Dice makro karena itu berasal dari peripheral zone. "
-        f"Keunggulan konfigurasi terpilih atas konfigurasi dasar tersebar pada "
+        f"rentang Dice peripheral zone "
+        f"({t['pz_range'][0]:.4f}-{t['pz_range'][1]:.4f}) {span_pz / span_cg:.1f} "
+        f"kali lebih lebar. Sebagian besar variasi Dice makro karena itu berasal dari "
+        f"peripheral zone. "
+        f"Keunggulan konfigurasi terpilih atas baseline tersebar pada "
         f"{tb['macro']['better_in']} kasus dengan selisih yang kecil, sedangkan penurunan "
         f"terbesar ({wv['delta']:+.4f}) justru terjadi pada kasus {chal}, yaitu kasus "
         f"tersulit."))
     add(("fig", (f"{FIG_DIR_RQ1}/06_test_percase.png",
         f"Gambar S7. Hasil per kasus pada {n_test} kasus data uji. Kiri: Dice central gland, "
         f"peripheral zone, dan makro model terpilih. Kanan: perubahan Dice makro terhadap "
-        f"konfigurasi dasar, hijau bila model terpilih lebih baik dan merah bila lebih buruk.")))
+        f"baseline, hijau bila model terpilih lebih baik dan merah bila lebih buruk.")))
     add(("tbl", (f"Tabel S1. Hasil per kasus model terpilih pada {n_test} kasus data uji, pada "
                  f"ruang voxel asli setelah rekonstruksi 3D.",
         ["Kasus", "Dice CG", "Dice PZ", "HD95 CG (mm)", "HD95 PZ (mm)"],
@@ -1429,24 +1439,26 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
             f"{t['per_class']['pz']['hd95_mm']['mean']:.2f}"]])))
     add(("p",
         "Gambar S8 meletakkan seluruh urutan pada satu sumbu: keempat konfigurasi pada data "
-        "validasi, lalu satu-satunya evaluasi model yang dibekukan pada data uji, yang dilakukan "
-        "hanya setelah model dibekukan."))
+        "validasi, lalu satu-satunya evaluasi model terpilih pada data uji, yang dilakukan hanya "
+        "setelah model tersebut dibekukan."))
     add(("fig", (f"{FIG_DIR_RQ1}/07_rq1_journey.png",
         "Gambar S8. Pertanyaan penelitian pertama dari awal hingga akhir. Kiri garis batas: Dice "
         "makro keempat konfigurasi pada data validasi (rerata dan simpangan baku). Kanan: model "
-        "terpilih yang dibekukan dan konfigurasi dasar pada data uji.")))
+        "terpilih yang dibekukan dan baseline pada data uji.")))
 
     # ------------------------------------------------------ S9-S11
     _require(X["lowest_pz_case"] == chal,
              "the hardest case also has the lowest PZ Dice of the test set")
     add(("h3", "Tampilan Tiga Dimensi Kasus Perwakilan"))
+    _require(rk[good] == n_test and rk[chal] == 1 and rk[med] == n_test // 2 + 1,
+             "the representatives are the highest, median and lowest of the test cases")
     add(("p",
         f"Irisan aksial hanya memperlihatkan satu bidang, padahal keluaran penelitian ini adalah "
-        f"volume. Gambar S9-S11 menampilkan ketiga kasus perwakilan, yang berperingkat "
-        f"{rk[good]}, {rk[med]}, dan {rk[chal]} dari {n_test} menurut Dice makro, sebagai "
-        f"proyeksi pada bidang aksial, koronal, dan sagital, dihitung pada ruang voxel asli "
-        f"setelah rekonstruksi. Baris atas memuat anotasi pakar dan baris bawah memuat prediksi. "
-        f"Kasus median paling mewakili kinerja tipikal model."))
+        f"volume. Gambar S9-S11 menampilkan ketiga kasus perwakilan, yaitu kasus dengan skor "
+        f"tertinggi, kasus median, dan kasus dengan skor terendah dari {n_test} kasus uji "
+        f"menurut Dice makro, sebagai proyeksi pada bidang aksial, koronal, dan sagital, "
+        f"dihitung pada ruang voxel asli setelah rekonstruksi. Baris atas memuat anotasi pakar "
+        f"dan baris bawah memuat prediksi. Kasus median paling mewakili kinerja tipikal model."))
     add(("p",
         "Cara membaca gambar ini perlu dijelaskan. Setiap piksel diwarnai bila zona yang "
         "bersangkutan muncul di mana pun sepanjang arah proyeksi, sehingga yang ditampilkan "
@@ -1465,7 +1477,8 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
             f"pakar. Bawah: prediksi. Kiri ke kanan: aksial, koronal, dan sagital. Oranye: "
             f"central gland. Biru: peripheral zone.")))
     add(("p",
-        f"Pada ketiga kasus, siluet central gland prediksi lebih luas daripada anotasi, dan "
+        f"Pada ketiga kasus, siluet central gland prediksi lebih luas sebarannya daripada "
+        f"anotasi, dan "
         f"perbedaan itu paling mencolok pada kasus tersulit. Pada kasus {chal}, siluet "
         f"peripheral zone prediksi juga menyempit tajam pada setiap bidang: di banyak posisi "
         f"tempat anotasi memuat peripheral zone, prediksi tidak memuatnya pada irisan mana pun. "
@@ -1495,7 +1508,7 @@ def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
         f"pelatihan; ketebalan irisan berkisar dari {eg['through_min']:.2f} hingga "
         f"{eg['through_max']:.2f} mm; dan ukuran matriks dari {ge['matrix_min']} hingga "
         f"{ge['matrix_max']} piksel. Setiap kombinasi tersebut harus dibalik dengan benar oleh "
-        f"rekonstruksi. Ke-{eg['n_cropped']} pemeriksaan yang matriksnya melebihi masukan "
+        f"rekonstruksi. Sebanyak {eg['n_cropped']} pemeriksaan yang matriksnya melebihi masukan "
         f"jaringan {ni[0]} x {ni[1]} piksel semuanya merupakan akuisisi "
         f"{'/'.join(str(m) for m in ge['cropped_matrix'])} piksel pada "
         f"{'/'.join(f'{x:.1f}' for x in ge['cropped_inplane'])} mm, dan pemotongannya tidak "
