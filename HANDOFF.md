@@ -395,8 +395,9 @@ Location — **outside this repo**: `D:\1.AmadeusKuliah\Skripsi\2611_Skripsi_San
 
 - Entry point `SKRIPSI.tex`; chapter titles come from `settings.tex`; BAB II is
   named "Landasan Teori" by the template, with prior work as a section inside.
-- Bab1–Bab5 written (39 sections, 15 subsections, 10 tables, 9 figures,
-  7 equations), plus `07a-Abstrak.tex` and `07b-Abstract.tex`.
+- Bab1–Bab5 written, plus `07a-Abstrak.tex` and `07b-Abstract.tex`. As of
+  2026-11-05: **22 research figures and 16 tables** (was 10 and 13), see
+  "Expanded 2026-11-05" below.
 - 20 references appended to the root `pustaka.bib` with the same citation keys
   as the journal; the template's own 10 example entries were left in place.
 - Figures copied into `assets/pics/` as `fig_*.png`.
@@ -425,6 +426,60 @@ Fixed since that compile:
 - The three tables that overran the right margin: 4.5 by 2.90 cm, 4.6 by
   1.63 cm, 4.1 by 0.29 cm. Headers moved into the captions, type size and
   column separation reduced. The other seven were measured and left alone.
+
+#### Expanded 2026-11-05 — more results, not more padding
+
+The project had computed far more than the thesis showed, and RQ1 — the
+four-arm comparison — carried no figure at all. `scripts/make_skripsi_extra.py`
+builds everything below from frozen artifacts and writes it into the thesis
+folder; the new tables are generated LaTeX in `src/_generated/` and must not
+be edited by hand. Backups of the two edited files are in
+`_cadangan_20261105_152905/` inside the thesis folder.
+
+Added to Bab 4: training curves and epoch selection (new §4.1 subsections),
+the RQ1 overview and per-case spread, the E3 mechanism, per-case test results,
+3D projections of the three representative cases, the external cohort
+geometry table. Lampiran: the template's example table, figure and VBScript
+listing are gone, replaced by per-case test metrics, full external metrics,
+and three RQ1 figures. The two **mandatory** appendices (Turnitin, Formulir
+Bimbingan) still hold the template's sample files — the student must overwrite
+`fig_individual_source_sample_turnitin.png` and
+`Form_Bimbingan_atau_Konsultasi_Skripsi.pdf` with their own.
+
+Findings the new material surfaced, all now stated in the text:
+
+- **The selection criterion is batch-level, the reported metric case-level.**
+  `src/train.py:1586` selects on `val_metrics["dice"]`, a batch-level 2D
+  proxy. That is why the curves sit near 0.68 while Table 4.1 reports 0.8094
+  for the same 20 cases. Unexplained, it reads as an inconsistency.
+- **Epoch 81 beats epoch 88 on the batch-level macro** (0.7012 vs 0.6963).
+  Epoch 88 is the maximum of the criterion actually used, fixed in code before
+  training. Whether 81 would win at case level **cannot be tested**: only
+  `best_model.pt` and `latest_checkpoint.pt` were kept.
+- **E3's failure is mechanistic.** Against E1, PZ recall rose in 20/20
+  validation cases and precision fell in 20/20; Dice improved in 8/20. The
+  weighting moved the operating point, not the error. E2 has no equivalent
+  explanation, and the text says so.
+- **Case 077 is the hardest validation case in all four arms.**
+- **The thesis had shown only the two extremes.** Text announced case 006 as
+  the median and then showed only 002 and 016. All three now appear in 3D.
+- **The 3D projections expose slice-to-slice inconsistency** — horizontal bands
+  in coronal/sagittal views, a consequence of a 2D model. Added to Keterbatasan.
+- The projections are **silhouettes with PZ painted over CG**, in array
+  orientation (posterior up). The captions and text say how to read them; a
+  silhouette area is not a volume and is never interpreted as one.
+
+Seven `make_rq1_figures.py` defects fixed at source: labels struck through by
+their own error bars, a 2x2 panel layout collapsed into the corners by a
+misplaced legend anchor, HD95 whiskers below 0 mm (now clipped, and labelled
+so), legends over data, a mean label crossed by a curve, two test results drawn
+on top of each other. These figures were unused by the journal, which is why
+fixing them changed nothing there.
+
+Verified: every `\ref` resolves, no duplicate labels; **every decimal in Bab 4
+and the Lampiran prose traced to an artifact** (21 that the journal does not
+print were checked one by one against the loaders and result CSVs).
+**Not yet compiled** — no LaTeX on this machine.
 
 `SKRIPSI-Overleaf.zip` is built by `scratchpad/make_overleaf_zip.py`, which
 refuses to package a tree that still carries placeholders, an unescaped DOI
@@ -584,6 +639,40 @@ python scripts/build_manuscript.py --lang id --template <a clean copy of the doc
 
 Current state: EN 10,949 words, ID 9,743; abstracts 448 / 364; 29 references;
 10 figures; 7 tables; portrait 8.5×11". Both 4.8 MB.
+
+### The extended version — `--extended`, added 2026-11-05
+
+```bash
+python scripts/build_manuscript.py --lang en --extended --out <dir>/...-EN-LENGKAP.docx
+python scripts/build_manuscript.py --lang id --extended --out <dir>/...-ID-LENGKAP.docx
+```
+
+A second, fuller version for the student and supervisor — **not for
+submission**. It is the submission text plus a "Supplementary Results" section
+after the Conclusions: Figures S1–S11 and Tables S1–S3 (21 figures and 10
+tables in all).
+
+Three properties are deliberate and should be kept:
+
+- **The submission build is untouched.** `build()` is never modified; the
+  builder splices the extra blocks in at two `h2` anchors
+  (`EXT_ANCHORS` in each content module). `extended()` in
+  `manuscript_numbers.py` is called only on this path, so a missing artifact
+  can break only the extended build. Proved on 2026-11-05: both submission
+  texts were byte-identical before and after.
+- **S-numbering.** Main-text figure and table numbers are typed into captions
+  and prose, so inserting mid-sequence would shift them all. A separate S
+  series cannot collide. `check_manuscript_submission.py` now verifies the S
+  series for consecutiveness and counts images and tables across both.
+- **Guarded claims.** Every comparative word in the supplementary text —
+  "rose", "fell", "largest", "do not overlap" — has a `_require()` beside it.
+  If the data ever stop supporting a sentence, the build stops instead of
+  printing it. `extended()` also guards that the criterion's maximum is the
+  epoch the paper says was frozen, and that its per-case improvement count
+  agrees with `test_vs_baseline()`.
+
+All three checks pass on the extended pair; the EN↔ID cross-check covers
+177 numbers there (114 in the submission version).
 
 ### Verification — run all three after every rebuild
 

@@ -1335,3 +1335,333 @@ REFERENCES = {
         "Cardoso MJ, Li W, Brown R, Ma N, Kerfoot E, Wang Y, et al. MONAI: An open-source "
         "framework for deep learning in healthcare. arXiv. 2022. doi:10.48550/arXiv.2211.02701",
 }
+
+
+# ===========================================================================
+# Extended version
+# ===========================================================================
+# Used only when build_manuscript.py is run with --extended; the submission
+# build never calls anything below, so the submitted manuscript is unchanged.
+#
+# The material is numbered S1, S2, ... rather than continuing the main
+# sequence. Main-text figure and table numbers are written into captions and
+# prose by hand, so inserting a figure mid-sequence would shift every later
+# number - the failure that once produced "Figures 9 and 9". Separate numbering
+# makes that impossible.
+#
+# Every comparative word in this text ("rose", "fell", "largest", "do not
+# overlap") is guarded: if the data ever stop supporting it, the build stops
+# rather than printing a sentence that has become false.
+
+FIG_EXT = "results/figures_extended"
+
+EXT_ANCHORS = {"pointer_after": "Results", "supplement_before": "Acknowledgments"}
+
+
+def _require(cond: bool, claim: str) -> None:
+    if not cond:
+        raise RuntimeError(f"extended manuscript: the data no longer support: {claim}")
+
+
+def supplementary_pointer(N: dict, X: dict) -> Tuple[str, object]:
+    return ("p",
+        "This extended version adds supplementary results: the training history and the "
+        "evidence behind model selection, the mechanism behind one of the negative results, "
+        "per-case detail on the held-out test, three-dimensional views of the representative "
+        "cases, and the full external metrics and cohort geometry. They follow the Conclusions "
+        "as Figures S1-S11 and Tables S1-S3, numbered separately so that every figure and table "
+        "number in the main text is unchanged.")
+
+
+def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
+    a, t, e = N["arms"], N["test"], N["external"]
+    tb, eg = N["test_vs_baseline"], N["external"]["geometry"]
+    tr, se, op = X["training"], X["selection"], X["pz_operating_point"]
+    m3, hv, rk = X["e3_vs_e1"], X["hardest_validation"], X["test_ranks"]
+    ge, ci, wv = X["geometry_extra"], X["external_ci"], X["vs_baseline_worst"]
+    rep = t["representatives"]
+    good, med, chal = rep["good"], rep["median"], rep["challenging"]
+    n_val, n_test = a["e1"]["n"], X["test_n"]
+    cg_d, pz_d = t["per_class"]["cg"]["dice"], t["per_class"]["pz"]["dice"]
+
+    B: List[Tuple[str, object]] = []
+    add = B.append
+    add(("h2", "Supplementary Results"))
+
+    # ------------------------------------------------------ S1-S2
+    add(("h3", "Training History and Model Selection"))
+    add(("p",
+        "Figure S1 shows the training history. Training losses are plotted one configuration "
+        "per panel because the three logged configurations optimise different objectives: the "
+        "selected configuration adds a soft Dice term to cross-entropy, the augmentation "
+        "configuration uses cross-entropy alone, and the class-weighting configuration adds a "
+        "soft Dice term to class-weighted cross-entropy. Their loss values are therefore not "
+        "comparable, and the much smaller loss of the augmentation configuration reflects the "
+        "absence of a Dice term, not better training. Only validation Dice, in the bottom panel, "
+        "is the same quantity for every configuration."))
+    add(("p",
+        f"Two gaps in the record are stated rather than hidden. The history of the selected "
+        f"configuration covers epochs {tr['e1']['first']}-{tr['e1']['last']} only: training "
+        f"was resumed from a checkpoint, and the resumed run overwrote the earlier log. The "
+        f"model weights and the selection are unaffected, because the running best is stored "
+        f"in the checkpoint itself. The baseline retained no training history and is absent "
+        f"from the figure."))
+    add(("fig", (f"{FIG_EXT}/fig_training_curves.png",
+        "Figure S1. Training history. A-C: training loss of each configuration on its own "
+        "scale, because each optimises a different objective. D: batch-level validation Dice, "
+        "the quantity used to select the checkpoint. Shading marks the epochs of the selected "
+        "configuration whose history was not retained.")))
+    add(("p",
+        f"The validation Dice in Figure S1 lies near 0.6 to 0.7, well below the validation "
+        f"values in Table 2, although both are computed on the same {n_val} cases. They are not "
+        f"the same quantity. The curve is the Dice computed during training on each batch of 2D "
+        f"slices and averaged across batches with equal weight; Table 2 reports case-level Dice "
+        f"on the reconstructed 3D volume, where all voxels of a case are pooled. In the batch "
+        f"average, slices with a small zonal cross-section, at the apex and base, are not "
+        f"down-weighted, although a few pixels of disagreement there are enough to collapse "
+        f"Dice. The first quantity served as the selection criterion during training; the "
+        f"second is the reported result."))
+
+    _require(se["macro_best_epoch"] != se["epoch"],
+             "the batch-level macro peaks at a different epoch from the criterion")
+    _require(se["macro_best_value"] > se["macro_at_selected"],
+             "the batch-level macro is higher at its own peak than at the selected epoch")
+    add(("p",
+        f"Figure S2 enlarges epochs {se['window'][0]}-{se['window'][1]}. The criterion that the "
+        f"training loop maximised peaks at epoch {se['epoch']}, where the checkpoint was "
+        f"frozen, and the same rule was applied to every configuration. The figure also shows "
+        f"something that should be stated openly: the batch-level macro of central-gland and "
+        f"peripheral-zone Dice peaks at epoch {se['macro_best_epoch']} "
+        f"({se['macro_best_value']:.4f}, against {se['macro_at_selected']:.4f} at epoch "
+        f"{se['epoch']}). Had that been the criterion, a different epoch would have been "
+        f"selected. Whether epoch {se['macro_best_epoch']} would also score higher on the "
+        f"reported case-level Dice cannot be tested, because only the best and the final "
+        f"checkpoints were retained. This does not invalidate the selection: the criterion was "
+        f"fixed in code before training, applied uniformly, and never involved the test cases. "
+        f"It does show that the choice of selection criterion is itself consequential, and that "
+        f"epochs near the peak are close to interchangeable."))
+    add(("fig", (f"{FIG_EXT}/fig_epoch_selection.png",
+        f"Figure S2. Model selection for the selected configuration on the {n_val} validation "
+        f"cases, epochs {se['window'][0]}-{se['window'][1]}. Blue: the selection criterion. "
+        f"Red: the macro of central-gland and peripheral-zone Dice. Both are batch-level "
+        f"quantities.")))
+
+    # ------------------------------------------------------ S3-S5
+    add(("h3", "The Configuration Comparison in Detail"))
+    if X["hardest_same_in_all"]:
+        hardest = (f"In all four configurations that case is the same patient, case "
+                   f"{hv['e1']['case']}: whatever the intervention, the hardest case remained "
+                   f"the hardest. This is the most direct evidence that case difficulty, not the "
+                   f"choice of configuration, determines the spread of results.")
+    else:
+        hardest = ("The lowest case is not the same patient in every configuration, so this "
+                   "figure alone does not separate case difficulty from configuration.")
+    add(("p",
+        f"Figure S3 shows the per-case macro Dice of the four configurations. The distributions "
+        f"overlap almost completely, and each has one case well below the rest. {hardest} "
+        f"Figure S4 extends Table 2 to every reported metric. The pattern seen for Dice repeats "
+        f"for each, with one exception, discussed next."))
+    add(("fig", (f"{FIG_DIR_RQ1}/02_validation_percase_spread.png",
+        f"Figure S3. Per-case macro Dice of the four configurations on the {n_val} validation "
+        f"cases. Each point is one case, boxes mark the quartiles, and the value above each "
+        f"group is its mean.")))
+    add(("fig", (f"{FIG_DIR_RQ1}/03_validation_all_metrics.png",
+        f"Figure S4. Every reported metric for the four configurations on the {n_val} "
+        f"validation cases, central gland (top) and peripheral zone (bottom). Left: overlap "
+        f"metrics. Right: surface distances in millimetres, with whiskers clipped at 0 mm "
+        f"because the mean minus the SD would otherwise imply a negative distance.")))
+
+    _require(op["e3"]["recall"] > op["e1"]["recall"], "class weighting raised PZ recall")
+    _require(op["e3"]["precision"] < op["e1"]["precision"], "class weighting lowered PZ precision")
+    _require(m3["recall_up"] == m3["n"] and m3["precision_down"] == m3["n"],
+             "the recall gain and precision loss occurred in every case")
+    add(("p",
+        f"The exception is the class-weighting configuration, and its failure to improve "
+        f"overlap has a mechanistic explanation. Weighting the peripheral zone more heavily is "
+        f"meant to make the model claim more of it, and Figure S5 shows that it did. "
+        f"Peripheral-zone recall rose from {op['e1']['recall']:.4f} to "
+        f"{op['e3']['recall']:.4f}, and it rose in {m3['recall_up']} of {m3['n']} validation "
+        f"cases. The gain was paid for in kind. Precision fell from "
+        f"{op['e1']['precision']:.4f} to {op['e3']['precision']:.4f}, again in "
+        f"{m3['precision_down']} of {m3['n']} cases, so Dice, which weighs both kinds of error, "
+        f"barely moved ({op['e1']['dice']:.4f} against {op['e3']['dice']:.4f}, higher in only "
+        f"{m3['dice_up']} of {m3['n']} cases). The intervention worked exactly as designed; it "
+        f"moved the operating point between the two errors without reducing either. The "
+        f"peripheral-zone shortfall is therefore not something a reweighting can fix. It "
+        f"requires a model that separates the zonal boundary better, not one that is merely "
+        f"more willing to claim it."))
+
+    _require(op["e2"]["precision"] < op["baseline"]["precision"]
+             and op["e2"]["recall"] < op["baseline"]["recall"],
+             "augmentation left both PZ precision and recall slightly below the baseline")
+    add(("p",
+        f"The augmentation configuration has no equivalent explanation. Its peripheral-zone "
+        f"precision ({op['e2']['precision']:.4f}) and recall ({op['e2']['recall']:.4f}) both "
+        f"sit slightly below those of the baseline ({op['baseline']['precision']:.4f} and "
+        f"{op['baseline']['recall']:.4f}). It did not shift the operating point in either "
+        f"direction; it produced no measurable benefit on this data. The available evidence "
+        f"does not identify why, and no claim is made."))
+    add(("fig", (f"{FIG_DIR_RQ1}/04_e3_mechanism.png",
+        f"Figure S5. The class-weighting mechanism on the peripheral zone, {m3['n']} validation "
+        f"cases. Left: precision and recall of the four configurations. Right: per-case change "
+        f"in recall from the selected configuration to the class-weighting configuration.")))
+
+    # ------------------------------------------------------ S6-S8, Table S1
+    add(("h3", "From Validation to the Held-Out Test"))
+    gap_cg = a["e1"]["cg"] - cg_d["mean"]
+    gap_pz = a["e1"]["pz"] - pz_d["mean"]
+    _require(gap_pz > gap_cg > 0, "the validation-to-test drop is largest for PZ, smallest for CG")
+    add(("p",
+        "Figure S6 compares the selected configuration on the validation and test cases. The "
+        "drop from validation to test is largest for the peripheral zone and smallest for the "
+        "central gland. Part of it is expected: the model was chosen because it scored highest "
+        "on validation, so its validation score is optimistically biased. Part may reflect a "
+        "difference in case difficulty between the two splits. The study cannot separate the "
+        "two, which is why only the test result is reported as the answer to the first research "
+        "question."))
+    add(("fig", (f"{FIG_DIR_RQ1}/05_validation_vs_test.png",
+        f"Figure S6. Left: Dice of the selected configuration on the {n_val} validation and "
+        f"{n_test} test cases, with the difference. Right: the baseline and the selected "
+        f"configuration on the same {n_test} test cases.")))
+
+    span_cg = t["cg_range"][1] - t["cg_range"][0]
+    span_pz = t["pz_range"][1] - t["pz_range"][0]
+    _require(span_pz > span_cg, "PZ Dice spans a wider range than CG Dice")
+    _require(wv["case"] == chal, "the largest deterioration falls on the hardest case")
+    add(("p",
+        f"Figure S7 and Table S1 give the held-out results case by case. Central-gland Dice "
+        f"stays within a narrow band ({t['cg_range'][0]:.4f}-{t['cg_range'][1]:.4f}), while "
+        f"peripheral-zone Dice ranges far more widely "
+        f"({t['pz_range'][0]:.4f}-{t['pz_range'][1]:.4f}), {span_pz / span_cg:.1f} times the "
+        f"span. Most of the variation in macro Dice therefore comes from the peripheral zone. The "
+        f"advantage of the selected configuration over the baseline is spread across "
+        f"{tb['macro']['better_in']} cases in small increments, while the largest single "
+        f"deterioration ({wv['delta']:+.4f}) falls on case {chal}, the hardest case."))
+    add(("fig", (f"{FIG_DIR_RQ1}/06_test_percase.png",
+        f"Figure S7. Per-case results on the {n_test} held-out test cases. Left: central-gland, "
+        f"peripheral-zone and macro Dice of the selected model. Right: change in macro Dice "
+        f"against the baseline, green where the selected model is better and red where it is "
+        f"worse.")))
+    add(("tbl", (f"Table S1. Per-case results of the selected model on the {n_test} held-out "
+                 f"test cases, in original voxel space after 3D reconstruction.",
+        ["Case", "CG Dice", "PZ Dice", "CG HD95 (mm)", "PZ HD95 (mm)"],
+        [[p["case"], f"{p['cg_dice']:.4f}", f"{p['pz_dice']:.4f}",
+          f"{p['cg_hd95']:.2f}", f"{p['pz_hd95']:.2f}"] for p in X["test_per_case"]]
+        + [["Mean", f"{cg_d['mean']:.4f}", f"{pz_d['mean']:.4f}",
+            f"{t['per_class']['cg']['hd95_mm']['mean']:.2f}",
+            f"{t['per_class']['pz']['hd95_mm']['mean']:.2f}"]])))
+    add(("p",
+        "Figure S8 places the whole sequence on one axis: the four configurations on "
+        "validation, then the single evaluation of the frozen model on the test cases, made "
+        "only after the model was frozen."))
+    add(("fig", (f"{FIG_DIR_RQ1}/07_rq1_journey.png",
+        "Figure S8. The first research question end to end. Left of the divider: macro Dice of "
+        "the four configurations on validation (mean and SD). Right: the frozen selected model "
+        "and the baseline on the test cases.")))
+
+    # ------------------------------------------------------ S9-S11
+    _require(X["lowest_pz_case"] == chal,
+             "the hardest case also has the lowest PZ Dice of the test set")
+    add(("h3", "Three-Dimensional Views of the Representative Cases"))
+    add(("p",
+        f"Axial slices show one plane, but the output of this study is a volume. Figures S9-S11 "
+        f"show the three representative cases, ranked {rk[good]}, {rk[med]} and {rk[chal]} of "
+        f"{n_test} by macro Dice, as projections onto the axial, coronal and sagittal planes, "
+        f"computed in original voxel space after reconstruction. The top row is the expert "
+        f"annotation and the bottom row the prediction. The median case is the most "
+        f"representative of typical performance."))
+    add(("p",
+        "How to read these figures matters. A pixel is coloured if the zone occurs anywhere "
+        "along the projection direction, so the figures show silhouettes, not cross-sections. "
+        "The peripheral zone is drawn over the central gland, so orange appears only where a "
+        "ray meets central gland and no peripheral zone at all. Silhouette area is therefore "
+        "not volume, and the valid comparison is between the two rows of the same case, which "
+        "are drawn under the same rule. The images are shown in voxel-array orientation rather "
+        "than radiological convention, with posterior at the top, so the rectum appears at the "
+        "top of the axial view."))
+    for case, label in ((good, "the highest-scoring case"), (med, "the median case"),
+                        (chal, "the lowest-scoring case")):
+        n_fig = {good: 9, med: 10, chal: 11}[case]
+        add(("fig", (f"{VIZ}/patient_{case}/patient_{case}_3d_projections.png",
+            f"Figure S{n_fig}. Three-dimensional projections of {label} (case {case}). Top: "
+            f"expert annotation. Bottom: prediction. Left to right: axial, coronal and sagittal. "
+            f"Orange: central gland. Blue: peripheral zone.")))
+    add(("p",
+        f"In all three cases the predicted central-gland silhouette is wider than the annotated "
+        f"one, most markedly in the hardest case. In case {chal} the predicted peripheral-zone "
+        f"silhouette also narrows sharply in every plane: at many positions where the "
+        f"annotation contains peripheral zone, the prediction contains none on any slice. This "
+        f"is consistent with that case having the lowest peripheral-zone Dice of the test set "
+        f"(Table S1). Because silhouettes are not volumes, this is not read as a volume error; "
+        f"volumes are analysed in their own section of the main text."))
+    add(("p",
+        f"The coronal and sagittal views also show something the axial slices cannot. In those "
+        f"planes the vertical axis is the through-plane direction, so each horizontal row of a "
+        f"silhouette comes from one slice. In the predictions, most visibly in case {chal}, "
+        f"horizontal bands appear where one slice is labelled differently from the slices above "
+        f"and below it. This is a direct consequence of the 2D architecture: each slice is "
+        f"segmented independently, without information from its neighbours, so consistency "
+        f"between slices is not guaranteed, and the reconstruction assembles the slices as they "
+        f"are without smoothing them. It is the through-plane context that a 3D network can "
+        f"exploit, as discussed under Comparison With Prior Work."))
+
+    # ------------------------------------------------------ Tables S2-S3
+    add(("h3", "The External Cohort in Detail"))
+    ni = ge["network_input"]
+    _require(ge["lost_in_cropped"] == 0, "cropping removed no annotated voxels")
+    add(("p",
+        f"Table S2 summarises the geometry of the external cohort. It differs from the training "
+        f"data in almost every geometric dimension: in-plane resolution ranges from "
+        f"{eg['inplane_min']:.3f} to {eg['inplane_max']:.3f} mm, so the anatomy appears between "
+        f"{eg['scale_min']:.2f} and {eg['scale_max']:.2f} times its size in the training data; "
+        f"slice thickness ranges from {eg['through_min']:.2f} to {eg['through_max']:.2f} mm; and "
+        f"matrix size from {ge['matrix_min']} to {ge['matrix_max']} pixels. Every combination "
+        f"has to be inverted correctly by the reconstruction. The {eg['n_cropped']} examinations "
+        f"whose matrix exceeded the network input of {ni[0]} x {ni[1]} pixels were all "
+        f"{'/'.join(str(m) for m in ge['cropped_matrix'])}-pixel acquisitions at "
+        f"{'/'.join(f'{x:.1f}' for x in ge['cropped_inplane'])} mm, and cropping them removed "
+        f"no annotated voxel."))
+    add(("tbl", (f"Table S2. Geometry of the external cohort, computed from the source files of "
+                 f"each examination. The anatomical scale is the Prostate158 in-plane spacing "
+                 f"({ge['reference_inplane']:.5f} mm) divided by the spacing of the case; values "
+                 f"above 1 mean the anatomy appears larger than in the training data.",
+        ["Property", f"Value ({ge['n']} examinations)"],
+        [["In-plane resolution (mm)", f"{eg['inplane_min']:.3f}-{eg['inplane_max']:.3f}"],
+         ["Slice thickness (mm)", f"{eg['through_min']:.2f}-{eg['through_max']:.2f}"],
+         ["Anatomical scale relative to Prostate158",
+          f"{eg['scale_min']:.2f}-{eg['scale_max']:.2f}"],
+         ["In-plane matrix (pixels)", f"{ge['matrix_min']}-{ge['matrix_max']}"],
+         [f"Matrix larger than the network input ({ni[0]} x {ni[1]}), cropped",
+          f"{eg['n_cropped']} of {ge['n']}"],
+         ["Annotated voxels lost to cropping", f"{ge['lost_in_cropped']}"],
+         ["Orientation", ", ".join(eg["orientations"])],
+         ["Passed every geometric check", f"{eg['n_all_ok']} of {ge['n']}"],
+         ["Maximum absolute affine difference", f"{ge['affine_max']:.1f}"]])))
+
+    _require(ci["cg"]["dice"]["ci95_low"] > ci["pz"]["dice"]["ci95_high"],
+             "the external Dice intervals of the two zones do not overlap")
+    _require(ci["cg"]["hd95_mm"]["std"] < ci["cg"]["hd95_mm"]["mean"]
+             and ci["pz"]["hd95_mm"]["std"] > ci["pz"]["hd95_mm"]["mean"],
+             "HD95 SD approaches the mean for CG and exceeds it for PZ")
+    add(("p",
+        "Table S3 completes Table 6 with all six metrics and their bootstrap intervals. The "
+        "intervals are narrow because the cohort is large, and the Dice intervals of the two "
+        "zones do not overlap, so the difference between the zones is very unlikely to reflect "
+        "sampling. For HD95 the SD approaches the mean for the central gland and exceeds it for "
+        "the peripheral zone: the signature of a heavy-tailed distribution rather than a uniform "
+        "shift, which the main text traces to small, distant fragments."))
+    rows = []
+    for m, name in (("dice", "Dice"), ("iou", "IoU"), ("hd95_mm", "HD95 (mm)"),
+                    ("asd_mm", "ASD (mm)"), ("precision", "Precision"), ("recall", "Recall")):
+        nd = 2 if m.endswith("_mm") else 4
+        row = [name]
+        for z in ("cg", "pz"):
+            c = ci[z][m]
+            row += [f"{c['mean']:.{nd}f} ({c['std']:.{nd}f})",
+                    f"{c['ci95_low']:.{nd}f}-{c['ci95_high']:.{nd}f}"]
+        rows.append(row)
+    add(("tbl", (f"Table S3. Every reported metric on the external cohort ({e['n_cases']} "
+                 f"examinations, inference only). Mean (population SD) and 95% bootstrap "
+                 f"confidence interval.",
+        ["Metric", "CG mean (SD)", "CG 95% CI", "PZ mean (SD)", "PZ 95% CI"], rows)))
+    return B

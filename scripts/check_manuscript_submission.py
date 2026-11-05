@@ -84,14 +84,25 @@ def check(lab, path):
     tabword = "Table" if lab == "EN" else "Tabel"
     fnums = sorted({int(m) for m in re.findall(figword + r" (\d+)\.", txt)})
     tnums = sorted({int(m) for m in re.findall(tabword + r" (\d+)\.", txt)})
+    # The extended version adds a separate supplementary sequence, S1, S2, ...
+    # It must be consecutive in its own right, and images and tables must be
+    # accounted for across both sequences - otherwise a gap in the S series
+    # would pass unseen, hidden behind a total that merely looks plausible.
+    fsup = sorted({int(m) for m in re.findall(figword + r" S(\d+)\.", txt)})
+    tsup = sorted({int(m) for m in re.findall(tabword + r" S(\d+)\.", txt)})
     ok(fnums == list(range(1, len(fnums) + 1)), "figures numbered consecutively",
        str(fnums))
     ok(tnums == list(range(1, len(tnums) + 1)), "tables numbered consecutively",
        str(tnums))
-    ok(len(d.inline_shapes) == len(fnums), "every figure number has an image",
-       "%d images / %d numbers" % (len(d.inline_shapes), len(fnums)))
-    ok(len(d.tables) == len(tnums), "every table number has a table",
-       "%d tables / %d numbers" % (len(d.tables), len(tnums)))
+    if fsup or tsup:
+        ok(fsup == list(range(1, len(fsup) + 1)), "supplementary figures consecutive",
+           "S" + str(fsup))
+        ok(tsup == list(range(1, len(tsup) + 1)), "supplementary tables consecutive",
+           "S" + str(tsup))
+    ok(len(d.inline_shapes) == len(fnums) + len(fsup), "every figure number has an image",
+       "%d images / %d + %d numbers" % (len(d.inline_shapes), len(fnums), len(fsup)))
+    ok(len(d.tables) == len(tnums) + len(tsup), "every table number has a table",
+       "%d tables / %d + %d numbers" % (len(d.tables), len(tnums), len(tsup)))
 
     # --- formatting defects ----------------------------------------------------
     # A DOI suffix such as 10.1016/j.compbiomed.2022.105817 contains a long

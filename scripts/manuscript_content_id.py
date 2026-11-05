@@ -1217,3 +1217,330 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("refs", REFERENCES))
 
     return B
+
+
+# ===========================================================================
+# Versi lengkap
+# ===========================================================================
+# Hanya dipakai bila build_manuscript.py dijalankan dengan --extended; build
+# versi submit tidak pernah memanggil apa pun di bawah ini. Penomoran S1, S2, ...
+# dan penjaga klaimnya sama persis dengan versi Inggris (lihat penjelasan di
+# manuscript_content_en.py). Angka ditulis bertitik dan diubah menjadi koma
+# saat build, seperti seluruh modul ini.
+
+from manuscript_content_en import _require  # noqa: E402
+
+FIG_DIR_RQ1 = "results/figures_rq1"
+FIG_EXT = "results/figures_extended"
+
+EXT_ANCHORS = {"pointer_after": "Hasil", "supplement_before": "Ucapan Terima Kasih"}
+
+
+def supplementary_pointer(N: dict, X: dict) -> Tuple[str, object]:
+    return ("p",
+        "Versi lengkap ini menambahkan hasil tambahan: riwayat pelatihan dan bukti di balik "
+        "pemilihan model, mekanisme di balik salah satu hasil negatif, rincian per kasus pada "
+        "data uji, tampilan tiga dimensi kasus perwakilan, serta seluruh metrik dan geometri "
+        "kohort eksternal. Hasil tersebut disajikan setelah Simpulan sebagai Gambar S1-S11 dan "
+        "Tabel S1-S3, dengan penomoran tersendiri sehingga seluruh nomor gambar dan tabel pada "
+        "teks utama tidak berubah.")
+
+
+def supplementary(N: dict, X: dict) -> List[Tuple[str, object]]:
+    a, t, e = N["arms"], N["test"], N["external"]
+    tb, eg = N["test_vs_baseline"], N["external"]["geometry"]
+    tr, se, op = X["training"], X["selection"], X["pz_operating_point"]
+    m3, hv, rk = X["e3_vs_e1"], X["hardest_validation"], X["test_ranks"]
+    ge, ci, wv = X["geometry_extra"], X["external_ci"], X["vs_baseline_worst"]
+    rep = t["representatives"]
+    good, med, chal = rep["good"], rep["median"], rep["challenging"]
+    n_val, n_test = a["e1"]["n"], X["test_n"]
+    cg_d, pz_d = t["per_class"]["cg"]["dice"], t["per_class"]["pz"]["dice"]
+
+    B: List[Tuple[str, object]] = []
+    add = B.append
+    add(("h2", "Hasil Tambahan"))
+
+    # ------------------------------------------------------ S1-S2
+    add(("h3", "Riwayat Pelatihan dan Pemilihan Model"))
+    add(("p",
+        "Gambar S1 menyajikan riwayat pelatihan. Loss pelatihan digambar satu konfigurasi per "
+        "panel karena ketiga konfigurasi yang tercatat mengoptimalkan fungsi objektif yang "
+        "berbeda: konfigurasi terpilih menambahkan suku Dice lunak pada cross-entropy, "
+        "konfigurasi augmentasi hanya memakai cross-entropy, dan konfigurasi pembobotan kelas "
+        "menambahkan suku Dice lunak pada cross-entropy berbobot kelas. Nilai loss "
+        "antarkonfigurasi karena itu tidak dapat dibandingkan, dan loss konfigurasi augmentasi "
+        "yang jauh lebih kecil semata mencerminkan ketiadaan suku Dice, bukan pelatihan yang "
+        "lebih baik. Hanya Dice validasi pada panel bawah yang merupakan besaran yang sama bagi "
+        "seluruh konfigurasi."))
+    add(("p",
+        f"Dua celah dalam catatan dinyatakan alih-alih disembunyikan. Riwayat konfigurasi "
+        f"terpilih hanya mencakup epoch {tr['e1']['first']}-{tr['e1']['last']}: pelatihan "
+        f"dilanjutkan dari titik simpan, dan proses lanjutan itu menimpa catatan sebelumnya. "
+        f"Bobot model dan hasil pemilihan tidak terpengaruh, karena nilai terbaik yang sedang "
+        f"berjalan tersimpan di dalam titik simpan itu sendiri. Konfigurasi dasar tidak "
+        f"menyimpan riwayat pelatihan sama sekali dan tidak muncul pada gambar."))
+    add(("fig", (f"{FIG_EXT}/fig_training_curves.png",
+        "Gambar S1. Riwayat pelatihan. A-C: loss pelatihan setiap konfigurasi pada skalanya "
+        "sendiri, karena masing-masing mengoptimalkan fungsi objektif yang berbeda. D: Dice "
+        "validasi tingkat batch, yaitu besaran yang dipakai untuk memilih titik simpan. Daerah "
+        "berarsir menandai epoch konfigurasi terpilih yang riwayatnya tidak tersimpan.")))
+    add(("p",
+        f"Dice validasi pada Gambar S1 berada di sekitar 0.6 hingga 0.7, jauh di bawah nilai "
+        f"validasi pada Tabel 2, meskipun keduanya dihitung pada {n_val} kasus yang sama. "
+        f"Keduanya bukan besaran yang sama. Kurva memuat Dice yang dihitung selama pelatihan "
+        f"pada setiap batch irisan 2D lalu dirata-ratakan antar-batch dengan bobot setara; "
+        f"Tabel 2 melaporkan Dice tingkat kasus pada volume 3D hasil rekonstruksi, tempat "
+        f"seluruh voxel sebuah kasus digabungkan. Pada rerata antar-batch, irisan dengan "
+        f"penampang zona yang kecil, di apeks dan basis, tidak diperkecil bobotnya, padahal di "
+        f"sana selisih beberapa piksel saja sudah cukup untuk meruntuhkan Dice. Besaran pertama "
+        f"berfungsi sebagai kriteria pemilihan selama pelatihan; besaran kedua adalah hasil yang "
+        f"dilaporkan."))
+
+    _require(se["macro_best_epoch"] != se["epoch"],
+             "the batch-level macro peaks at a different epoch from the criterion")
+    _require(se["macro_best_value"] > se["macro_at_selected"],
+             "the batch-level macro is higher at its own peak than at the selected epoch")
+    add(("p",
+        f"Gambar S2 memperbesar epoch {se['window'][0]}-{se['window'][1]}. Kriteria yang "
+        f"dimaksimalkan loop pelatihan mencapai puncaknya pada epoch {se['epoch']}, tempat "
+        f"titik simpan dibekukan, dan aturan yang sama diterapkan pada setiap konfigurasi. "
+        f"Gambar tersebut juga memperlihatkan hal yang perlu dinyatakan secara terbuka: rerata "
+        f"makro Dice central gland dan peripheral zone tingkat batch justru mencapai puncaknya "
+        f"pada epoch {se['macro_best_epoch']} ({se['macro_best_value']:.4f}, berbanding "
+        f"{se['macro_at_selected']:.4f} pada epoch {se['epoch']}). Seandainya besaran itu yang "
+        f"menjadi kriteria, epoch yang terpilih akan berbeda. Apakah epoch "
+        f"{se['macro_best_epoch']} juga lebih tinggi pada Dice tingkat kasus yang dilaporkan "
+        f"tidak dapat diuji, karena hanya titik simpan terbaik dan titik simpan terakhir yang "
+        f"disimpan. Hal ini tidak membatalkan pemilihan: kriteria telah ditetapkan di dalam kode "
+        f"sebelum pelatihan, diterapkan seragam, dan tidak pernah melibatkan data uji. Namun hal "
+        f"ini menunjukkan bahwa pilihan kriteria pemilihan itu sendiri berkonsekuensi, dan bahwa "
+        f"epoch di sekitar puncak hampir setara satu sama lain."))
+    add(("fig", (f"{FIG_EXT}/fig_epoch_selection.png",
+        f"Gambar S2. Pemilihan model konfigurasi terpilih pada {n_val} kasus validasi, epoch "
+        f"{se['window'][0]}-{se['window'][1]}. Biru: kriteria pemilihan. Merah: rerata makro "
+        f"Dice central gland dan peripheral zone. Keduanya merupakan besaran tingkat batch.")))
+
+    # ------------------------------------------------------ S3-S5
+    add(("h3", "Perbandingan Konfigurasi secara Rinci"))
+    if X["hardest_same_in_all"]:
+        hardest = (f"Pada keempat konfigurasi, kasus tersebut adalah pasien yang sama, yaitu "
+                   f"kasus {hv['e1']['case']}: apa pun intervensinya, kasus tersulit tetap "
+                   f"kasus tersulit. Inilah bukti paling langsung bahwa tingkat kesulitan kasus, "
+                   f"bukan pilihan konfigurasi, yang menentukan sebaran hasil.")
+    else:
+        hardest = ("Kasus terendah bukan pasien yang sama pada setiap konfigurasi, sehingga "
+                   "gambar ini saja tidak memisahkan kesulitan kasus dari konfigurasi.")
+    add(("p",
+        f"Gambar S3 menampilkan Dice makro per kasus keempat konfigurasi. Distribusinya saling "
+        f"bertumpuk hampir sepenuhnya, dan setiap konfigurasi memiliki satu kasus yang jauh di "
+        f"bawah yang lain. {hardest} Gambar S4 memperluas Tabel 2 ke seluruh metrik yang "
+        f"dilaporkan. Pola yang terlihat pada Dice berulang pada setiap metrik, dengan satu "
+        f"pengecualian yang dibahas berikut."))
+    add(("fig", (f"{FIG_DIR_RQ1}/02_validation_percase_spread.png",
+        f"Gambar S3. Dice makro per kasus keempat konfigurasi pada {n_val} kasus validasi. "
+        f"Setiap titik adalah satu kasus, kotak menandai kuartil, dan nilai di atas setiap "
+        f"kelompok adalah reratanya.")))
+    add(("fig", (f"{FIG_DIR_RQ1}/03_validation_all_metrics.png",
+        f"Gambar S4. Seluruh metrik keempat konfigurasi pada {n_val} kasus validasi, central "
+        f"gland (atas) dan peripheral zone (bawah). Kiri: metrik tumpang-tindih. Kanan: jarak "
+        f"permukaan dalam milimeter, dengan whisker dipotong pada 0 mm karena rerata dikurangi "
+        f"simpangan baku akan menyiratkan jarak negatif.")))
+
+    _require(op["e3"]["recall"] > op["e1"]["recall"], "class weighting raised PZ recall")
+    _require(op["e3"]["precision"] < op["e1"]["precision"], "class weighting lowered PZ precision")
+    _require(m3["recall_up"] == m3["n"] and m3["precision_down"] == m3["n"],
+             "the recall gain and precision loss occurred in every case")
+    add(("p",
+        f"Pengecualiannya adalah konfigurasi pembobotan kelas, dan kegagalannya memperbaiki "
+        f"tumpang-tindih memiliki penjelasan mekanistik. Memberi bobot lebih besar pada "
+        f"peripheral zone dimaksudkan agar model mengklaim lebih banyak zona tersebut, dan "
+        f"Gambar S5 memperlihatkan bahwa hal itu tercapai. Recall peripheral zone naik dari "
+        f"{op['e1']['recall']:.4f} menjadi {op['e3']['recall']:.4f}, dan kenaikan itu terjadi "
+        f"pada {m3['recall_up']} dari {m3['n']} kasus validasi. Kenaikan itu dibayar dengan "
+        f"harga yang setara. Precision turun dari {op['e1']['precision']:.4f} menjadi "
+        f"{op['e3']['precision']:.4f}, juga pada {m3['precision_down']} dari {m3['n']} kasus, "
+        f"sehingga Dice, yang menimbang kedua jenis kesalahan, nyaris tidak bergerak "
+        f"({op['e1']['dice']:.4f} berbanding {op['e3']['dice']:.4f}, lebih tinggi hanya pada "
+        f"{m3['dice_up']} dari {m3['n']} kasus). Intervensi tersebut bekerja tepat seperti "
+        f"rancangannya; ia memindahkan titik operasi di antara kedua jenis kesalahan tanpa "
+        f"mengurangi salah satunya. Kekurangan pada peripheral zone karena itu bukan sesuatu yang "
+        f"dapat diatasi dengan pembobotan ulang. Yang diperlukan adalah model yang lebih mampu "
+        f"membedakan batas zona, bukan model yang sekadar lebih berani mengklaimnya."))
+
+    _require(op["e2"]["precision"] < op["baseline"]["precision"]
+             and op["e2"]["recall"] < op["baseline"]["recall"],
+             "augmentation left both PZ precision and recall slightly below the baseline")
+    add(("p",
+        f"Konfigurasi augmentasi tidak memiliki penjelasan yang setara. Precision "
+        f"({op['e2']['precision']:.4f}) dan recall ({op['e2']['recall']:.4f}) peripheral zone-"
+        f"nya sama-sama sedikit di bawah konfigurasi dasar ({op['baseline']['precision']:.4f} "
+        f"dan {op['baseline']['recall']:.4f}). Augmentasi tidak menggeser titik operasi ke arah "
+        f"mana pun; ia semata tidak memberi manfaat yang terukur pada data ini. Bukti yang "
+        f"tersedia tidak cukup untuk menentukan penyebabnya, dan tidak ada klaim yang dibuat."))
+    add(("fig", (f"{FIG_DIR_RQ1}/04_e3_mechanism.png",
+        f"Gambar S5. Mekanisme pembobotan kelas pada peripheral zone, {m3['n']} kasus validasi. "
+        f"Kiri: precision dan recall keempat konfigurasi. Kanan: perubahan recall per kasus dari "
+        f"konfigurasi terpilih ke konfigurasi pembobotan kelas.")))
+
+    # ------------------------------------------------------ S6-S8, Tabel S1
+    add(("h3", "Dari Data Validasi ke Data Uji"))
+    gap_cg = a["e1"]["cg"] - cg_d["mean"]
+    gap_pz = a["e1"]["pz"] - pz_d["mean"]
+    _require(gap_pz > gap_cg > 0, "the validation-to-test drop is largest for PZ, smallest for CG")
+    add(("p",
+        "Gambar S6 membandingkan konfigurasi terpilih pada data validasi dan data uji. "
+        "Penurunan dari validasi ke uji terbesar pada peripheral zone dan terkecil pada central "
+        "gland. Sebagian penurunan itu memang diharapkan: model dipilih karena skornya "
+        "tertinggi pada data validasi, sehingga skor validasinya cenderung optimistis. Sebagian "
+        "lainnya dapat berasal dari perbedaan tingkat kesulitan kasus antara kedua himpunan. "
+        "Penelitian ini tidak dapat memisahkan keduanya, dan karena itulah hanya hasil data uji "
+        "yang dilaporkan sebagai jawaban pertanyaan penelitian pertama."))
+    add(("fig", (f"{FIG_DIR_RQ1}/05_validation_vs_test.png",
+        f"Gambar S6. Kiri: Dice konfigurasi terpilih pada {n_val} kasus validasi dan {n_test} "
+        f"kasus uji, beserta selisihnya. Kanan: konfigurasi dasar dan konfigurasi terpilih pada "
+        f"{n_test} kasus uji yang sama.")))
+
+    span_cg = t["cg_range"][1] - t["cg_range"][0]
+    span_pz = t["pz_range"][1] - t["pz_range"][0]
+    _require(span_pz > span_cg, "PZ Dice spans a wider range than CG Dice")
+    _require(wv["case"] == chal, "the largest deterioration falls on the hardest case")
+    add(("p",
+        f"Gambar S7 dan Tabel S1 merinci hasil data uji per kasus. Dice central gland berada "
+        f"dalam rentang yang sempit ({t['cg_range'][0]:.4f}-{t['cg_range'][1]:.4f}), sedangkan "
+        f"Dice peripheral zone berkisar jauh lebih lebar "
+        f"({t['pz_range'][0]:.4f}-{t['pz_range'][1]:.4f}), {span_pz / span_cg:.1f} kali "
+        f"rentangnya. Sebagian besar variasi Dice makro karena itu berasal dari peripheral zone. "
+        f"Keunggulan konfigurasi terpilih atas konfigurasi dasar tersebar pada "
+        f"{tb['macro']['better_in']} kasus dengan selisih yang kecil, sedangkan penurunan "
+        f"terbesar ({wv['delta']:+.4f}) justru terjadi pada kasus {chal}, yaitu kasus "
+        f"tersulit."))
+    add(("fig", (f"{FIG_DIR_RQ1}/06_test_percase.png",
+        f"Gambar S7. Hasil per kasus pada {n_test} kasus data uji. Kiri: Dice central gland, "
+        f"peripheral zone, dan makro model terpilih. Kanan: perubahan Dice makro terhadap "
+        f"konfigurasi dasar, hijau bila model terpilih lebih baik dan merah bila lebih buruk.")))
+    add(("tbl", (f"Tabel S1. Hasil per kasus model terpilih pada {n_test} kasus data uji, pada "
+                 f"ruang voxel asli setelah rekonstruksi 3D.",
+        ["Kasus", "Dice CG", "Dice PZ", "HD95 CG (mm)", "HD95 PZ (mm)"],
+        [[p["case"], f"{p['cg_dice']:.4f}", f"{p['pz_dice']:.4f}",
+          f"{p['cg_hd95']:.2f}", f"{p['pz_hd95']:.2f}"] for p in X["test_per_case"]]
+        + [["Rerata", f"{cg_d['mean']:.4f}", f"{pz_d['mean']:.4f}",
+            f"{t['per_class']['cg']['hd95_mm']['mean']:.2f}",
+            f"{t['per_class']['pz']['hd95_mm']['mean']:.2f}"]])))
+    add(("p",
+        "Gambar S8 meletakkan seluruh urutan pada satu sumbu: keempat konfigurasi pada data "
+        "validasi, lalu satu-satunya evaluasi model yang dibekukan pada data uji, yang dilakukan "
+        "hanya setelah model dibekukan."))
+    add(("fig", (f"{FIG_DIR_RQ1}/07_rq1_journey.png",
+        "Gambar S8. Pertanyaan penelitian pertama dari awal hingga akhir. Kiri garis batas: Dice "
+        "makro keempat konfigurasi pada data validasi (rerata dan simpangan baku). Kanan: model "
+        "terpilih yang dibekukan dan konfigurasi dasar pada data uji.")))
+
+    # ------------------------------------------------------ S9-S11
+    _require(X["lowest_pz_case"] == chal,
+             "the hardest case also has the lowest PZ Dice of the test set")
+    add(("h3", "Tampilan Tiga Dimensi Kasus Perwakilan"))
+    add(("p",
+        f"Irisan aksial hanya memperlihatkan satu bidang, padahal keluaran penelitian ini adalah "
+        f"volume. Gambar S9-S11 menampilkan ketiga kasus perwakilan, yang berperingkat "
+        f"{rk[good]}, {rk[med]}, dan {rk[chal]} dari {n_test} menurut Dice makro, sebagai "
+        f"proyeksi pada bidang aksial, koronal, dan sagital, dihitung pada ruang voxel asli "
+        f"setelah rekonstruksi. Baris atas memuat anotasi pakar dan baris bawah memuat prediksi. "
+        f"Kasus median paling mewakili kinerja tipikal model."))
+    add(("p",
+        "Cara membaca gambar ini perlu dijelaskan. Setiap piksel diwarnai bila zona yang "
+        "bersangkutan muncul di mana pun sepanjang arah proyeksi, sehingga yang ditampilkan "
+        "adalah siluet, bukan penampang. Peripheral zone digambar di atas central gland, "
+        "sehingga warna oranye hanya tampak pada posisi yang memuat central gland tetapi sama "
+        "sekali tidak memuat peripheral zone di sepanjang arah tersebut. Luas siluet karena itu "
+        "tidak setara dengan volume, dan perbandingan yang sah adalah antara kedua baris pada "
+        "kasus yang sama, yang digambar dengan aturan yang sama. Citra ditampilkan dalam "
+        "orientasi larik voxel, bukan konvensi radiologis, dengan sisi posterior di atas, "
+        "sehingga rektum tampak di bagian atas citra aksial."))
+    for case, label in ((good, "kasus dengan hasil tertinggi"), (med, "kasus median"),
+                        (chal, "kasus dengan hasil terendah")):
+        n_fig = {good: 9, med: 10, chal: 11}[case]
+        add(("fig", (f"{VIZ}/patient_{case}/patient_{case}_3d_projections.png",
+            f"Gambar S{n_fig}. Proyeksi tiga dimensi {label} (kasus {case}). Atas: anotasi "
+            f"pakar. Bawah: prediksi. Kiri ke kanan: aksial, koronal, dan sagital. Oranye: "
+            f"central gland. Biru: peripheral zone.")))
+    add(("p",
+        f"Pada ketiga kasus, siluet central gland prediksi lebih luas daripada anotasi, dan "
+        f"perbedaan itu paling mencolok pada kasus tersulit. Pada kasus {chal}, siluet "
+        f"peripheral zone prediksi juga menyempit tajam pada setiap bidang: di banyak posisi "
+        f"tempat anotasi memuat peripheral zone, prediksi tidak memuatnya pada irisan mana pun. "
+        f"Hal ini sejalan dengan Dice peripheral zone kasus tersebut, yang terendah pada data uji "
+        f"(Tabel S1). Karena siluet tidak setara dengan volume, perbedaan ini tidak dibaca "
+        f"sebagai kesalahan volume; volume dianalisis pada bagiannya sendiri di teks utama."))
+    add(("p",
+        f"Bidang koronal dan sagital juga memperlihatkan hal yang tidak terlihat dari irisan "
+        f"aksial. Pada kedua bidang itu sumbu vertikal adalah arah antaririsan, sehingga setiap "
+        f"baris horizontal pada siluet berasal dari satu irisan. Pada prediksi, terutama kasus "
+        f"{chal}, tampak pita horizontal tempat satu irisan diberi label yang berbeda dari "
+        f"irisan di atas dan di bawahnya. Pola ini merupakan konsekuensi langsung arsitektur 2D: "
+        f"setiap irisan disegmentasi secara independen tanpa informasi dari irisan tetangganya, "
+        f"sehingga konsistensi antaririsan tidak dijamin, dan rekonstruksi menyusun irisan apa "
+        f"adanya tanpa menghaluskannya. Inilah konteks through-plane yang dapat dimanfaatkan "
+        f"jaringan 3D, sebagaimana dibahas pada Perbandingan dengan Penelitian Terdahulu."))
+
+    # ------------------------------------------------------ Tabel S2-S3
+    add(("h3", "Kohort Eksternal secara Rinci"))
+    ni = ge["network_input"]
+    _require(ge["lost_in_cropped"] == 0, "cropping removed no annotated voxels")
+    add(("p",
+        f"Tabel S2 merangkum geometri kohort eksternal. Kohort ini berbeda dari data pelatihan "
+        f"pada hampir setiap dimensi geometris: resolusi in-plane berkisar dari "
+        f"{eg['inplane_min']:.3f} hingga {eg['inplane_max']:.3f} mm, sehingga anatomi tampak "
+        f"antara {eg['scale_min']:.2f} dan {eg['scale_max']:.2f} kali ukurannya pada data "
+        f"pelatihan; ketebalan irisan berkisar dari {eg['through_min']:.2f} hingga "
+        f"{eg['through_max']:.2f} mm; dan ukuran matriks dari {ge['matrix_min']} hingga "
+        f"{ge['matrix_max']} piksel. Setiap kombinasi tersebut harus dibalik dengan benar oleh "
+        f"rekonstruksi. Ke-{eg['n_cropped']} pemeriksaan yang matriksnya melebihi masukan "
+        f"jaringan {ni[0]} x {ni[1]} piksel semuanya merupakan akuisisi "
+        f"{'/'.join(str(m) for m in ge['cropped_matrix'])} piksel pada "
+        f"{'/'.join(f'{x:.1f}' for x in ge['cropped_inplane'])} mm, dan pemotongannya tidak "
+        f"menghilangkan satu pun voxel teranotasi."))
+    add(("tbl", (f"Tabel S2. Geometri kohort eksternal, dihitung dari berkas sumber setiap "
+                 f"pemeriksaan. Skala anatomi adalah spasi in-plane Prostate158 "
+                 f"({ge['reference_inplane']:.5f} mm) dibagi spasi kasus; nilai di atas 1 berarti "
+                 f"anatomi tampak lebih besar daripada pada data pelatihan.",
+        ["Properti", f"Nilai ({ge['n']} pemeriksaan)"],
+        [["Resolusi in-plane (mm)", f"{eg['inplane_min']:.3f}-{eg['inplane_max']:.3f}"],
+         ["Ketebalan irisan (mm)", f"{eg['through_min']:.2f}-{eg['through_max']:.2f}"],
+         ["Skala anatomi terhadap Prostate158",
+          f"{eg['scale_min']:.2f}-{eg['scale_max']:.2f}"],
+         ["Matriks in-plane (piksel)", f"{ge['matrix_min']}-{ge['matrix_max']}"],
+         [f"Matriks melebihi masukan jaringan ({ni[0]} x {ni[1]}), dipotong",
+          f"{eg['n_cropped']} dari {ge['n']}"],
+         ["Voxel teranotasi yang hilang akibat pemotongan", f"{ge['lost_in_cropped']}"],
+         ["Orientasi", ", ".join(eg["orientations"])],
+         ["Lolos seluruh pemeriksaan geometri", f"{eg['n_all_ok']} dari {ge['n']}"],
+         ["Selisih affine absolut maksimum", f"{ge['affine_max']:.1f}"]])))
+
+    _require(ci["cg"]["dice"]["ci95_low"] > ci["pz"]["dice"]["ci95_high"],
+             "the external Dice intervals of the two zones do not overlap")
+    _require(ci["cg"]["hd95_mm"]["std"] < ci["cg"]["hd95_mm"]["mean"]
+             and ci["pz"]["hd95_mm"]["std"] > ci["pz"]["hd95_mm"]["mean"],
+             "HD95 SD approaches the mean for CG and exceeds it for PZ")
+    add(("p",
+        "Tabel S3 melengkapi Tabel 6 dengan keenam metrik beserta selang kepercayaan "
+        "bootstrap-nya. Selangnya sempit karena kohortnya besar, dan selang Dice kedua zona tidak "
+        "saling bertumpuk, sehingga perbedaan antarzona sangat kecil kemungkinannya berasal dari "
+        "pengambilan sampel. Pada HD95, simpangan baku hampir menyamai rerata pada central gland "
+        "dan melampauinya pada peripheral zone: ciri distribusi berekor berat, bukan pergeseran "
+        "yang merata, yang oleh teks utama ditelusuri ke fragmen kecil yang berjauhan."))
+    rows = []
+    for m, name in (("dice", "Dice"), ("iou", "IoU"), ("hd95_mm", "HD95 (mm)"),
+                    ("asd_mm", "ASD (mm)"), ("precision", "Precision"), ("recall", "Recall")):
+        nd = 2 if m.endswith("_mm") else 4
+        row = [name]
+        for z in ("cg", "pz"):
+            c = ci[z][m]
+            row += [f"{c['mean']:.{nd}f} ({c['std']:.{nd}f})",
+                    f"{c['ci95_low']:.{nd}f}-{c['ci95_high']:.{nd}f}"]
+        rows.append(row)
+    add(("tbl", (f"Tabel S3. Seluruh metrik pada kohort eksternal ({e['n_cases']} pemeriksaan, "
+                 f"inferensi saja). Rerata (simpangan baku populasi) dan selang kepercayaan 95% "
+                 f"bootstrap.",
+        ["Metrik", "Rerata CG (SB)", "SK 95% CG", "Rerata PZ (SB)", "SK 95% PZ"], rows)))
+    return B

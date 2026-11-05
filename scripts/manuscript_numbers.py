@@ -336,6 +336,180 @@ def gland_size() -> Dict[str, object]:
     return json.load(open(path, encoding="utf-8"))
 
 
+# ---------------------------------------------------------------------------
+# Extended version only
+# ---------------------------------------------------------------------------
+
+def _val_path(d: str) -> str:
+    """The per-case validation CSV, from the same source validation_arms() uses."""
+    return _first_existing(f"{DRIVE}/results/{d}/eval_val_per_case_metrics.csv",
+                           f"{DRIVE}/results/{d}/{d}/eval_val_per_case_metrics.csv")
+
+
+def _training_log(d: str) -> str:
+    return _first_existing(f"{DRIVE}/results/{d}/metrics.csv",
+                           f"{DRIVE}/results/{d}/{d}/metrics.csv",
+                           f"{PROJECT}/results/{d}/metrics.csv",
+                           f"{PROJECT}/results/{d}/{d}/metrics.csv")
+
+
+def _network_input_size() -> List[int]:
+    import yaml
+    cfg = yaml.safe_load(open(f"{PROJECT}/configs/experiments/exp_e1_dice_ce.yaml",
+                              encoding="utf-8"))
+
+    def find(node):
+        if isinstance(node, dict):
+            if "target_size" in node:
+                return node["target_size"]
+            for v in node.values():
+                hit = find(v)
+                if hit is not None:
+                    return hit
+        return None
+
+    size = find(cfg)
+    if not size:
+        raise RuntimeError("target_size not found in the E1 config")
+    return [int(s) for s in size]
+
+
+def extended() -> Dict[str, object]:
+    """Numbers used only by the extended version of the manuscript.
+
+    Called by build_manuscript.py with --extended and by nothing else, so the
+    submission build reads exactly what it read before this existed. Every value
+    is loaded from an artifact; where two artifacts must agree, a guard raises
+    rather than letting the text quote one of them silently.
+    """
+    out: Dict[str, object] = {}
+
+    # Training history. Baseline kept none; E1's first 69 epochs were
+    # overwritten by a resume. Both facts are stated, not hidden.
+    hist = {}
+    for key in ("e1", "e2", "e3"):
+        rows = _rows(_training_log(ARMS[key][0]))
+        ep = sorted(int(r["epoch"]) for r in rows)
+        hist[key] = {"first": ep[0], "last": ep[-1], "n": len(ep)}
+    out["training"] = hist
+
+    # Selection. The training loop maximised the batch-level foreground Dice
+    # (val_dice_proxy); the reported metric is case-level. Guard that the
+    # criterion's maximum is the epoch the manuscript says was frozen.
+    e1_rows = _rows(_training_log(ARMS["e1"][0]))
+    by_ep = {int(r["epoch"]): r for r in e1_rows}
+
+    def bmacro(r):
+        return (float(r["val_dice_class1_CG"]) + float(r["val_dice_class2_PZ"])) / 2
+
+    best_crit = max(by_ep, key=lambda e: float(by_ep[e]["val_dice_proxy"]))
+    best_macro = max(by_ep, key=lambda e: bmacro(by_ep[e]))
+    if best_crit != ARMS["e1"][2]:
+        raise RuntimeError(f"criterion maximum is epoch {best_crit}, but the manuscript "
+                           f"states epoch {ARMS['e1'][2]} was frozen")
+    out["selection"] = {
+        "epoch": best_crit, "crit_value": float(by_ep[best_crit]["val_dice_proxy"]),
+        "macro_at_selected": bmacro(by_ep[best_crit]),
+        "macro_best_epoch": best_macro, "macro_best_value": bmacro(by_ep[best_macro]),
+        "window": (min(by_ep), max(by_ep)),
+    }
+
+    # E3 mechanism: the operating point moved, overlap did not.
+    pr = {}
+    per_case = {}
+    for key, (d, _, _) in ARMS.items():
+        rows = [r for r in _rows(_val_path(d)) if int(r["class_id"]) == CLASS_PZ]
+        per_case[key] = {r["patient_id"].zfill(3): r for r in rows}
+        pr[key] = {
+            "precision": float(np.mean([float(r["precision"]) for r in rows])),
+            "recall": float(np.mean([float(r["recall"]) for r in rows])),
+            "dice": float(np.mean([float(r["dice"]) for r in rows])),
+        }
+    e1c, e3c = per_case["e1"], per_case["e3"]
+    shared = sorted(set(e1c) & set(e3c))
+    out["pz_operating_point"] = pr
+    out["e3_vs_e1"] = {
+        "n": len(shared),
+        "recall_up": sum(float(e3c[c]["recall"]) > float(e1c[c]["recall"]) for c in shared),
+        "precision_down": sum(float(e3c[c]["precision"]) < float(e1c[c]["precision"])
+                              for c in shared),
+        "dice_up": sum(float(e3c[c]["dice"]) > float(e1c[c]["dice"]) for c in shared),
+    }
+
+    # The hardest validation case, per arm.
+    hardest = {}
+    for key, (d, _, _) in ARMS.items():
+        cases: Dict[str, List[float]] = {}
+        for r in _rows(_val_path(d)):
+            if int(r["class_id"]) in (CLASS_CG, CLASS_PZ):
+                cases.setdefault(r["patient_id"].zfill(3), []).append(float(r["dice"]))
+        worst = min(cases, key=lambda c: float(np.mean(cases[c])))
+        hardest[key] = {"case": worst, "macro": float(np.mean(cases[worst]))}
+    out["hardest_validation"] = hardest
+    out["hardest_same_in_all"] = len({h["case"] for h in hardest.values()}) == 1
+
+    # Per-case held-out test, and the representatives' ranks.
+    rows = _rows(TEST_PER_CASE)
+    table: Dict[str, Dict[int, dict]] = {}
+    for r in rows:
+        cid = int(r["class_id"])
+        if cid in (CLASS_CG, CLASS_PZ):
+            table.setdefault(r["patient_id"], {})[cid] = r
+    ids = sorted(table)
+    per = [{"case": c,
+            "cg_dice": float(table[c][CLASS_CG]["dice"]),
+            "pz_dice": float(table[c][CLASS_PZ]["dice"]),
+            "cg_hd95": float(table[c][CLASS_CG]["hd95_mm"]),
+            "pz_hd95": float(table[c][CLASS_PZ]["hd95_mm"])} for c in ids]
+    out["test_per_case"] = per
+    macro = {p["case"]: (p["cg_dice"] + p["pz_dice"]) / 2 for p in per}
+    ranked = sorted(macro, key=macro.get)
+    out["test_ranks"] = {c: ranked.index(c) + 1 for c in ranked}
+    out["test_n"] = len(ranked)
+    out["lowest_pz_case"] = min(per, key=lambda p: p["pz_dice"])["case"]
+
+    # Per-case change against the baseline, from the very files test_vs_baseline()
+    # reads, with a guard that the two agree on how many cases improved.
+    base_rows: Dict[str, Dict[int, float]] = {}
+    for r in _rows(BASELINE_TEST_PER_CASE):
+        base_rows.setdefault(r["patient_id"], {})[int(r["class_id"])] = float(r["dice"])
+    delta = {c: macro[c] - (base_rows[c][CLASS_CG] + base_rows[c][CLASS_PZ]) / 2
+             for c in macro if c in base_rows}
+    better = sum(d > 0 for d in delta.values())
+    expected = test_vs_baseline()["macro"]["better_in"]
+    if better != expected:
+        raise RuntimeError(f"per-case count {better} disagrees with test_vs_baseline {expected}")
+    worst = min(delta, key=delta.get)
+    out["vs_baseline_worst"] = {"case": worst, "delta": float(delta[worst])}
+
+    # External: bootstrap intervals and the geometry the main text does not list.
+    base = external()["dir"]
+    ci = {}
+    for r in _rows(f"{base}/metrics_summary.csv"):
+        cid = int(r["class_id"])
+        if cid in (CLASS_CG, CLASS_PZ):
+            ci.setdefault("cg" if cid == CLASS_CG else "pz", {})[r["metric"]] = {
+                k: float(r[k]) for k in ("mean", "std", "ci95_low", "ci95_high")}
+    out["external_ci"] = ci
+
+    import ast
+    geom = _rows(f"{base}/cohort_geometry.csv")
+    matrix = sorted({ast.literal_eval(g["shape"])[0] for g in geom})
+    cropped = [g for g in geom if g["inplane_exceeds_target"] == "True"]
+    out["geometry_extra"] = {
+        "n": len(geom),
+        "matrix_min": matrix[0], "matrix_max": matrix[-1],
+        "network_input": _network_input_size(),
+        "cropped_matrix": sorted({ast.literal_eval(g["shape"])[0] for g in cropped}),
+        "cropped_inplane": sorted({round(float(g["inplane_mm"]), 3) for g in cropped}),
+        "lost_in_cropped": int(sum(int(g["class1_lost"]) + int(g["class2_lost"])
+                                   for g in cropped)),
+        "affine_max": float(max(float(g["affine_max_abs_diff"]) for g in geom)),
+        "reference_inplane": PROSTATE158_INPLANE_MM,
+    }
+    return out
+
+
 def all_numbers() -> Dict[str, object]:
     arms = validation_arms()
     spread = max(a["macro"] for a in arms.values()) - min(a["macro"] for a in arms.values())

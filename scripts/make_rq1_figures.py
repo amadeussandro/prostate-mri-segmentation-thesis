@@ -111,12 +111,15 @@ def fig_validation_overview(val, out):
         bars = ax.bar(x + offset, heights, width, yerr=errs, capsize=3,
                       color=ARM_COLOR[arm], label=ARM_LABEL[arm],
                       error_kw={"elinewidth": 0.9, "alpha": 0.6})
-        for b, h in zip(bars, heights):
-            ax.text(b.get_x() + b.get_width() / 2, h + 0.015, f"{h:.4f}",
-                    ha="center", va="bottom", fontsize=7.2, rotation=90)
+        # Labels sit above the whisker cap, not above the bar: placed at the bar
+        # top they ran straight up the error bar and every value was struck
+        # through by its own whisker.
+        for b, h, e in zip(bars, heights, errs):
+            ax.text(b.get_x() + b.get_width() / 2, h + e + 0.012, f"{h:.4f}",
+                    ha="center", va="bottom", fontsize=6.8)
     ax.set_xticks(x)
     ax.set_xticklabels(["CG Dice", "PZ Dice", "Macro Dice"])
-    ax.set_ylim(0, 1.05)
+    ax.set_ylim(0, 1.08)
     ax.legend(fontsize=8.5, ncol=4, loc="lower center", frameon=False,
               bbox_to_anchor=(0.5, -0.17))
     style(ax, "RQ1 validation — 20 official validation cases (mean ± SD)", "Dice")
@@ -188,16 +191,29 @@ def fig_validation_all_metrics(val, out):
         for i, arm in enumerate(arms):
             heights = [mean_sd(val[arm], cid, m)[0] for m in distance]
             errs = [mean_sd(val[arm], cid, m)[1] for m in distance]
-            ax.bar(x + (i - 1.5) * 0.2, heights, 0.2, yerr=errs, capsize=2.5,
-                   color=ARM_COLOR[arm], error_kw={"elinewidth": 0.8, "alpha": 0.55})
+            # HD95 is positive and right-skewed: its SD exceeds its mean, so a
+            # symmetric whisker crossed below 0 mm, a distance that cannot
+            # exist. The lower whisker is clipped at zero and the title says so.
+            lower = [min(e, h) for h, e in zip(heights, errs)]
+            ax.bar(x + (i - 1.5) * 0.2, heights, 0.2, yerr=[lower, errs],
+                   capsize=2.5, color=ARM_COLOR[arm],
+                   error_kw={"elinewidth": 0.8, "alpha": 0.55})
         ax.set_xticks(x)
         ax.set_xticklabels(["HD95 (mm)", "ASD (mm)"])
+        ax.set_ylim(bottom=0)
         style(ax, f"{zone} — surface distance (LOWER is better)", "mm")
-    axes[0][0].legend(fontsize=8.5, ncol=4, frameon=False,
-                      loc="lower center", bbox_to_anchor=(1.05, -1.42))
-    fig.suptitle("RQ1 validation — all reported metrics, 20 cases (mean ± SD)",
-                 fontsize=12.5, y=0.99)
-    fig.tight_layout(rect=(0, 0.05, 1, 0.97))
+
+    # One figure-level legend below all four panels. The old axes-level legend
+    # was anchored at (1.05, -1.42) of the top-left panel, which bbox_inches=
+    # "tight" then honoured by stretching the canvas - leaving four small
+    # panels in the corners of a mostly empty figure.
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(handles, labels, fontsize=9, ncol=4, frameon=False,
+               loc="lower center", bbox_to_anchor=(0.5, 0.0))
+    fig.suptitle("RQ1 validation — all reported metrics, 20 cases "
+                 "(mean ± SD; distance whiskers clipped at 0)",
+                 fontsize=12.5, y=0.995)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.96))
     path = os.path.join(out, "03_validation_all_metrics.png")
     fig.savefig(path, dpi=170, bbox_inches="tight")
     plt.close(fig)
@@ -215,12 +231,11 @@ def fig_e3_mechanism(val, out):
     rec = [mean_sd(val[a], PZ, "recall")[0] for a in arms]
     ax.bar(x - 0.2, prec, 0.4, label="PZ precision", color="#4c72b0")
     ax.bar(x + 0.2, rec, 0.4, label="PZ recall", color="#dd8452")
+    # The dotted precision-to-recall connectors ran through the value labels
+    # and said nothing the paired bars do not already show; they are gone.
     for i, (p, r) in enumerate(zip(prec, rec)):
         ax.text(i - 0.2, p + 0.012, f"{p:.3f}", ha="center", fontsize=8)
         ax.text(i + 0.2, r + 0.012, f"{r:.3f}", ha="center", fontsize=8)
-        ax.annotate("", xy=(i + 0.2, r), xytext=(i - 0.2, p),
-                    arrowprops={"arrowstyle": "-", "linestyle": ":",
-                                "color": "0.45", "linewidth": 1})
     ax.set_xticks(x)
     ax.set_xticklabels([ARM_LABEL[a].split(" (")[0] for a in arms])
     ax.set_ylim(0, 1.0)
@@ -287,8 +302,9 @@ def fig_validation_vs_test(val, test, out):
                     ha="center", fontsize=8)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
-    ax.set_ylim(0, 1.02)
-    ax.legend(fontsize=8.5, frameon=False, loc="lower right")
+    # Headroom for the legend: at lower right it sat on top of the macro bars.
+    ax.set_ylim(0, 1.08)
+    ax.legend(fontsize=8.5, frameon=False, loc="upper center", ncol=2)
     style(ax, "Official held-out test — same 19 cases, Baseline vs E1", "Dice")
     fig.suptitle("RQ1 final — held-out test evaluation", fontsize=12.5, y=1.0)
     fig.tight_layout()
@@ -316,13 +332,15 @@ def fig_test_percase(test, out):
     ax.plot(x, [e1_macro[c] for c in cases], "o--", color="black", markersize=4,
             linewidth=1.1, label="Macro Dice")
     mean_macro = statistics.fmean(e1_macro.values())
-    ax.axhline(mean_macro, color="black", linestyle=":", linewidth=1, alpha=0.6)
-    ax.text(len(cases) - 0.5, mean_macro + 0.015, f"mean {mean_macro:.4f}",
-            ha="right", fontsize=8.5)
+    # The mean goes in the legend: as free text at the right it was crossed by
+    # the macro line climbing out of case 016, and the legend at lower left sat
+    # on the bars of cases 001-002. Both now live in headroom above the data.
+    ax.axhline(mean_macro, color="black", linestyle=":", linewidth=1, alpha=0.6,
+               label=f"Mean macro Dice ({mean_macro:.4f})")
     ax.set_xticks(x)
     ax.set_xticklabels(cases, rotation=90, fontsize=7.5)
-    ax.set_ylim(0, 1.03)
-    ax.legend(fontsize=8.5, frameon=False, loc="lower left")
+    ax.set_ylim(0, 1.17)
+    ax.legend(fontsize=8.2, frameon=False, loc="upper left", ncol=2)
     style(ax, "E1 held-out test — per-case Dice (19 cases)", "Dice", "test case")
 
     ax = axes[1]
@@ -364,17 +382,21 @@ def fig_journey(val, test, out):
 
     test_macros = {a: statistics.fmean(macro_per_case(test[a]).values()) for a in test}
     test_sds = {a: statistics.pstdev(list(macro_per_case(test[a]).values())) for a in test}
-    ax.errorbar([4], [test_macros["E1"]], yerr=[test_sds["E1"]], fmt="D",
+    # The two test evaluations are drawn a little apart. At the same x their
+    # error bars lay on top of each other and could not be told apart.
+    x_e1, x_bl = 3.88, 4.12
+    ax.errorbar([x_e1], [test_macros["E1"]], yerr=[test_sds["E1"]], fmt="D",
                 markersize=10, capsize=5, color="#b03030", ecolor="#e0a0a0",
                 elinewidth=1.6, label="E1 held-out TEST (19 cases)")
-    ax.annotate(f"{test_macros['E1']:.4f}", (4, test_macros["E1"]),
-                textcoords="offset points", xytext=(0, 14), ha="center",
-                fontsize=9, fontweight="bold", color="#b03030")
-    ax.errorbar([4], [test_macros["Baseline"]], yerr=[test_sds["Baseline"]], fmt="s",
-                markersize=8, capsize=4, color="#8c8c8c", ecolor="#c8c8c8",
+    ax.annotate(f"{test_macros['E1']:.4f}", (x_e1, test_macros["E1"]),
+                textcoords="offset points", xytext=(-14, 0), ha="right",
+                va="center", fontsize=9, fontweight="bold", color="#b03030")
+    ax.errorbar([x_bl], [test_macros["Baseline"]], yerr=[test_sds["Baseline"]],
+                fmt="s", markersize=8, capsize=4, color="#8c8c8c", ecolor="#c8c8c8",
                 elinewidth=1.4, label="Baseline held-out test (19 cases)")
-    ax.annotate(f"{test_macros['Baseline']:.4f}", (4, test_macros["Baseline"]),
-                textcoords="offset points", xytext=(0, -20), ha="center", fontsize=8.5)
+    ax.annotate(f"{test_macros['Baseline']:.4f}", (x_bl, test_macros["Baseline"]),
+                textcoords="offset points", xytext=(12, 0), ha="left",
+                va="center", fontsize=8.5)
 
     ax.axvline(3.5, color="0.75", linestyle="-", linewidth=1)
     ax.text(1.5, 0.52, "model selection — validation only", ha="center",
@@ -383,6 +405,7 @@ def fig_journey(val, test, out):
             fontsize=9, style="italic", color="0.35")
     ax.set_xticks(list(range(5)))
     ax.set_xticklabels([ARM_LABEL[a].split(" (")[0] for a in arms] + ["E1 frozen"])
+    ax.set_xlim(-0.5, 4.75)
     ax.set_ylim(0.48, 0.92)
     ax.legend(fontsize=8.5, frameon=False, loc="lower left")
     style(ax, "RQ1 end to end — four validation arms, then one held-out test",

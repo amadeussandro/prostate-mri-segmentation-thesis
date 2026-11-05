@@ -368,19 +368,42 @@ def main() -> None:
     ap.add_argument("--lang", choices=["en", "id"], default="en")
     ap.add_argument("--out", default=None)
     ap.add_argument("--template", default=TEMPLATE)
+    ap.add_argument("--extended", action="store_true",
+                    help="build the extended version: the submission text plus "
+                         "supplementary results numbered S1, S2, ...")
     args = ap.parse_args()
 
     from manuscript_numbers import all_numbers
     N = all_numbers()
 
     if args.lang == "en":
-        from manuscript_content_en import build
+        import manuscript_content_en as content
         default_out = os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro.docx")
     else:
-        from manuscript_content_id import build
+        import manuscript_content_id as content
         default_out = os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro-ID.docx")
 
-    blocks = build(N)
+    blocks = content.build(N)
+
+    if args.extended:
+        # build() itself is untouched: the extended material is spliced in at
+        # two headings, so the submission build reads exactly what it read
+        # before. extended() is loaded only here, for the same reason.
+        from manuscript_numbers import extended
+        X = extended()
+        anchors = content.EXT_ANCHORS
+
+        def heading_index(text):
+            hits = [i for i, (k, v) in enumerate(blocks) if k == "h2" and v == text]
+            if len(hits) != 1:
+                raise RuntimeError(f"expected exactly one h2 '{text}', found {len(hits)}")
+            return hits[0]
+
+        before = heading_index(anchors["supplement_before"])
+        blocks[before:before] = content.supplementary(N, X)
+        after = heading_index(anchors["pointer_after"])
+        blocks.insert(after + 1, content.supplementary_pointer(N, X))
+        default_out = default_out.replace(".docx", "-LENGKAP.docx")
     from manuscript_content_en import REFERENCES
     blocks, cited = resolve_citations(blocks, REFERENCES)
     if args.lang == "id":
