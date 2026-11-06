@@ -427,28 +427,35 @@ Fixed since that compile:
   1.63 cm, 4.1 by 0.29 cm. Headers moved into the captions, type size and
   column separation reduced. The other seven were measured and left alone.
 
-#### Overleaf is ahead of the local copy for four pages — read before any upload
+#### Uploading to Overleaf — the student does it by hand from a local package
 
-Verified 2026-11-06 by hashing every `.tex` on Overleaf against the local
-source. The student edited these **directly on Overleaf**; the local copies are
-still the template:
+**Do not drive Overleaf through the browser** — the student asked for local
+work only (2026-11-06); browser upload was too slow.
 
-- `src/1.Awal/02b-HalamanAI.tex`, `03a-Persetujuan.tex`, `04-Publikasi.tex`,
-  `05-Persembahan.tex` (the last now carries the student's own motto).
+`scripts/sync_overleaf_folder.py` mirrors the complete thesis into
+`D:\1.AmadeusKuliah\Skripsi\SKRIPSI-Overleaf` and writes
+`SKRIPSI-Overleaf.zip` (74 files at the zip root, so Overleaf's
+New Project > Upload Project builds a working project in one step). It refuses
+to write the zip if any `\input`/`\includegraphics` would not resolve or if
+there is not exactly one `\documentclass`.
 
-**Never upload the local versions of these four.** They are deliberately absent
-from the upload folder `D:\1.AmadeusKuliah\Skripsi\SKRIPSI-Overleaf`, which
-`scripts/sync_overleaf_folder.py` keeps current (it refuses to drop a file
-unless the source holds a byte-identical copy). Two other Overleaf-side edits
-were merged back into the source: `\small` + `\setlength{\tabcolsep}{4pt}` on
-`tab:terdahulu` in Bab2, and `[!ht]` on the reconstruction figure in Bab3.
-Hashing proved those were the only differences.
+On 2026-11-06 the student emptied the old Overleaf project to start over
+(only two stray folders remain; its main document is set to a non-existent
+`main.tex`). Their personal pages there had been filled in on Overleaf and now
+survive only in that project's **History**:
 
-State of Overleaf when the student took over the upload: `src/_generated/`,
-`01-HalamanJudul`, `Bab3`, `Bab4`, `lampiran` uploaded; the 12 new figures
-**not yet** — until they are, Overleaf fails to compile. The student uploads
-by hand from `SKRIPSI-Overleaf` (see its `README_UNGGAH.txt`); browser upload
-was abandoned as too slow.
+- `05-Persembahan.tex` — **restored locally**, byte-identical to the Overleaf
+  version (verified by hash). Contains the student's motto.
+- `02b-HalamanAI.tex`, `03a-Persetujuan.tex`, `04-Publikasi.tex` — local copies
+  are **still the template**. The Overleaf entries could not be read back
+  (02b had changed again since it was last seen); the student must restore
+  them from History or fill them in again. The README in the package says so.
+
+Two Overleaf-side edits were merged into the source before the project was
+emptied, and hashing proved they were the only other differences: `\small` +
+`\setlength{\tabcolsep}{4pt}` on `tab:terdahulu` in Bab2, and `[!ht]` on the
+reconstruction figure in Bab3. `BACKUP_ORI_TEMPLATE_UMN` existed only on
+Overleaf and is likewise in its History.
 
 #### Expanded 2026-11-05 — more results, not more padding
 

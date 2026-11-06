@@ -1,21 +1,25 @@
-"""Bring the local Overleaf upload folder up to date, safely.
+"""Mirror the complete thesis into the manual-upload folder, and zip it.
 
     python scripts/sync_overleaf_folder.py
 
-SKRIPSI-Overleaf mirrors the Overleaf project's layout and is what the student
-uploads by hand. This copies in every file that changed in the thesis source,
-adds what is new, and builds a small zip of just the changed files.
+SKRIPSI-Overleaf is what the student uploads to Overleaf by hand. It is a full
+mirror of everything the thesis needs to compile - every chapter, front-matter
+page, generated table, figure, style file - and SKRIPSI-Overleaf.zip holds the
+same files at the zip root, so Overleaf's "New Project > Upload Project" builds
+a working project from it in one step.
 
-Four pages are deliberately kept OUT of the upload folder: 02b-HalamanAI,
-03a-Persetujuan, 04-Publikasi, 05-Persembahan. The student filled them in
-directly on Overleaf (verified 2026-11-06 by hashing the Overleaf copies), and
-the local copies are still the template. Uploading them would erase that work,
-so they are removed here - only after checking that the source folder still
-holds a byte-identical copy - and the README says why.
+Left out on purpose: editor backups (*.bak*), the backup folder
+_cadangan_*, artikel_ilmiah.tex (Overleaf would pick it as the main document),
+the template's unused references.bib, and src/3.Akhir/pustaka.bib (its basename
+collides with the root pustaka.bib and once emptied the bibliography).
+
+The zip is refused if any \\input or \\includegraphics would not resolve, or if
+more than one file declares \\documentclass.
 """
 import hashlib
 import io
 import os
+import re
 import shutil
 import sys
 import zipfile
@@ -24,58 +28,47 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 SRC = r"D:\1.AmadeusKuliah\Skripsi\2611_Skripsi_Sandro_103840"
 STAGE = r"D:\1.AmadeusKuliah\Skripsi\SKRIPSI-Overleaf"
-ZIP = r"D:\1.AmadeusKuliah\Skripsi\SKRIPSI-Overleaf-update.zip"
+ZIP = r"D:\1.AmadeusKuliah\Skripsi\SKRIPSI-Overleaf.zip"
 
-CHANGED_TEX = [
-    r"src\1.Awal\01-HalamanJudul.tex",
-    r"src\2.Isi\Bab2.tex",
-    r"src\2.Isi\Bab3.tex",
-    r"src\2.Isi\Bab4.tex",
-    r"src\3.Akhir\lampiran.tex",
-]
-GENERATED = [r"src\_generated\%s" % f for f in (
-    "tabel_konfigurasi_eksperimen.tex", "tabel_geometri_kohort.tex",
-    "tabel_perkasus_internal.tex", "tabel_eksternal_lengkap.tex")]
-PICS_NEW = [r"assets\pics\%s" % f for f in (
-    "fig_kurva_pelatihan.png", "fig_pemilihan_epoch.png", "fig_rq1_ikhtisar.png",
-    "fig_rq1_sebaran.png", "fig_rq1_semua_metrik.png", "fig_e3_mekanisme.png",
-    "fig_validasi_vs_uji.png", "fig_uji_perkasus.png", "fig_rq1_perjalanan.png",
-    "fig_proyeksi_3d_baik.png", "fig_proyeksi_3d_median.png", "fig_proyeksi_3d_sulit.png")]
-PERSONAL = [r"src\1.Awal\%s" % f for f in (
-    "02b-HalamanAI.tex", "03a-Persetujuan.tex", "04-Publikasi.tex", "05-Persembahan.tex")]
+EXCLUDE_FILES = {"artikel_ilmiah.tex", "references.bib"}
+EXCLUDE_PATHS = {os.path.join("src", "3.Akhir", "pustaka.bib")}
+
+# Pages whose Overleaf versions held the student's own entries. 05 has been
+# restored exactly (verified against the Overleaf hash); the other three could
+# not be read back and are still the template.
+TEMPLATE_PERSONAL = ["src/1.Awal/02b-HalamanAI.tex", "src/1.Awal/03a-Persetujuan.tex",
+                     "src/1.Awal/04-Publikasi.tex"]
 
 README = """\
-PEMBARUAN SKRIPSI UNTUK OVERLEAF
-================================
+SKRIPSI - PAKET LENGKAP UNTUK OVERLEAF
+======================================
 
-Folder ini sudah diperbarui dan strukturnya sama dengan proyek Overleaf.
-Unggah per folder, ke folder dengan nama yang sama di Overleaf.
+Isi folder ini (dan SKRIPSI-Overleaf.zip) adalah proyek skripsi LENGKAP:
+semua bab, halaman awal, tabel, gambar, dan berkas gaya. {n} berkas.
 
-YANG BARU / BERUBAH
-  assets/pics/      12 gambar BARU  -> WAJIB diunggah, tanpa ini Overleaf error:
-                    {pics}
-  src/_generated/   4 tabel (folder ini sudah ada di Overleaf)
-  src/1.Awal/       01-HalamanJudul.tex   (typo "PROGRAM STUDI1" diperbaiki)
-  src/2.Isi/        Bab3.tex, Bab4.tex    (Bab2.tex sudah sama dengan Overleaf)
-  src/3.Akhir/      lampiran.tex
+CARA PALING MUDAH
+  Overleaf > New Project > Upload Project > pilih SKRIPSI-Overleaf.zip
+  Semua berkas langsung berada di root proyek. Dokumen utama: SKRIPSI.tex
+  (kalau Overleaf memilih yang lain: Menu > Main document > SKRIPSI.tex).
 
-  Semua .tex di atas SUDAH terunggah ke Overleaf. Kalau ragu, unggah ulang
-  saja: isinya sama, aman ditimpa.
+KALAU MEMAKAI PROYEK YANG SEKARANG
+  Unggah ISI zip ke root proyek, bukan sebagai satu folder. Kalau semua
+  berkas masuk ke satu subfolder, \\input dan gambar tidak akan ditemukan.
+  Setel juga Menu > Main document > SKRIPSI.tex (saat ini masih main.tex).
 
-SENGAJA TIDAK ADA DI FOLDER INI - JANGAN DIUNGGAH DARI MANA PUN
-  src/1.Awal/02b-HalamanAI.tex
-  src/1.Awal/03a-Persetujuan.tex
-  src/1.Awal/04-Publikasi.tex
-  src/1.Awal/05-Persembahan.tex
-  Keempatnya sudah Mas isi langsung di Overleaf. Salinan lokal masih
-  template kosong; mengunggahnya akan menghapus isian Mas.
+PERLU MAS PERIKSA SETELAH DIUNGGAH
+  src/1.Awal/05-Persembahan.tex  -> SUDAH berisi motto Mas (Kolose 3:23).
+  Tiga halaman berikut masih VERSI TEMPLATE. Isian Mas di Overleaf ada di
+  riwayatnya (History) proyek lama; pulihkan dari sana atau isi ulang:
+{personal}
+  Lampiran wajib, ganti dengan dokumen Mas sendiri:
+    assets/pics/fig_individual_source_sample_turnitin.png  -> hasil Turnitin
+    assets/pdf/Form_Bimbingan_atau_Konsultasi_Skripsi.pdf  -> formulir bimbingan
+  settings.tex masih memuat isian kosong (tanggal, NIDN pembimbing).
 
-JANGAN SENTUH
-  BACKUP_ORI_TEMPLATE_UMN (hanya ada di Overleaf)
-
-MASIH HARUS MAS GANTI SENDIRI (lampiran wajib)
-  assets/pics/fig_individual_source_sample_turnitin.png -> hasil Turnitin Mas
-  assets/pdf/Form_Bimbingan_atau_Konsultasi_Skripsi.pdf -> formulir bertanda tangan
+YANG BARU DIBANDING VERSI SEBELUMNYA
+  22 gambar hasil (sebelumnya 10), 17 tabel, folder src/_generated/,
+  koreksi Bab 3 dan Bab 4, lampiran berisi hasil penelitian.
 """
 
 
@@ -83,39 +76,91 @@ def sha(p):
     return hashlib.sha256(open(p, "rb").read()).hexdigest()
 
 
-def copy(rel):
-    src, dst = os.path.join(SRC, rel), os.path.join(STAGE, rel)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    existed = os.path.exists(dst)
-    same = existed and sha(src) == sha(dst)
-    if not same:
-        shutil.copyfile(src, dst)
-    return "sama" if same else ("diperbarui" if existed else "baru")
+def wanted(rel):
+    parts = rel.split(os.sep)
+    name = parts[-1]
+    if any(p.startswith("_cadangan") for p in parts):
+        return False
+    if ".bak" in name or name in EXCLUDE_FILES or rel in EXCLUDE_PATHS:
+        return False
+    return True
+
+
+def collect():
+    out = []
+    for dirpath, dirs, files in os.walk(SRC):
+        dirs[:] = [d for d in dirs if not d.startswith("_cadangan")]
+        for f in files:
+            rel = os.path.relpath(os.path.join(dirpath, f), SRC)
+            if wanted(rel):
+                out.append(rel)
+    return sorted(out)
+
+
+def check(root, files):
+    """Every reference resolves and exactly one \\documentclass exists."""
+    problems = []
+    classes = []
+    present = set(f.replace(os.sep, "/") for f in files)
+    for rel in files:
+        if not rel.endswith(".tex"):
+            continue
+        for line in io.open(os.path.join(root, rel), encoding="utf-8", errors="replace"):
+            if line.lstrip().startswith("%"):
+                continue
+            if "\\documentclass" in line:
+                classes.append(rel)
+            for m in re.finditer(r"\\(input|includegraphics)(?:\[[^\]]*\])?\{([^}]+)\}", line):
+                kind, p = m.groups()
+                cand = [p, p + ".tex"] if kind == "input" else [p]
+                if not any(c in present for c in cand):
+                    problems.append("%s -> %s" % (rel, p))
+    if len(classes) != 1:
+        problems.append("documentclass in %s" % classes)
+    return problems
 
 
 def main():
-    for rel in CHANGED_TEX + GENERATED + PICS_NEW:
-        print("  %-11s %s" % (copy(rel), rel))
+    files = collect()
 
-    for rel in PERSONAL:
-        st, src = os.path.join(STAGE, rel), os.path.join(SRC, rel)
-        if not os.path.exists(st):
-            print("  %-11s %s" % ("sudah tiada", rel))
+    # Mirror: copy what changed, then drop anything the mirror should no
+    # longer hold.
+    counts = {"baru": 0, "diperbarui": 0, "sama": 0}
+    for rel in files:
+        src, dst = os.path.join(SRC, rel), os.path.join(STAGE, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.exists(dst) and sha(src) == sha(dst):
+            counts["sama"] += 1
             continue
-        if not os.path.exists(src) or sha(src) != sha(st):
-            raise SystemExit("REFUSING to remove %s: the source copy is missing or differs, "
-                             "so it may hold edits that exist nowhere else" % rel)
-        os.remove(st)
-        print("  %-11s %s  (salinan identik tetap ada di folder sumber)" % ("dikeluarkan", rel))
+        counts["diperbarui" if os.path.exists(dst) else "baru"] += 1
+        shutil.copyfile(src, dst)
+    keep = set(files) | {"README_UNGGAH.txt"}
+    for dirpath, _, fs in os.walk(STAGE):
+        for f in fs:
+            rel = os.path.relpath(os.path.join(dirpath, f), STAGE)
+            if rel not in keep:
+                os.remove(os.path.join(STAGE, rel))
+                print("  dihapus dari cermin: %s" % rel)
+
+    problems = check(STAGE, files)
+    if problems:
+        print("DITOLAK - rujukan tidak lengkap:")
+        for p in problems:
+            print("  " + p)
+        return 1
 
     io.open(os.path.join(STAGE, "README_UNGGAH.txt"), "w", encoding="utf-8").write(
-        README.format(pics="\n                    ".join(os.path.basename(p) for p in PICS_NEW)))
+        README.format(n=len(files),
+                      personal="\n".join("    " + p for p in TEMPLATE_PERSONAL)))
 
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
-        for rel in [r for r in CHANGED_TEX if not r.endswith("Bab2.tex")] + GENERATED + PICS_NEW:
-            z.write(os.path.join(STAGE, rel), rel.replace("\\", "/"))
-        z.write(os.path.join(STAGE, "README_UNGGAH.txt"), "README_UNGGAH.txt")
-    print("\nzip pembaruan: %s (%.1f MB, %d berkas)"
+        for rel in files + ["README_UNGGAH.txt"]:
+            z.write(os.path.join(STAGE, rel), rel.replace(os.sep, "/"))
+
+    print("cermin: %d berkas (baru %d, diperbarui %d, sama %d)"
+          % (len(files), counts["baru"], counts["diperbarui"], counts["sama"]))
+    print("rujukan: semua \\input dan \\includegraphics ditemukan; satu \\documentclass")
+    print("zip: %s (%.1f MB, %d berkas)"
           % (ZIP, os.path.getsize(ZIP) / 1e6, len(zipfile.ZipFile(ZIP).namelist())))
     return 0
 
