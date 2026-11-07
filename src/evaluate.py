@@ -638,6 +638,7 @@ def run_evaluation(
         slice_sampling="all",  # FORCED: evaluation must see the full slice population
         preprocessing_config=preproc,
         cache_data=True,
+        context_slices=int(data_cfg.get("context_slices", 0)),
     )
 
     case_results, summary = evaluate_cases(

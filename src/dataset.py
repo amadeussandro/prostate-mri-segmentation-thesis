@@ -329,6 +329,11 @@ class ProstateZonal2DDataset(BaseDataset):
         Optional transformation / augmentation callable.
     cache_data : bool, default=True
         Whether to cache normalized 3D volumes in memory to prevent repetitive disk I/O.
+    context_slices : int, default=0
+        2.5D input. 0 returns the single slice (1 channel, the historical
+        behavior, bit-identical). k > 0 stacks slices s-k .. s+k as 2k+1
+        channels, centre slice in the middle; indices past either end of the
+        volume repeat the edge slice. The mask is always the centre slice only.
     """
 
     def __init__(
@@ -341,7 +346,11 @@ class ProstateZonal2DDataset(BaseDataset):
         preprocessing_config: Optional[PreprocessingConfig] = None,
         transform: Optional[Any] = None,
         cache_data: bool = True,
+        context_slices: int = 0,
     ) -> None:
+        if int(context_slices) < 0:
+            raise ValueError(f"context_slices must be >= 0, got {context_slices}")
+        self.context_slices = int(context_slices)
         self.dataset_root = dataset_root
         self.patient_ids = list(patient_ids)
         self.image_name = image_name
@@ -522,8 +531,14 @@ class ProstateZonal2DDataset(BaseDataset):
         pid, s_idx = self.samples[idx]
         norm_t2, anatomy_mask = self._get_patient_volumes(pid)
 
-        # Extract 2D axial slice: shape (1, H, W), float32
-        image_slice = norm_t2[:, :, s_idx][np.newaxis, ...].astype(np.float32)
+        # Extract 2D axial slice: shape (1, H, W), float32 -- or, for 2.5D,
+        # (2k+1, H, W) with the neighbours s-k..s+k (edge slice repeated).
+        if self.context_slices == 0:
+            image_slice = norm_t2[:, :, s_idx][np.newaxis, ...].astype(np.float32)
+        else:
+            k, depth = self.context_slices, norm_t2.shape[2]
+            idx = np.clip(np.arange(s_idx - k, s_idx + k + 1), 0, depth - 1)
+            image_slice = np.moveaxis(norm_t2[:, :, idx], 2, 0).astype(np.float32)
 
         # Extract 2D mask slice: shape (H, W), int64 (for torch.nn.CrossEntropyLoss)
         mask_slice = anatomy_mask[:, :, s_idx].astype(np.int64)

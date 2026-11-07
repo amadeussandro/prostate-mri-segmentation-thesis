@@ -1,0 +1,72 @@
+# E1-2.5D -- the selected E1 configuration with 2.5D input.
+#
+# Identical to configs/experiments/exp_e1_dice_ce.yaml except:
+#   1. experiment.name / description / output_dir  (isolation)
+#   2. data.context_slices: 1 and model.in_channels: 3  (THE independent variable)
+# Enforced by tests/test_e1_25d_config.py. The seed is set per run by the Colab
+# notebook (42, 43, 44); see Outputs/prespec_seeds_25d.md for the selection rule,
+# which was written before any of these runs.
+#
+# TEST SET: not referenced here, as in E1.
+
+experiment:
+  name: "exp_e1_25d"
+  description: "E1 (1.0 x CE + 1.0 x SoftDice on CG+PZ) with 2.5D input: slices s-1, s, s+1 as 3 channels"
+  output_dir: "./results/exp_e1_25d"
+
+data:
+  dataset_root: "dataset/prostate158_train/train"
+  train_csv: "dataset/prostate158_train/train.csv"
+  valid_csv: "dataset/prostate158_train/valid.csv"
+  target_mask: "t2_anatomy_reader1.nii.gz"
+  slice_sampling: "all"
+  context_slices: 1          # THE INDEPENDENT VARIABLE: 2.5D input (s-1, s, s+1)
+
+# IDENTICAL to baseline -- preprocessing is NOT a variable in E1.
+preprocessing:
+  normalization: "per_volume"
+  z_resample: false
+  spatial_mode: "crop_pad"
+  target_size: [442, 442]
+
+# IDENTICAL to baseline -- architecture is NOT a variable in E1.
+model:
+  architecture: "ProstateUNet2D"
+  in_channels: 3            # = 2 * context_slices + 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+
+# IDENTICAL to baseline -- note `loss_function` is intentionally omitted, see header.
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42
+  optimizer: "AdamW"
+  weight_decay: 0.0001
+  amp: false                 # FP32, matching the FP32-trained baseline (controlled comparison)
+
+# ===================== THE INDEPENDENT VARIABLE (E1) =====================
+# Baseline: plain CrossEntropy.   E1: 1.0 * CE + 1.0 * SoftDice(CG, PZ).
+loss:
+  name: dice_ce
+  ce_weight: 1.0
+  dice_weight: 1.0
+  dice_classes: [1, 2]       # 1 = CG, 2 = PZ; background (0) excluded by design
+  epsilon: 1.0e-6
+# =========================================================================
+
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: "val_dice"
+
+# NOTE: declarative / documentation-only, matching the baseline and Exp02
+# configs -- src/evaluate.py takes aggregation/space/class_ids as explicit
+# Python arguments; nothing reads this block automatically.
+evaluation:
+  aggregation: "per_case"
+  space: "original_voxel"
+  include_empty_slices: true
+  class_ids: [0, 1, 2]
+  label_mapping_status: "verified_multiplanar_2026_10_05" # VERIFIED 2026-10-05 (1=CG, 2=PZ); see results/label_mapping/label_mapping_verified.md

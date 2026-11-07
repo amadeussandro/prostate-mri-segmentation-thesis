@@ -395,6 +395,10 @@ def _build_dataset(
     mask_name = data_cfg.get("target_mask", "t2_anatomy_reader1.nii.gz")
 
     transform = build_train_augmentor(config) if augment else None
+    context_slices = _context_slices(config)
+    if transform is not None and context_slices:
+        raise ValueError("2.5D input (data.context_slices > 0) is not combined with "
+                         "augmentation: the augmentor is written for 1-channel slices.")
 
     return ProstateZonal2DDataset(
         dataset_root=dataset_root,
@@ -405,7 +409,19 @@ def _build_dataset(
         preprocessing_config=preprocessing_config,
         transform=transform,
         cache_data=True,
+        context_slices=context_slices,
     )
+
+
+def _context_slices(config: Dict[str, Any]) -> int:
+    """data.context_slices (0 = plain 2D); for 2.5D it must match model.in_channels."""
+    k = int(config.get("data", {}).get("context_slices", 0))
+    if k:
+        in_ch = int(config.get("model", {}).get("in_channels", 3))
+        if in_ch != 2 * k + 1:
+            raise ValueError(f"model.in_channels={in_ch} does not match "
+                             f"data.context_slices={k} (expected {2 * k + 1}).")
+    return k
 
 
 def _ensure_global_stats(config: Dict[str, Any], train_patient_ids) -> bool:
