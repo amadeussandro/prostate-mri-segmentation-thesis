@@ -257,7 +257,10 @@ os.makedirs(pack, exist_ok=True)
 for name in os.listdir(OUT_DIR):
     if name != 'latest_checkpoint.pt' and not name.endswith('.zip'):
         src = os.path.join(OUT_DIR, name)
-        (shutil.copytree if os.path.isdir(src) else shutil.copy2)(src, os.path.join(pack, name))
+        if os.path.isdir(src):
+            shutil.copytree(src, os.path.join(pack, name), dirs_exist_ok=True)
+        else:
+            shutil.copy2(src, os.path.join(pack, name))
 zip_path = shutil.make_archive(os.path.join(OUT_ROOT, RUN), 'zip', pack)
 print('Send this file back:', zip_path, f'({os.path.getsize(zip_path) / 1e6:.0f} MB)')
 print(json.dumps(info, indent=2))
