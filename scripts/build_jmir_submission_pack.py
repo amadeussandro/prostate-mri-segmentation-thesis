@@ -66,7 +66,7 @@ def appendix_claim(out: str) -> None:
          "Study Design and Reporting", "Yes"),
         ("Methods: data", "Data sources; eligibility; preprocessing; acquisition protocol; "
          "missing data; de-identification",
-         "Data Sources; Table 1; Preprocessing; Figure 2; exclusions with reasons (NCI-ISBI 2013)",
+         "Data Sources; Table 1; Figure 1 (case counts); Preprocessing; exclusions with reasons (NCI-ISBI 2013)",
          "Yes (acquisition protocols only as reported by the source datasets)"),
         ("Methods: reference standard", "Definition; rationale; annotators; inter-reader "
          "variability", "Data Sources (reader 1 as reference standard; reader 2 as second "
@@ -75,20 +75,20 @@ def appendix_claim(out: str) -> None:
          "internal testing; level of partition", "Data Sources (official patient-level split "
          "119/20/19); Model and Training", "Yes"),
         ("Methods: model", "Architecture; software; initialization", "Model and Training; "
-         "Figure 3; Statistical Analysis (software and versions)", "Yes"),
+         "Figure 2; Statistical Analysis (software and versions)", "Yes"),
         ("Methods: training", "Training details; hyperparameters; model selection",
          "Model and Training (optimizer, learning rate, batch, epochs, seed, sampler; 2-level "
          "selection rule fixed in advance; checkpoint hash)", "Yes"),
         ("Methods: evaluation", "Metrics; statistical measures of significance and "
          "uncertainty; robustness; explainability; external testing",
-         "Evaluation and Inter-Reader Benchmark; Statistical Analysis (Wilcoxon, Holm, TOST, "
+         "Figure 3; Evaluation and Inter-Reader Benchmark; Statistical Analysis (Wilcoxon, Holm, TOST, "
          "bootstrap CI); External Testing; Fault-Injection Experiment", "Yes (no explainability "
          "method: the output is a segmentation shown directly)"),
         ("Results: data", "Flow of cases; demographic and clinical characteristics",
          "Table 1; Data Sources (exclusions); overlap between cohorts", "Partly: patient "
          "demographics are not distributed with the public datasets"),
         ("Results: model performance", "Performance with uncertainty; comparison with "
-         "reference; failure analysis", "Tables 2-5; Figures 5-8; inter-reader comparison; "
+         "reference; failure analysis", "Tables 2-5; Figures 4-7; inter-reader comparison; "
          "gland-size analysis", "Yes"),
         ("Discussion", "Limitations; implications for practice", "Limitations; Clinical "
          "Implications", "Yes"),

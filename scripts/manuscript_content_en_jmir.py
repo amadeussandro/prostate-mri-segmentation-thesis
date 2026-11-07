@@ -18,15 +18,17 @@ TITLE_CORE = ("Segmentation of Anatomical Zones in Prostate MRI Using a 2D U-Net
 STUDY_TYPE = "Algorithm Development and Validation Study"
 TITLE = f"{TITLE_CORE}: {STUDY_TYPE}"
 
-AUTHORS = ["Benedict Amadeus Sandro, BCS [[TO FILL: degree or omit]]",
-           "Eunike Endariahna Surbakti, MTI"]
+AUTHORS = ["Benedict Amadeus Sandro",
+           "Eunike Endariahna Surbakti, MTI", "David Agustriawan, PhD",
+           "Moeljono Widjaja, PhD"]
 AFFIL = ["Department of Informatics, Faculty of Engineering and Informatics, "
          "Universitas Multimedia Nusantara, Tangerang, Indonesia"]
 CORR = ("Corresponding Author: [[TO FILL: name of corresponding author]], Department of "
         "Informatics, Faculty of Engineering and Informatics, Universitas Multimedia Nusantara, "
         "Jl. Scientia Boulevard, Gading Serpong, Tangerang, Banten 15810, Indonesia. "
         "Phone: [[TO FILL]]. Email: [[TO FILL]]. ORCID: Benedict Amadeus Sandro "
-        "0009-0000-1459-9139; Eunike Endariahna Surbakti [[TO FILL]]")
+        "0009-0000-1459-9139; Eunike Endariahna Surbakti [[TO FILL]]; David Agustriawan "
+        "[[TO FILL]]; Moeljono Widjaja [[TO FILL]]")
 
 FIG_RQ2 = "results/figures_rq2"
 FIG_SUP = "results/figures_supervisor"
@@ -58,6 +60,12 @@ def sg(x: float, nd: int = 3) -> str:
     return f"{x:+.{nd}f}".replace("-", "−")
 
 
+def _r2(x: float) -> str:
+    """2 decimals, half up (0.625 -> 0.63), to match the other rows of Table 1."""
+    from decimal import Decimal, ROUND_HALF_UP
+    return str(Decimal(str(x)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 def msd(d: dict, f=d3) -> str:
     return f"{f(d['mean'])} ({f(d['sd'])})"
 
@@ -85,6 +93,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add = B.append
 
     # ------------------------------------------------------------------ front
+    add(("h2", "Original Paper"))
     add(("title", TITLE))
     add(("authors", AUTHORS))
     add(("affil", AFFIL))
@@ -107,7 +116,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"20 validation, and 19 held-out test examinations), with equivalence tested against a "
         f"margin of ±{margin} Dice. The selected model was frozen and identified by its "
         f"checkpoint hash. Reconstruction was verified by a header-based geometry check and a "
-        f"model-free round-trip test. Six reconstruction faults were then injected into "
+        f"model-free round-trip test. Six reconstruction faults, alone and combined, were then injected into "
         f"{mf['v0_n']} reference segmentations from 4 public cohorts stored in 3 orientation "
         f"conventions. Accuracy was compared with a second expert reader, and the frozen model "
         f"was applied to PROSTATEx ({e['n_cases']} examinations) and to NCI-ISBI 2013 "
@@ -124,7 +133,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"-{d3(cg['dice']['ci_high'])}) for the CG and {d3(pz['dice']['mean'])} "
         f"({d3(pz['dice']['ci_low'])}-{d3(pz['dice']['ci_high'])}) for the PZ, against "
         f"inter-reader Dice of {d3(r2['dice_CG_r1_vs_r2']['mean'])} and "
-        f"{d3(r2['dice_PZ_r1_vs_r2']['mean'])}; boundary distance did not differ from "
+        f"{d3(r2['dice_PZ_r1_vs_r2']['mean'])}; boundary distance was not significantly different from "
         f"inter-reader variability. Training configurations were equivalent or inconclusive "
         f"within ±{margin} Dice. On NCI-ISBI 2013, CG Dice was "
         f"{d3(nc['primary']['cg_dice_none']['mean'])}, and the prespecified rule reduced CG "
@@ -144,7 +153,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
     # ----------------------------------------------------------- introduction
     add(("h2", "Introduction"))
     add(("p",
-        "Prostate cancer is among the most frequently diagnosed cancers in men [@sung]. "
+        "Prostate cancer is the second most frequently diagnosed cancer in men worldwide [@sung]. "
         "Multiparametric MRI is central to its detection and staging, and structured reporting "
         "organizes interpretation around the zonal anatomy of the gland [@turkbey,weinreb]. The "
         "PZ and the CG, which comprises the transition and central zones [@mcneal], differ in "
@@ -155,7 +164,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "Deep learning is the standard approach to this task [@ronneberger,isensee,litjens_survey]. "
         "Prostate MRI is strongly anisotropic, and 2D networks remain a reasonable choice under "
         "that geometry: they do not interpolate along the sparsest axis, they are inexpensive to "
-        "train, and prior work has segmented both zones this way [@bardis,astono]. Their output, "
+        "train, prior work has segmented both zones this way [@bardis,astono], and in benchmarks "
+        "on prostate MRI, networks built from 2D convolutions have matched or outperformed a 3D "
+        "U-Net [@zhang25d,hung_catnet]. Their output, "
         "however, is a stack of slices. Anything that uses the segmentation as a 3D object "
         "requires those slices to be placed back at their axial positions, the preprocessing to "
         "be inverted, and the source geometry to be restored [@cheng]."))
@@ -167,8 +178,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "not corrupt the file. A mirrored volume with a correct header is a valid NIfTI image, "
         "and a correct voxel array written with a default affine still returns a volume in "
         "milliliters. Reporting guidelines ask authors to describe preprocessing and to share "
-        "code [@claim,tripod_ai], but they do not ask how a reconstructed volume was verified, "
-        "and published segmentation studies rarely say."))
+        "code [@claim,tripod_ai], but they do not ask how a reconstructed volume was verified."))
     add(("p",
         "What is missing is evidence about which verification actually detects which error, and "
         "whether that answer holds across datasets. This study had 2 aims. The first was to "
@@ -181,20 +191,30 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     # ---------------------------------------------------------------- methods
     add(("h2", "Methods"))
+    add(("h3", "Ethical Considerations"))
+    add(("p",
+        "No human participants were directly involved in this study. All imaging data and "
+        "annotations came from 4 publicly available, deidentified collections (Prostate158, "
+        "PROSTATEx with its released zonal annotations, NCI-ISBI 2013, and the Medical "
+        "Segmentation Decathlon prostate task), which were collected by the contributing "
+        "institutions under their own ethical oversight and released for secondary research "
+        "use, as described in the source publications [@adams_dib,cuocolo_ejr,clark,bloch_nci,"
+        "antonelli]. The collections are distributed under open licenses that permit reuse with "
+        "attribution (for example, NCI-ISBI 2013 under CC BY 3.0 and the Medical Segmentation "
+        "Decathlon under CC BY-SA 4.0). No identifiable information was accessed. As this work "
+        "was a secondary analysis of publicly available, deidentified data, it did not require "
+        "additional local institutional review board approval or informed consent."))
     add(("h3", "Study Design and Reporting"))
     add(("p",
         "This was a retrospective algorithm development and validation study on public, "
         "de-identified data. It is reported following the Checklist for Artificial Intelligence "
         "in Medical Imaging (CLAIM) 2024 [@claim] (Multimedia Appendix 1). The workflow is shown "
         "in Figure 1. The study had 2 levels of model selection, both fixed before the held-out "
-        "data were examined, and 2 analyses that were specified in writing before they were run: "
-        "the equivalence margin and a connected-component post-processing rule (Multimedia "
-        "Appendix 2)."))
-    add(("fig", (f"{FIG_SUP}/fig_alur_penelitian.png",
-        "Figure 1. Study workflow. Four single-factor training configurations were compared on "
-        "the validation split; the selected configuration was frozen and evaluated once on the "
-        "held-out test split, then used for reconstruction, volumetric analysis, and external "
-        "validation.")))
+        "data were examined. One analysis, a connected-component post-processing rule for the "
+        "confirmatory external cohort, was specified in writing and its file hash recorded "
+        "before it was run (Multimedia Appendix 2)."))
+    add(("fig", (f"{FIG_J}/F1_workflow.png",
+        'Figure 1. Study workflow and case counts.')))
 
     add(("h3", "Data Sources"))
     add(("p",
@@ -222,10 +242,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"of 32 labeled cases with both zones) was used only for the fault-injection experiment, "
         f"because it is stored in a third orientation convention."))
     add(("p",
-        f"Overlap between the external cohorts was checked by voxel-wise image correlation. "
-        f"{ov['n_msd']} NCI-ISBI 3 T examinations are MSD images with independent annotations, "
-        f"and 1 is also a PROSTATEx case. No external image overlaps with Prostate158, which comes "
-        f"from a different institution. The overlap does not affect any training data; it is "
+        f"Overlap between the external cohorts was checked by voxel-wise image correlation. Of "
+        f"the NCI-ISBI 3 T examinations, {ov['n_msd']} are MSD images with independent annotations, "
+        f"and 1 is also a PROSTATEx case. Prostate158 was acquired at a different institution "
+        f"from every external cohort, so the development data cannot be among them. The overlap does not affect any training data; it is "
         f"reported because the cohorts are not fully independent of each other, and it supplied "
         f"a second annotation set for {ov['n_two']} external images."))
     add(("tbl", ("Table 1. Cohorts used in this study.",
@@ -238,28 +258,24 @@ def build(N: dict) -> List[Tuple[str, object]]:
           "Zonal; CG class includes anterior stroma"],
          ["NCI-ISBI 2013", "External testing (confirmatory)",
           f"{nc['n']} of {nc['n_total']}", "1.5 T endorectal coil and 3 T, 2 institutions", "LPS",
-          f"{nc['inplane_min']:.3f}-{nc['inplane_max']:.3f}", "Zonal (CG, PZ)"],
+          f"{_r2(nc['inplane_min'])}-{_r2(nc['inplane_max'])}", "Zonal (CG, PZ)"],
          ["MSD Task05", "Fault injection only", f"{mf['n_cases']['msd_task05']} of 32",
           "3 T, 1 institution", "RAS", "0.60-0.75", "Zonal (transition zone, PZ)"]])))
 
     add(("h3", "Preprocessing"))
     add(("p",
-        "Preprocessing is summarized in Figure 2. Volumes were reoriented to a canonical RAS "
+        "Volumes were reoriented to a canonical RAS "
         "frame. Intensities were clipped at the 0.5th and 99.5th percentiles and z-score "
         "normalized per volume; the mask was never normalized. The in-plane grid was "
         "standardized to 442×442 by symmetric zero-padding or center-cropping, and the "
         "through-plane axis was not resampled. The mask path therefore involves no "
         "interpolation, and every parameter needed to invert it (orientation transform, per-axis "
         "pad or crop offsets, and depths) was stored per case."))
-    add(("fig", (f"{FIG_RQ2}/F6_preprocessing.png",
-        "Figure 2. Preprocessing. Each row gives an operation, its purpose, and the quantity "
-        "stored per case so that the operation can be inverted. Two rows are deliberate "
-        "omissions.")))
 
     add(("h3", "Model and Training"))
     add(("p",
         "The network was a 4-level 2D U-Net [@ronneberger] with 32 initial feature maps, 1 input "
-        "and 3 output channels, and 7,762,531 parameters (Figure 3). Each level applied 2 "
+        "and 3 output channels, and 7,762,531 parameters (Figure 2). Each level applied 2 "
         "3×3 convolutions with batch normalization and rectified linear units; "
         "downsampling used 2×2 max pooling and upsampling used transposed convolutions with "
         "skip connections. Dropout of 0.2 was applied at the bottleneck. The prediction was the "
@@ -267,11 +283,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "architecture was chosen deliberately: self-configuring pipelines show that an "
         "unmodified U-Net remains competitive [@isensee], and a novel architecture would "
         "confound the reconstruction analysis with model design."))
-    add(("fig", (f"{FIG_SUP}/fig_arsitektur_unet.png",
-        "Figure 3. The 2D U-Net. The encoder halves the spatial resolution and doubles the "
-        "channel width over 4 levels to a 512-channel bottleneck; the decoder mirrors it, with "
-        "skip connections (dashed). Input: 1 T2-weighted channel. Output: background, central "
-        "gland, and peripheral zone.")))
+    add(("fig", (f"{FIG_J}/F2_unet.png",
+        'Figure 2. The 2D U-Net architecture (dashed lines: skip connections).')))
     add(("p",
         "Four configurations were trained, each differing from its comparator in 1 factor: a "
         "cross-entropy baseline; the baseline plus a soft Dice term on the 2 foreground classes "
@@ -294,7 +307,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "loader order; a missing or duplicated index raised an error. The volume was then "
         "inverse-transformed through the preprocessing chain in reverse order with "
         "nearest-neighbor interpolation and written as NIfTI with the source affine and spacing "
-        "(Figure 4). Four checks were defined, at 3 levels."))
+        "(Figure 3). Four checks were defined, at 3 levels."))
     add(("p",
         "Level 1, the geometry check, reads the written file's own header and compares array "
         "shape, affine, voxel spacing, orientation codes, and label set with the source. Level "
@@ -304,12 +317,11 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "pad or crop, exact recovery is expected, and the outcome is reported as pass or fail, "
         "never as an accuracy. Level 3 comprises 2 anatomical checks that need no reference and "
         "can therefore run at inference time: the PZ centroid must lie posterior to the CG "
-        "centroid in scanner coordinates, and the gland centroid must not move more than 15 mm "
-        "between adjacent slices."))
-    add(("fig", (f"{FIG_SUP}/fig_alur_rekonstruksi.png",
-        "Figure 4. Reconstruction and verification. Left: the forward path from source volume "
-        "to reassembled prediction. Right: the geometry check, which reads the written header, "
-        "and the model-free round-trip test, which compares voxels.")))
+        "centroid in scanner coordinates, and the gland must occupy a contiguous run of slices "
+        "with its in-plane centroid moving no more than 15 mm between adjacent slices. Both "
+        "thresholds were fixed before any fault-injection result was read."))
+    add(("fig", (f"{FIG_J}/F3_reconstruction_verification.png",
+        'Figure 3. Reconstruction pipeline and the 3 verification levels.')))
 
     add(("h3", "Fault-Injection Experiment"))
     add(("p",
@@ -333,7 +345,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "average surface distance, precision, and recall [@taha,maierhein], with surface "
         "distances in millimeters from each case's own spacing. Macro Dice is the mean of the 2 "
         "foreground classes. On the 19 test cases, reader 2 was compared with reader 1 using the "
-        "same code, so that the model's error could be set against expert disagreement. Zone "
+        "same code, so that the model's error could be set against expert disagreement, as in "
+        "other segmentation studies that benchmark against interobserver variation [@nikolov]. Zone "
         "volumes were computed from the absolute determinant of the affine and compared by "
         "Bland-Altman analysis [@bland]."))
     add(("p",
@@ -368,27 +381,16 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"baseline on the held-out set. Per-zone tests were post hoc and adjusted with the Holm "
         f"method [@holm] across the 2 zones. Because a nonsignificant difference does not show "
         f"absence of an effect, equivalence was tested with 2 one-sided tests (TOST) "
-        f"[@schuirmann,lakens] on paired differences with a margin of ±{margin} Dice, fixed "
-        f"before the tests were run; equivalence was concluded when the 90% CI lay within the "
-        f"margin. The margin is smaller than the SD of inter-reader Dice for either zone "
+        f"[@schuirmann,lakens] on paired differences with a margin of ±{margin} Dice; "
+        f"equivalence was concluded when the 90% CI lay within the margin. The margin was not "
+        f"registered in advance. It was chosen to be smaller than the SD of inter-reader Dice for either zone "
         f"({d3(r2['dice_CG_r1_vs_r2']['sd'])} for the CG and "
         f"{d3(r2['dice_PZ_r1_vs_r2']['sd'])} for the PZ). Tests on the validation split are "
         f"descriptive, because that split was used for selection. Dispersion is the sample SD, "
         f"and CIs are bootstrap percentile intervals (10,000 resamples, fixed seed). Training "
         f"used a single NVIDIA Tesla T4 GPU; all other analyses ran on a CPU with Python "
         f"(version 3.13; Python Software Foundation), PyTorch (version 2.14; Linux Foundation), "
-        f"NiBabel (version 5.4), SimpleITK (version 2.4), and SciPy (version 1.18). The label "
-        f"convention follows MONAI [@monai]."))
-
-    add(("h3", "Ethical Considerations"))
-    add(("p",
-        "This study used only publicly available, de-identified data released for research "
-        "use under their respective open licenses, which permit reuse with attribution (for "
-        "example, MSD under CC BY-SA 4.0, the PROSTATEx zonal annotations under CC BY 4.0, and "
-        "NCI-ISBI 2013 under CC BY 3.0). No human participants were "
-        "recruited and no identifiable information was accessed, so ethics review was not "
-        "required [[TO FILL: cite the Universitas Multimedia Nusantara policy or exemption "
-        "reference]]."))
+        f"NiBabel (version 5.4), SimpleITK (version 2.4), and SciPy (version 1.18)."))
 
     # ---------------------------------------------------------------- results
     add(("h2", "Results"))
@@ -402,8 +404,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"Dice ({fp(e2b['macro']['tost_p'])} and {fp(e2b['CG']['tost_p'])}) but not shown "
         f"equivalent for the PZ ({fp(e2b['PZ']['tost_p'])}). Class weighting was equivalent to "
         f"E1 in every zone (all {fp(max(e3e1[z]['tost_p'] for z in ('macro', 'CG', 'PZ')))} or "
-        f"lower). Two interventions that are commonly recommended thus produced no difference "
-        f"larger than the margin."))
+        f"lower). Neither of these commonly recommended interventions produced a difference "
+        f"shown to exceed the margin, although equivalence for the PZ under augmentation "
+        f"remained unshown."))
     rowsT2 = []
     comp = {"baseline": None, "e1": ("val_E1_minus_baseline", "baseline"),
             "e2": ("val_E2_minus_baseline", "baseline"), "e3": ("val_E3_minus_E1", "E1")}
@@ -445,7 +448,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"{fp(r2['dice_PZ_model_minus_interreader']['wilcoxon_p'])}), that is, "
         f"{r2['dice_CG_model_minus_interreader']['ratio_of_means']*100:.1f}% and "
         f"{r2['dice_PZ_model_minus_interreader']['ratio_of_means']*100:.1f}% of inter-reader "
-        f"agreement. Boundary distance did not differ from inter-reader variability: HD95 was "
+        f"agreement. Boundary distance was not significantly different from inter-reader "
+        f"variability, although equivalence was not tested: HD95 was "
         f"{mm(r2['hd95_CG_model_vs_r1']['mean'])} mm against {mm(r2['hd95_CG_r1_vs_r2']['mean'])} "
         f"mm for the CG ({fp(r2['hd95_CG_model_minus_interreader']['wilcoxon_p'])}) and "
         f"{mm(r2['hd95_PZ_model_vs_r1']['mean'])} mm against "
@@ -480,16 +484,15 @@ def build(N: dict) -> List[Tuple[str, object]]:
 
     add(("h3", "Reconstruction Verification and Fault Injection"))
     add(("p",
-        f"All {g['n']} held-out reconstructions passed the geometry check, with a maximum "
-        f"absolute affine difference of {g['affine_max_abs_diff']:.1f} as read back from the "
-        f"single-precision header, and the round-trip test recovered every reference mask "
+        f"All {g['n']} held-out reconstructions passed the geometry check, with an affine "
+        f"identical to the source within single-precision rounding, and the round-trip test recovered every reference mask "
         f"exactly. In the fault-injection experiment, the correct pipeline returned all "
         f"{mf['v0_n']} references exactly (Table 4). Of the {mf['n_damaged']:,} damaged "
         f"reconstructions, the geometry check flagged {mf['damaged_caught_L1']:,} "
         f"({mf['damaged_caught_L1']/mf['n_damaged']*100:.1f}%), the round-trip test "
         f"{mf['damaged_caught_L2']:,} ({mf['damaged_caught_L2']/mf['n_damaged']*100:.1f}%), and "
         f"the 2 together all {mf['n_damaged']:,}, while neither flagged any of the "
-        f"{mf['n_undamaged']} faulted reconstructions that caused no damage (Figure 5)."))
+        f"{mf['n_undamaged']} faulted reconstructions that caused no damage (Figure 4)."))
     add(("p",
         f"The 2 checks are complementary. A volume that was not reoriented carries a correct "
         f"header and wrong voxels, so the geometry check passed it in every cohort and only the "
@@ -497,7 +500,7 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"reported with CG Dice {d3(v1['cg']['dice_vs_gt'])} and PZ Dice "
         f"{d3(v1['pz']['dice_vs_gt'])}, with PZ centroids displaced by a mean of "
         f"{mm(v1['pz']['centroid_shift_mm'])} mm (maximum {mm(v1['pz']['centroid_shift_max_mm'])} "
-        f"mm), while passing every header check (Figure 6). Conversely, an identity or "
+        f"mm), while passing every header check (Figure 5). Conversely, an identity or "
         f"spacing-only affine leaves the voxels intact, so Dice is unchanged and only the "
         f"geometry check detects it. The spacing-only affine is the more dangerous of the 2: it "
         f"preserved every volume exactly (error 0%) while moving the gland "
@@ -559,15 +562,9 @@ def build(N: dict) -> List[Tuple[str, object]]:
         [[lbl, cell(p158, k), cell(px, k), cell(msd_, k), cell(nci, k), det]
          for k, lbl, det in faults])))
     add(("fig", (f"{FIG_J}/F5_detection_matrix.png",
-        f"Figure 5. Which check detects which fault. Each cell is the share of damaged cases "
-        f"that a check flagged, per cohort. Left of the dashed line: the 2 checks that use the "
-        f"reference and their combination. Right: the 2 anatomical checks that need no "
-        f"reference. Hatched: the fault caused no damage in that cohort. The correct pipeline "
-        f"was flagged in 0 of {mf['v0_n']} cases by the first 3 columns.")))
-    add(("fig", (f"{FIG_RQ2}/F4_mirrored_volume_passes.png",
-        "Figure 6. One held-out case reconstructed correctly (top) and without inverse "
-        "reorientation (bottom). Both pass every header check; the lower volume is "
-        "anatomically mirrored and its peripheral-zone Dice collapses.")))
+        'Figure 4. Share of damaged cases flagged by each check, per fault and cohort. Hatched: the fault left the reconstruction unchanged (no damage).')))
+    add(("fig", (f"{FIG_J}/jmir_F4_mirrored_volume_passes.png",
+        'Figure 5. Correct reconstruction (top) and a mirrored one that still passes every header check (bottom).')))
 
     add(("h3", "Zone Volumes and PSA Density"))
     w = vs["whole"]
@@ -575,19 +572,18 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"The model underestimated whole-gland volume by {mm(-w['bias'])} mL "
         f"({abs(w['pct_of_gt']):.1f}% of the reference; 95% limits of agreement "
         f"{mm(w['loa_low'])} to {mm(w['loa_high'])} mL), mostly through the PZ "
-        f"({mm(vs['pz']['bias'])} mL; {sg(vs['pz']['pct_of_gt'], 1)}%) (Figure 7). This PZ "
+        f"({mm(vs['pz']['bias'])} mL; {sg(vs['pz']['pct_of_gt'], 1)}%) (Figure 6). This PZ "
         f"shortfall is larger than, and opposite in sign to, the difference between readers "
-        f"({sg(r2['vol_PZ_r2_minus_r1']['bias_ml'], 1)} mL), so it is a property of the model "
-        f"rather than of label noise. In the sensitivity analysis, {psa['n_overestimated']} of "
+        f"({sg(r2['vol_PZ_r2_minus_r1']['bias_ml'], 1)} mL), so label noise alone is unlikely to "
+        f"explain it. In the sensitivity analysis, {psa['n_overestimated']} of "
         f"{psa['n']} patients would have had PSA density overestimated, and "
         f"{psa['n_ever_reclassified']} of {psa['n']} would cross the 0.15 ng/mL/mL threshold at "
         f"some PSA value in the 4 to 10 ng/mL gray zone. Across that zone, "
         f"{psa['share_pairs_reclassified_pct']:.1f}% of patient-PSA pairs were reclassified; the "
         f"PSA window within which a patient was misclassified had a median width of "
         f"{psa['width_median']:.1f} ng/mL (maximum {psa['width_max']:.1f})."))
-    add(("fig", (f"{FIG_RQ2}/F2_zone_volume_agreement.png",
-        "Figure 7. Zone-volume agreement on the held-out set. Bland-Altman plots for the central "
-        "gland and peripheral zone, and the resulting per-case error in PSA density.")))
+    add(("fig", (f"{FIG_J}/jmir_F2_zone_volume_agreement.png",
+        'Figure 6. Zone-volume agreement and PSA density error on the held-out set.')))
 
     add(("h3", "External Testing"))
     pr = nc["primary"]
@@ -647,10 +643,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
           mm(bs[site15]["cg_hd95_R1_mean"]), mm(bs[site3]["cg_hd95_R1_mean"])],
          ["CG Dice after the rule", f"{d3(hd['overall']['dice_after_mean'])} (post hoc)",
           f"{d3(r1['dice_after']['mean'])} ({d3(r1['dice_after']['sd'])})", "—", "—"]])))
-    add(("fig", (f"{FIG_RQ2}/F3_external_validation.png",
-        "Figure 8. PROSTATEx external testing. Internal and external Dice; the distribution "
-        "of central-gland HD95, showing a heavy tail rather than a uniform shift; and the "
-        "relation between HD95 and precision.")))
+    add(("fig", (f"{FIG_J}/jmir_F3_external_validation.png",
+        'Figure 7. External testing on PROSTATEx. Error bars: SD.')))
 
     add(("h3", "Gland Size"))
     add(("p",
@@ -686,8 +680,10 @@ def build(N: dict) -> List[Tuple[str, object]]:
         f"The 2D U-Net itself performed close to, but below, expert agreement: "
         f"{r2['dice_CG_model_minus_interreader']['ratio_of_means']*100:.0f}% and "
         f"{r2['dice_PZ_model_minus_interreader']['ratio_of_means']*100:.0f}% of inter-reader "
-        f"Dice for the CG and PZ, with boundary distances that did not differ from those between "
-        f"readers. Training interventions mattered less than the variation between patients: "
+        f"Dice for the CG and PZ, with boundary distances not significantly different from those "
+        f"between readers. Training interventions mattered less than the variation between "
+        f"patients: the 4 configurations spanned {d3(N['arm_spread'])} macro Dice, whereas "
+        f"held-out CG Dice alone had an SD of {d3(cg['dice']['sd'])} across patients; "
         f"augmentation and class weighting were equivalent to their comparators within "
         f"±{margin} Dice in most comparisons, and the soft Dice term's overall effect was "
         f"inconclusive, with a post hoc gain confined to the PZ. On 2 external cohorts, accuracy "
@@ -730,19 +726,24 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h3", "Clinical Implications"))
     add(("p",
         "Dice is a research metric; volume is how zonal segmentation reaches clinical use. The "
-        "model's PZ underestimation propagated into PSA density, and in the sensitivity "
-        "analysis most patients would cross the 0.15 ng/mL/mL threshold somewhere in the "
-        "diagnostic gray zone. The error runs toward overestimated density. Combined with limits "
+        "model's PZ underestimation propagated into PSA density. In the sensitivity analysis, "
+        "most patients would cross the 0.15 ng/mL/mL threshold somewhere in the diagnostic "
+        "gray zone, although the PSA window in which this happens was narrow for most of them. The error runs toward overestimated density. Combined with limits "
         "of agreement that are wide relative to the gland, this means volumes from this model "
         "should not be used for PSA density without review. Reporting volumes with limits of "
         "agreement makes this visible; reporting Dice alone does not."))
 
     add(("h3", "Limitations"))
     add(("p",
-        "The development cohort comprises 158 examinations from 1 institution, and the held-out "
+        "The study has several strengths: a selection protocol fixed before the held-out data "
+        "were examined, a model frozen and identified by its weight hash, an expert second "
+        "reader as benchmark, a post-processing rule specified before its confirmatory test, "
+        "and a fault-injection design in which every difference is attributable to the fault "
+        "alone. It also has limitations. The development cohort comprises 158 examinations from 1 institution, and the held-out "
         "split has 19 cases, so internal estimates are imprecise; CIs are reported for that "
-        "reason. Each configuration was trained once with 1 seed, so seed-to-seed variation is "
-        "not estimated, and the equivalence results describe these runs rather than the "
+        "reason. Each configuration was trained once with 1 seed, so seed-to-seed variation, "
+        "which alone can change segmentation performance [@akesson], is not estimated, and the "
+        "equivalence results describe these runs rather than the "
         "configurations in general. The held-out split had been used twice during earlier "
         "pipeline development with a different model; the selection rule used validation data "
         "only, but the test set was not untouched. For that reason, the analyses added in this "
@@ -750,11 +751,13 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "used before."))
     add(("p",
         f"The external cohorts were annotated under different protocols, so external "
-        f"differences combine model generalization with annotation differences; the "
+        f"differences combine model generalization with annotation differences, and errors in a "
+        f"reference standard can shift measured performance by themselves [@wang_labels]; the "
         f"2-annotation comparison bounds but does not remove this. The cohorts also partly "
         f"overlap ({ov['n_msd']} shared images between NCI-ISBI and MSD, and 1 between NCI-ISBI "
         f"and PROSTATEx); this affects no training data, and excluding the shared PROSTATEx case "
-        f"changed no NCI-ISBI result materially. The fault injection uses a fixed set of faults "
+        f"left the NCI-ISBI results unchanged to the reported precision (CG Dice 0.776 vs 0.777; "
+        f"CG HD95 after the rule 9.1 mm in both). The fault injection uses a fixed set of faults "
         f"implemented in 1 pipeline; other pipelines may fail in other ways, and the 2 harmless "
         f"faults here may not be harmless elsewhere. The PSA analysis uses a range of PSA values "
         f"rather than measured values, and no reader study was performed, so no claim is made "
@@ -779,27 +782,33 @@ def build(N: dict) -> List[Tuple[str, object]]:
         "The authors thank the creators of Prostate158, PROSTATEx and its zonal annotations, "
         "NCI-ISBI 2013, and the Medical Segmentation Decathlon for making their data public. "
         "Generative artificial intelligence (Claude, Anthropic) was used to assist with code "
-        "development, analysis scripting, and language editing [[TO FILL: confirm and complete "
-        "this statement]]. All generated content was reviewed and verified by the authors, who "
-        "take full responsibility for the work. Transcripts are provided in Multimedia "
-        "Appendix 3 [[TO FILL: attach or remove]]."))
+        "development, analysis scripting, figure preparation, and drafting and language editing "
+        "of the manuscript text [[TO FILL: confirm that this list matches how it was used]]. All generated content was reviewed and verified by the authors, who "
+        "take full responsibility for the work. The authors also thank Universitas Multimedia "
+        "Nusantara for its support of this study."))
     add(("h2", "Funding"))
-    add(("p", "[[TO FILL: funding source for the article processing fee, or 'No external "
-              "financial support or grants were received from any public, commercial, or "
-              "not-for-profit entities for the research, authorship, or publication of this "
-              "article.']]"))
+    add(("p", "This work was supported by Universitas Multimedia Nusantara [[TO FILL: grant "
+              "name and number, if any]]. The funder had no role in the study design, data "
+              "analysis, interpretation, or the decision to publish."))
     add(("h2", "Data Availability"))
     add(("p",
         "All datasets analyzed are publicly available from their original sources "
-        "[@adams_dib,cuocolo_ejr,clark,bloch_nci,antonelli]. The analysis code, configuration "
-        "files, the prespecified rule, and the scripts that generate every number in this "
-        "article are available in the project repository [@repo]. The frozen model is "
-        "identified there by the SHA-256 hash of its weights."))
+        "[@adams_dib,cuocolo_ejr,clark,bloch_nci,antonelli]. They were used as provided; all "
+        "preprocessing applied in this study is described in the Methods section."))
+    add(("h2", "Code Availability"))
+    add(("p",
+        "The analysis code, configuration files, the prespecified rule, and the scripts that "
+        "generate every number in this article are publicly available in the project "
+        "repository [@repo]. The frozen model is identified there by the SHA-256 hash of its "
+        "weights. The 3 verification levels are also provided as a standalone script that "
+        "depends only on NumPy and NiBabel (tools/verify_reconstruction.py), so that they can "
+        "be applied to other pipelines."))
     add(("h2", "Authors' Contributions"))
     add(("p",
         "Conceptualization: BAS, EES. Methodology: BAS. Software: BAS. Formal analysis: BAS. "
         "Validation: BAS. Visualization: BAS. Writing - original draft: BAS. Writing - review "
-        "and editing: EES, BAS. Supervision: EES. [[TO FILL: confirm roles]]"))
+        "and editing: EES, DA, MW, BAS. Supervision: EES. [[TO FILL: confirm roles, "
+        "including those of DA and MW]]"))
     add(("h2", "Conflicts of Interest"))
     add(("p", "None declared."))
     add(("h2", "Multimedia Appendix 1"))
@@ -810,6 +819,8 @@ def build(N: dict) -> List[Tuple[str, object]]:
     add(("h2", "Multimedia Appendix 3"))
     add(("p", "Supplementary results: training histories, per-case results, cohort geometry, and "
               "additional figures."))
+    add(("h2", "References"))
+    add(("refs", REFERENCES))
     add(("h2", "Abbreviations"))
     abbr = [("2D", "two-dimensional"), ("3D", "three-dimensional"),
             ("CG", "central gland"), ("CLAIM", "Checklist for Artificial Intelligence in Medical "
@@ -820,9 +831,29 @@ def build(N: dict) -> List[Tuple[str, object]]:
             ("MRI", "magnetic resonance imaging"), ("MSD", "Medical Segmentation Decathlon"),
             ("PSA", "prostate-specific antigen"), ("PZ", "peripheral zone"),
             ("TOST", "two one-sided tests")]
-    add(("p", "; ".join(f"{k}: {v}" for k, v in abbr)))
-    add(("h2", "References"))
-    add(("refs", REFERENCES))
+    for k, v in abbr:
+        add(("p", f"{k}: {v}"))
+
+    # Define the abbreviations shown inside each figure at the end of its caption,
+    # as published JMIR articles do.
+    tails = {
+        1: "CG: central gland; LAS/LPS/RAS: orientation conventions; MSD: Medical Segmentation "
+           "Decathlon; PSA: prostate-specific antigen; PZ: peripheral zone; TOST: two one-sided "
+           "tests.",
+        2: "bg: background; CG: central gland; PZ: peripheral zone; T2W: T2-weighted.",
+        3: "CG: central gland; NIfTI: Neuroimaging Informatics Technology Initiative; PZ: "
+           "peripheral zone; RAS: right-anterior-superior orientation.",
+        4: "CG: central gland; LAS/LPS/RAS: orientation conventions; MSD: Medical Segmentation "
+           "Decathlon; PZ: peripheral zone.",
+        5: "CG: central gland; PZ: peripheral zone.",
+        6: "PSA: prostate-specific antigen.",
+        7: "CG: central gland; HD95: 95th-percentile Hausdorff distance; PZ: peripheral zone.",
+    }
+    for i, (k, v) in enumerate(B):
+        if k == "fig":
+            n = int(v[1].split(".")[0].split()[-1])
+            if n in tails:
+                B[i] = (k, (v[0], f"{v[1]} {tails[n]}"))
     return B
 
 
@@ -834,7 +865,12 @@ _KEEP = ["sung", "turkbey", "weinreb", "mcneal", "ronneberger", "isensee", "litj
          "monai", "yamagishi"]
 # JMIR reference style: sentence-case titles, [doi] and [Medline] tags.
 REFERENCES = {
-    "sung": "Sung H, Ferlay J, Siegel RL, Laversanne M, Soerjomataram I, Jemal A, et al. Global cancer statistics 2020: GLOBOCAN estimates of incidence and mortality worldwide for 36 cancers in 185 countries. CA Cancer J Clin 2021 May;71(3):209-249. [doi: 10.3322/caac.21660] [Medline: 33538338]",
+    "sung": "Bray F, Laversanne M, Sung H, Ferlay J, Siegel RL, Soerjomataram I, et al. Global cancer statistics 2022: GLOBOCAN estimates of incidence and mortality worldwide for 36 cancers in 185 countries. CA Cancer J Clin 2024 May;74(3):229-263. [doi: 10.3322/caac.21834] [Medline: 38572751]",
+    "zhang25d": "Zhang Y, Liao Q, Ding L, Zhang J. Bridging 2D and 3D segmentation networks for computation-efficient volumetric medical image segmentation: an empirical study of 2.5D solutions. Comput Med Imaging Graph 2022 Jul;99:102088. [doi: 10.1016/j.compmedimag.2022.102088] [Medline: 35780703]",
+    "hung_catnet": "Hung ALY, Zheng H, Miao Q, Raman SS, Terzopoulos D, Sung K. CAT-Net: a cross-slice attention transformer model for prostate zonal segmentation in MRI. IEEE Trans Med Imaging 2023 Jan;42(1):291-303. [doi: 10.1109/TMI.2022.3211764] [Medline: 36194719]",
+    "akesson": "Åkesson J, Töger J, Heiberg E. Random effects during training: implications for deep learning-based medical image segmentation. Comput Biol Med 2024 Sep;180:108944. [doi: 10.1016/j.compbiomed.2024.108944] [Medline: 39096609]",
+    "nikolov": "Nikolov S, Blackwell S, Zverovitch A, Mendes R, Livne M, De Fauw J, et al. Clinically applicable segmentation of head and neck anatomy for radiotherapy: deep learning algorithm development and validation study. J Med Internet Res 2021 Jul;23(7):e26151. [doi: 10.2196/26151] [Medline: 34255661]",
+    "wang_labels": "Wang Y, Han X, Li C, Luo L, Yin Q, Zhang J, et al. Impact of gold-standard label errors on evaluating performance of deep learning models in diabetic retinopathy screening: nationwide real-world validation study. J Med Internet Res 2024 Aug;26:e52506. [doi: 10.2196/52506] [Medline: 39141915]",
     "turkbey": "Turkbey B, Rosenkrantz AB, Haider MA, Padhani AR, Villeirs G, Macura KJ, et al. Prostate Imaging Reporting and Data System version 2.1: 2019 update of Prostate Imaging Reporting and Data System version 2. Eur Urol 2019 Sep;76(3):340-351. [doi: 10.1016/j.eururo.2019.02.033] [Medline: 30898406]",
     "weinreb": "Weinreb JC, Barentsz JO, Choyke PL, Cornud F, Haider MA, Macura KJ, et al. PI-RADS Prostate Imaging - Reporting and Data System: 2015, version 2. Eur Urol 2016 Jan;69(1):16-40. [doi: 10.1016/j.eururo.2015.08.052] [Medline: 26427566]",
     "mcneal": "McNeal JE. The zonal anatomy of the prostate. Prostate 1981;2(1):35-49. [doi: 10.1002/pros.2990020105] [Medline: 7279811]",
