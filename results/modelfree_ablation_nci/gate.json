@@ -1,0 +1,18 @@
+{
+  "v0_cases": 78,
+  "v0_roundtrip_exact": 78,
+  "v0_geometry_pass": 78,
+  "v0_L3a_false_alarms": 0,
+  "v0_L3b_false_alarms": 1,
+  "jump_threshold_mm": 15.0,
+  "skipped": [
+    {
+      "dataset": "nci_isbi_2013",
+      "case": "Prostate3T-01-0019",
+      "labels": [
+        0,
+        1
+      ]
+    }
+  ]
+}

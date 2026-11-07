@@ -371,7 +371,22 @@ def main() -> None:
     ap.add_argument("--extended", action="store_true",
                     help="build the extended version: the submission text plus "
                          "supplementary results numbered S1, S2, ...")
+    ap.add_argument("--jmir", action="store_true",
+                    help="build the JMIR revision (manuscript_content_en_jmir); English only")
     args = ap.parse_args()
+
+    if args.jmir:
+        from manuscript_numbers_jmir import jmir_numbers
+        import manuscript_content_en_jmir as content
+        blocks, cited = resolve_citations(content.build(jmir_numbers()), content.REFERENCES)
+        out = args.out or os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro-JMIR-revision.docx")
+        render(blocks, out, args.template)
+        strip_orphan_media(out)
+        print(f"wrote {out}  ({os.path.getsize(out):,} bytes)")
+        print(f"  {sum(1 for k, _ in blocks if k == 'p')} paragraphs, "
+              f"{sum(1 for k, _ in blocks if k == 'fig')} figures, "
+              f"{sum(1 for k, _ in blocks if k == 'tbl')} tables, {len(cited)} references")
+        return
 
     from manuscript_numbers import all_numbers
     N = all_numbers()

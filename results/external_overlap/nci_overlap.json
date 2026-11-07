@@ -1,0 +1,122 @@
+[
+ {
+  "nci": "Prostate3T-01-0001",
+  "other": "MSD:prostate_00",
+  "r": 1.0,
+  "affine_maxdiff_mm": 2.001
+ },
+ {
+  "nci": "Prostate3T-01-0002",
+  "other": "MSD:prostate_01",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0003",
+  "other": "MSD:prostate_02",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0006",
+  "other": "MSD:prostate_06",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0007",
+  "other": "MSD:prostate_07",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0010",
+  "other": "MSD:prostate_10",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0013",
+  "other": "MSD:prostate_04",
+  "r": 1.0,
+  "affine_maxdiff_mm": 2.014
+ },
+ {
+  "nci": "Prostate3T-01-0014",
+  "other": "MSD:prostate_13",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0015",
+  "other": "MSD:prostate_14",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0017",
+  "other": "MSD:prostate_16",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0018",
+  "other": "MSD:prostate_17",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0019",
+  "other": "MSD:prostate_18",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.97
+ },
+ {
+  "nci": "Prostate3T-01-0021",
+  "other": "MSD:prostate_20",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0022",
+  "other": "MSD:prostate_21",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0024",
+  "other": "MSD:prostate_24",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0025",
+  "other": "MSD:prostate_25",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-01-0028",
+  "other": "MSD:prostate_29",
+  "r": 1.0,
+  "affine_maxdiff_mm": 2.001
+ },
+ {
+  "nci": "Prostate3T-01-0029",
+  "other": "MSD:prostate_31",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.791
+ },
+ {
+  "nci": "Prostate3T-01-0030",
+  "other": "MSD:prostate_44",
+  "r": 1.0,
+  "affine_maxdiff_mm": 1.8
+ },
+ {
+  "nci": "Prostate3T-03-0001",
+  "other": "PX:ProstateX-0082",
+  "r": 1.0,
+  "affine_maxdiff_mm": 0.0
+ }
+]

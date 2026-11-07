@@ -1,0 +1,26 @@
+{
+  "v0_cases": 392,
+  "v0_roundtrip_exact": 392,
+  "v0_geometry_pass": 392,
+  "v0_L3a_false_alarms": 0,
+  "v0_L3b_false_alarms": 8,
+  "jump_threshold_mm": 15.0,
+  "skipped": [
+    {
+      "dataset": "msd_task05",
+      "case": "prostate_18",
+      "labels": [
+        0,
+        2
+      ]
+    },
+    {
+      "dataset": "msd_task05",
+      "case": "prostate_32",
+      "labels": [
+        0,
+        2
+      ]
+    }
+  ]
+}

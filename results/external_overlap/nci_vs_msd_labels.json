@@ -1,0 +1,306 @@
+[
+ {
+  "nci": "Prostate3T-01-0001",
+  "msd": "prostate_00",
+  "origin_diff_mm_RAS": [
+   -0.3,
+   0.291,
+   2.001
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   0.485,
+   0.5
+  ],
+  "dice_PZ": 0.7039,
+  "dice_TZ": 0.9516
+ },
+ {
+  "nci": "Prostate3T-01-0002",
+  "msd": "prostate_01",
+  "origin_diff_mm_RAS": [
+   -0.312,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.499,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.792,
+  "dice_TZ": 0.9041
+ },
+ {
+  "nci": "Prostate3T-01-0003",
+  "msd": "prostate_02",
+  "origin_diff_mm_RAS": [
+   -0.312,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.8325,
+  "dice_TZ": 0.9338
+ },
+ {
+  "nci": "Prostate3T-01-0006",
+  "msd": "prostate_06",
+  "origin_diff_mm_RAS": [
+   -0.313,
+   -0.313,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.6836,
+  "dice_TZ": 0.8576
+ },
+ {
+  "nci": "Prostate3T-01-0007",
+  "msd": "prostate_07",
+  "origin_diff_mm_RAS": [
+   -0.312,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.7022,
+  "dice_TZ": 0.7852
+ },
+ {
+  "nci": "Prostate3T-01-0010",
+  "msd": "prostate_10",
+  "origin_diff_mm_RAS": [
+   -0.313,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.7445,
+  "dice_TZ": 0.8432
+ },
+ {
+  "nci": "Prostate3T-01-0013",
+  "msd": "prostate_04",
+  "origin_diff_mm_RAS": [
+   -0.3,
+   -0.181,
+   2.014
+  ],
+  "origin_diff_vox": [
+   -0.501,
+   -0.302,
+   0.504
+  ],
+  "dice_PZ": 0.7923,
+  "dice_TZ": 0.9239
+ },
+ {
+  "nci": "Prostate3T-01-0014",
+  "msd": "prostate_13",
+  "origin_diff_mm_RAS": [
+   -0.312,
+   -0.313,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.499,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.8024,
+  "dice_TZ": 0.7968
+ },
+ {
+  "nci": "Prostate3T-01-0015",
+  "msd": "prostate_14",
+  "origin_diff_mm_RAS": [
+   -0.312,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.7573,
+  "dice_TZ": 0.864
+ },
+ {
+  "nci": "Prostate3T-01-0017",
+  "msd": "prostate_16",
+  "origin_diff_mm_RAS": [
+   -0.313,
+   -0.313,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.8725,
+  "dice_TZ": 0.9867
+ },
+ {
+  "nci": "Prostate3T-01-0018",
+  "msd": "prostate_17",
+  "origin_diff_mm_RAS": [
+   -0.313,
+   -0.313,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.501,
+   0.5
+  ],
+  "dice_PZ": 0.8509,
+  "dice_TZ": 0.8242
+ },
+ {
+  "nci": "Prostate3T-01-0019",
+  "msd": "prostate_18",
+  "origin_diff_mm_RAS": [
+   -0.375,
+   0.509,
+   1.97
+  ],
+  "origin_diff_vox": [
+   -0.501,
+   0.678,
+   0.493
+  ],
+  "dice_PZ": 0.0,
+  "dice_TZ": 0.0
+ },
+ {
+  "nci": "Prostate3T-01-0021",
+  "msd": "prostate_20",
+  "origin_diff_mm_RAS": [
+   -0.313,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.7657,
+  "dice_TZ": 0.928
+ },
+ {
+  "nci": "Prostate3T-01-0022",
+  "msd": "prostate_21",
+  "origin_diff_mm_RAS": [
+   -0.312,
+   -0.312,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.5,
+   0.5
+  ],
+  "dice_PZ": 0.803,
+  "dice_TZ": 0.8997
+ },
+ {
+  "nci": "Prostate3T-01-0024",
+  "msd": "prostate_24",
+  "origin_diff_mm_RAS": [
+   -0.316,
+   -0.309,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.505,
+   -0.495,
+   0.5
+  ],
+  "dice_PZ": 0.7151,
+  "dice_TZ": 0.9547
+ },
+ {
+  "nci": "Prostate3T-01-0025",
+  "msd": "prostate_25",
+  "origin_diff_mm_RAS": [
+   -0.313,
+   -0.313,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.501,
+   0.5
+  ],
+  "dice_PZ": 0.697,
+  "dice_TZ": 0.9012
+ },
+ {
+  "nci": "Prostate3T-01-0028",
+  "msd": "prostate_29",
+  "origin_diff_mm_RAS": [
+   -0.3,
+   -0.296,
+   2.001
+  ],
+  "origin_diff_vox": [
+   -0.5,
+   -0.494,
+   0.5
+  ],
+  "dice_PZ": 0.8685,
+  "dice_TZ": 0.9581
+ },
+ {
+  "nci": "Prostate3T-01-0029",
+  "msd": "prostate_31",
+  "origin_diff_mm_RAS": [
+   -0.36,
+   -0.313,
+   1.791
+  ],
+  "origin_diff_vox": [
+   -0.576,
+   -0.5,
+   0.498
+  ],
+  "dice_PZ": 0.6923,
+  "dice_TZ": 0.8871
+ },
+ {
+  "nci": "Prostate3T-01-0030",
+  "msd": "prostate_44",
+  "origin_diff_mm_RAS": [
+   -0.301,
+   -0.324,
+   1.8
+  ],
+  "origin_diff_vox": [
+   -0.481,
+   -0.518,
+   0.5
+  ],
+  "dice_PZ": 0.8874,
+  "dice_TZ": 0.7868
+ }
+]
