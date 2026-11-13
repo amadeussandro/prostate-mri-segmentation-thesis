@@ -26,6 +26,9 @@ The contribution is on a different axis:
    of a geometry checklist; a lost affine leaves Dice completely untouched.
    Neither check finds both, and the cost of each omitted step is quantified in
    Dice, millimetres and millilitres.
+3. **A prespecified test of clinical usefulness** (JMIR manuscript): PSA density
+   computed from the model's volume against PSA density from reported volumes,
+   on 1,419 patients of the public PI-CAI cohort, reported whatever the outcome.
 
 ### Research questions
 
@@ -82,7 +85,7 @@ SHA-256    : 2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2
 parameters : 7,762,531
 ```
 
-The JMIR manuscript (revision v7) uses a **final model** defined later by a
+The JMIR manuscript (revision v10) uses a **final model** defined later by a
 prespecified rule (`results/seed_25d_prespecification.md`, decision in
 `results/e1_seed_selection/selection.json`, validation data only). E1 was
 replicated with seeds 42, 43 and 44, with 2D and 2.5D input. 2.5D input was not
@@ -112,6 +115,34 @@ are otherwise nearly identical.
 
 ---
 
+## PSA density on PI-CAI (JMIR manuscript, v10)
+
+A third analysis asks whether the model's volumes are useful where they reach the
+clinic. It was specified in writing, and the file hash recorded, before any
+PI-CAI file was downloaded (`results/picai_psad_prespecification.md`, lock in
+`results/picai_psad/prespec_lock.json`). The frozen final model was applied to
+the 1,440 eligible first studies of PI-CAI v2.0 (3 centers), and PSA density
+from the model's whole-gland volume was compared with PSA density from the volume
+in the radiology report for detecting clinically significant prostate cancer.
+
+| PSA density from | AUC (95% CI) | Sensitivity at 0.15 | Specificity at 0.15 |
+|---|---|---|---|
+| Model volume | 0.732 (0.703-0.761) | 0.821 | 0.474 |
+| Reported volume | 0.726 (0.696-0.755) | 0.722 | 0.608 |
+
+Difference in AUC, model minus report: **0.006 (95% CI -0.007 to 0.020)**
+in 1,419 patients (403 with cancer). **Noninferior** at the prespecified margin
+of -0.05; **not superior**. The model's volumes are 13.6 mL smaller than the
+reported ones (median 19.7%), so the usual 0.15 ng/mL/mL threshold trades
+specificity for sensitivity: the two volumes are interchangeable for ranking
+patients, not for threshold-based decisions. At 1 of the 3 centers the lower
+confidence bound fell below the margin (descriptive analysis).
+155 PI-CAI studies duplicate images of the external cohorts (none used for
+training); excluding them does not change the result. Full report:
+`results/picai_psad/report.md`.
+
+---
+
 ## Repository layout
 
 ```
@@ -136,11 +167,15 @@ scripts/                analyses and manuscript build
                                     if the data no longer support a sentence
   run_nci_external_validation.py    NCI-ISBI 2013, prespecified rule
   nci_two_annotation_overlap.py     model vs two independent annotations
+  e1_seed_selection.py              applies the prespecified seed and 2.5D rule
+  run_picai_psad.py                 PI-CAI: cohort, conversion, inference, analysis
+  merge_picai_colab.py              merges and cross-checks the PI-CAI Colab runs
   literature_audit.py               audit of how published 2D prostate studies report
                                     the 2D-to-3D step (protocol, coding and report in
                                     results/literature_audit/; full texts not committed)
   build_jmir_submission_pack.py     appendices, cover letter, figures
-  build_manuscript.py               renders the manuscript (--jmir for JMIR)
+  build_manuscript.py               renders the manuscript (--jmir for JMIR,
+                                    --picai adds the PI-CAI analysis = v10)
   gen_daftarpustaka.py              generates the thesis bibliography
 
 configs/    tests/    notebooks/    results/
@@ -154,7 +189,7 @@ configs/    tests/    notebooks/    results/
 python -m venv .venv
 .venv/Scripts/activate          # Windows;  source .venv/bin/activate on POSIX
 pip install -r requirements.txt
-pytest -q tests/                # 438 passed, 7 skipped
+pytest -q tests/                # 469 passed, 7 skipped
 ```
 
 CPU is enough for the verification gates, every analysis script, and the
@@ -182,8 +217,11 @@ python scripts/analyse_gland_size_effect.py
   prespecified connected-component rule, inference only.
 - **Medical Segmentation Decathlon, Task05** (CC BY-SA 4.0) — fault injection
   and the two-annotation comparison only.
+- **PI-CAI** public training and development set, v2.0 (CC BY-NC 4.0), with
+  labels from the `picai_labels` repository at a fixed commit — PSA density
+  analysis only, inference only.
 
-Neither dataset is redistributed here. `.gitignore` excludes `dataset/`,
+No dataset is redistributed here. `.gitignore` excludes `dataset/`,
 `*.nii*`, `*.npz` and checkpoints.
 
 **Label convention:** `0 = background, 1 = central gland (CZ+TZ), 2 = peripheral

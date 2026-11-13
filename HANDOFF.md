@@ -460,7 +460,7 @@ Location — **outside this repo**: `D:\1.AmadeusKuliah\Skripsi\2611_Skripsi_San
 - 20 references appended to the root `pustaka.bib` with the same citation keys
   as the journal; the template's own 10 example entries were left in place.
 - Figures copied into `assets/pics/` as `fig_*.png`.
-- Map of the template and its styling rules: `claude/Thesis_Latex_Template_Guide.md`.
+- Map of the template and its styling rules: `claude/Thesis_Latex_Template_Guide.md` (local notes, not in the repository).
 
 Verified statically (no LaTeX installed on this machine): every `\ref` resolves,
 no duplicate labels, all 9 figures exist, all 20 `\cite` keys exist, braces
@@ -470,7 +470,7 @@ numbers cross-checked against the result artifacts.**
 First compile 2026-10-15 produced 66 pages, and it was audited against the
 PDF itself — glyph positions read with pdfplumber and compared to the
 14.00 cm text block, rather than estimated from the source. Findings and the
-remaining to-do list: `claude/Skripsi_PDF_Audit_TODO.md`.
+remaining to-do list: `claude/Skripsi_PDF_Audit_TODO.md` (local notes, not in the repository).
 
 Fixed since that compile:
 

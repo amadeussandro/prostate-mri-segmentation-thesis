@@ -128,3 +128,6 @@ results/literature_audit/fulltext/
 results/colab_picai/zips/
 results/colab_picai/run9_folds34/cache_infer/
 results/colab_picai/run9_folds34/conversions/
+
+# Local working notes (bimbingan checklists, audits); kept out of the repository.
+claude/
