@@ -41,42 +41,60 @@ The contribution is on a different axis:
 
 ## Headline results
 
-Held-out test set, 19 Prostate158 cases, scored in original voxel space:
+These are the results of the **JMIR manuscript (v10)**, obtained with the final
+model (ensemble of 3 seeds with left-right flip averaging; see below). The
+numbers of the thesis, which uses a single-seed model, follow in their own
+section.
+
+**Segmentation, held-out test set** (19 Prostate158 cases, original voxel space, mean (SD)):
 
 | Metric | Central gland | Peripheral zone |
 |---|---|---|
-| Dice | **0.8442 ± 0.0493** | **0.6852 ± 0.1286** |
-| Precision | 0.8646 | 0.8297 |
-| Recall | 0.8318 | **0.6090** |
+| Dice | 0.862 (0.050) | 0.710 (0.133) |
+| Precision | 0.885 (0.047) | 0.849 (0.064) |
+| Recall | 0.846 (0.083) | 0.630 (0.169) |
+| HD95, mm | 5.8 (3.0) | 5.9 (3.7) |
 
-Macro Dice **0.7647**. The peripheral zone pairs high precision with low recall
-— it is **under-segmented, not mislocated** — and that pattern recurs in every
-downstream analysis.
+Dice 95% CI: 0.839-0.883 (CG) and 0.648-0.764 (PZ); macro Dice **0.786**.
+Dice between the 2 expert readers on the same cases is 0.873 and 0.747. The
+peripheral zone pairs high precision with low recall: it is under-segmented,
+not mislocated.
 
-**Reconstruction ablation** (same predictions, only the reconstruction varies):
+**External testing** (inference only, frozen model):
 
-| Shortcut | Dice CG | Dice PZ | Centroid shift | Volume error | Caught by checklist |
-|---|---|---|---|---|---|
-| *(none — correct)* | 0.8442 | 0.6852 | 0.0 mm | 0% | — |
-| **No reorientation** | **0.5960** | **0.1758** | 8.2 mm | 0% | **0/19** |
-| **Identity affine** | 0.8442 | 0.6852 | **182.8 mm** | **47%** | 19/19 |
+| Cohort | n | CG Dice | PZ Dice |
+|---|---|---|---|
+| PROSTATEx | 204 | 0.827 (0.101) | 0.646 (0.159) |
+| NCI-ISBI 2013 | 78 | 0.806 | 0.616 |
 
-The two failure modes are exactly complementary. That is the point of the study.
+On NCI-ISBI 2013, a connected-component rule specified before inference reduced
+CG HD95 from 36.5 to 9.1 mm in its confirmatory test (single-seed model), and
+from 19.2 to 8.6 mm with the final model. Accuracy depends on gland size: on
+PROSTATEx, CG Dice rises from 0.743 in the smallest volume tertile to 0.885 in
+the largest (Spearman r = 0.74).
 
-**External validation:** 204 PROSTATEx examinations, inference only, frozen
-model. Macro Dice 0.7192 — a drop of 0.0455. Reconstruction passed 204/204 with
-an affine difference of 0.0, across a different orientation convention (LAS vs
-LPS) and both branches of the in-plane transform.
+**Reconstruction verification by fault injection** (no model involved):
 
-**Known limitation:** accuracy depends on gland size. On the external cohort,
-central-gland Dice rises from 0.7287 in the smallest size tertile to 0.8754 in
-the largest (Spearman r = 0.766).
+- The correct pipeline restored all **470** reference segmentations exactly
+  (4 public cohorts, 3 orientation conventions).
+- Of **2,320** damaged reconstructions, the header-based geometry check flagged
+  1,410 and the voxel-level round-trip test 1,350. **Together they flagged all
+  2,320**, with no false flag among the 970 faulted reconstructions that caused
+  no damage.
+- Omitting reorientation caused no damage in the cohort stored in the network's
+  own orientation, and reduced CG Dice to 0.301 in another.
+
+Each check misses a different class of error. That is the point of the study.
+
+**PSA density on PI-CAI** (prespecified; details below): AUC 0.732 with the
+model's volume against 0.726 with the reported volume, noninferior and not
+superior.
 
 ---
 
 ## The frozen models
 
-The numbers above are those of the thesis, which uses a **single-seed model**:
+The thesis uses a **single-seed model**:
 
 ```
 experiment : exp_e1_dice_ce   (Dice + unweighted Cross Entropy)
@@ -140,6 +158,45 @@ confidence bound fell below the margin (descriptive analysis).
 155 PI-CAI studies duplicate images of the external cohorts (none used for
 training); excluding them does not change the result. Full report:
 `results/picai_psad/report.md`.
+
+---
+
+## Thesis results (single-seed model)
+
+The undergraduate thesis reports the single-seed model (E1, seed 42). These
+numbers use population SD and are kept here because the thesis cites them.
+
+
+Held-out test set, 19 Prostate158 cases, scored in original voxel space:
+
+| Metric | Central gland | Peripheral zone |
+|---|---|---|
+| Dice | **0.8442 ± 0.0493** | **0.6852 ± 0.1286** |
+| Precision | 0.8646 | 0.8297 |
+| Recall | 0.8318 | **0.6090** |
+
+Macro Dice **0.7647**. The peripheral zone pairs high precision with low recall
+— it is **under-segmented, not mislocated** — and that pattern recurs in every
+downstream analysis.
+
+**Reconstruction ablation** (same predictions, only the reconstruction varies):
+
+| Shortcut | Dice CG | Dice PZ | Centroid shift | Volume error | Caught by checklist |
+|---|---|---|---|---|---|
+| *(none — correct)* | 0.8442 | 0.6852 | 0.0 mm | 0% | — |
+| **No reorientation** | **0.5960** | **0.1758** | 8.2 mm | 0% | **0/19** |
+| **Identity affine** | 0.8442 | 0.6852 | **182.8 mm** | **47%** | 19/19 |
+
+The two failure modes are exactly complementary. That is the point of the study.
+
+**External validation:** 204 PROSTATEx examinations, inference only, frozen
+model. Macro Dice 0.7192 — a drop of 0.0455. Reconstruction passed 204/204 with
+an affine difference of 0.0, across a different orientation convention (LAS vs
+LPS) and both branches of the in-plane transform.
+
+**Known limitation:** accuracy depends on gland size. On the external cohort,
+central-gland Dice rises from 0.7287 in the smallest size tertile to 0.8754 in
+the largest (Spearman r = 0.766).
 
 ---
 
