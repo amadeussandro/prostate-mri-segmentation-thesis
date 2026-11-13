@@ -1,0 +1,33 @@
+  50/204 cases
+=== resumed 2026-11-11 18:21 ===
+  50/204 cases
+  100/204 cases
+  150/204 cases
+  200/204 cases
+  204/204 cases
+
+Done over 204 cases.
+  per case : results/final_external_hd95_tail\hd95_tail_per_case.csv
+  report   : results/final_external_hd95_tail\report.md
+  external: 25/204
+  external: 50/204
+  external: 75/204
+  external: 100/204
+  external: 125/204
+  external: 150/204
+  external: 175/204
+  external: 200/204
+  external: 204/204
+  internal: 19/19
+
+per-case : results/final_external_anterior_stroma\anterior_stroma_per_case.csv
+report   : results/final_external_anterior_stroma\report.md
+internal...
+external...
+  external volumes: 50/204
+  external volumes: 100/204
+  external volumes: 150/204
+  external volumes: 200/204
+  external volumes: 204/204
+
+report: results/final_gland_size_effect/report.md

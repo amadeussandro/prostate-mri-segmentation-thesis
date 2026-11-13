@@ -1,0 +1,113 @@
+{
+  "patient_id": "006",
+  "original_shape": [
+    232,
+    232,
+    25
+  ],
+  "affine": [
+    [
+      -0.46875,
+      2.2954687196180545e-12,
+      -7.004560133143118e-16,
+      36.45732498168945
+    ],
+    [
+      -2.1678223452448186e-12,
+      -0.4426764249801636,
+      0.9865999817848206,
+      29.22177505493164
+    ],
+    [
+      7.547997600207412e-13,
+      0.15415625274181366,
+      2.8331289291381836,
+      -95.77969360351562
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "spacing_mm": [
+    0.46875,
+    0.46875,
+    3.0
+  ],
+  "orientation": [
+    "L",
+    "P",
+    "S"
+  ],
+  "n_slices": 25,
+  "preprocessing": {
+    "normalization": "per_volume",
+    "z_resample": false,
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ]
+  },
+  "transform_meta": {
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ],
+    "pad_crop_h": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pad_crop_w": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pre_resample_depth": 25,
+    "post_resample_depth": 25
+  },
+  "geometry_validation": {
+    "shape_match": true,
+    "recon_shape": [
+      232,
+      232,
+      25
+    ],
+    "source_shape": [
+      232,
+      232,
+      25
+    ],
+    "depth_match": true,
+    "affine_match": true,
+    "affine_max_abs_diff": 0.0,
+    "spacing_match": true,
+    "recon_spacing_mm": [
+      0.46875,
+      0.46875,
+      3.0
+    ],
+    "source_spacing_mm": [
+      0.46875,
+      0.46875,
+      3.0
+    ],
+    "orientation_match": true,
+    "recon_orientation": "LPS",
+    "source_orientation": "LPS",
+    "labels_found": [
+      0,
+      1,
+      2
+    ],
+    "labels_valid": true,
+    "all_ok": true
+  },
+  "reconstruction_path": "/content/drive/MyDrive/THESIS_PROSTATE158/results/rq2_e1_epoch88/reconstructions_3d/pred_006.nii.gz"
+}

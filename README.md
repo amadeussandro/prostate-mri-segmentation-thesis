@@ -71,7 +71,9 @@ the largest (Spearman r = 0.766).
 
 ---
 
-## The frozen model
+## The frozen models
+
+The numbers above are those of the thesis, which uses a **single-seed model**:
 
 ```
 experiment : exp_e1_dice_ce   (Dice + unweighted Cross Entropy)
@@ -79,6 +81,31 @@ epoch      : 88
 SHA-256    : 2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2
 parameters : 7,762,531
 ```
+
+The JMIR manuscript (revision v7) uses a **final model** defined later by a
+prespecified rule (`results/seed_25d_prespecification.md`, decision in
+`results/e1_seed_selection/selection.json`, validation data only). E1 was
+replicated with seeds 42, 43 and 44, with 2D and 2.5D input. 2.5D input was not
+adopted (validation macro Dice −0.0008 against a required gain of 0.005). The
+final model is the softmax ensemble of the three 2D seeds with left-right flip
+averaging:
+
+```
+seed 42, epoch 88 : 2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2
+seed 43, epoch 62 : 0ee59ac4c5511869c4910cfb6a385ae2f758623b8137f42a7052c15eab443179
+seed 44, epoch 98 : 427b134123b64ddfceab0a9043eb7937dd424db9c2ab2924975ab0512012cd98
+```
+
+| Final model (sample SD) | CG Dice | PZ Dice | Macro |
+|---|---|---|---|
+| Held-out test, 19 cases | 0.862 (0.050) | 0.710 (0.133) | 0.786 |
+| PROSTATEx, 204 cases | 0.827 (0.101) | 0.646 (0.159) | 0.736 |
+| NCI-ISBI 2013, 78 cases | 0.806 (0.143) | 0.616 (0.173) | 0.711 |
+
+On the held-out set it beats the single-seed model by +0.022 macro Dice (better
+in 16 of 19 cases, P=.005). It costs 6 forward passes per slice. Results:
+`results/final_ensemble_*`, `results/external_prostatex_final`,
+`results/external_nci_isbi_final`.
 
 Identity is confirmed by checksum, never by filename — configurations E1 and E3
 are otherwise nearly identical.
@@ -104,7 +131,16 @@ scripts/                analyses and manuscript build
   analyse_anterior_stroma.py        tests, and refutes, the stroma explanation
   analyse_gland_size_effect.py      accuracy versus gland size
   manuscript_numbers.py             every reported value, loaded from artifacts
-  build_manuscript.py               renders the manuscript
+  manuscript_numbers_jmir.py        the same for the JMIR revision (both models)
+  manuscript_content_{en,id}_jmir.py  JMIR text, with guards that stop the build
+                                    if the data no longer support a sentence
+  run_nci_external_validation.py    NCI-ISBI 2013, prespecified rule
+  nci_two_annotation_overlap.py     model vs two independent annotations
+  literature_audit.py               audit of how published 2D prostate studies report
+                                    the 2D-to-3D step (protocol, coding and report in
+                                    results/literature_audit/; full texts not committed)
+  build_jmir_submission_pack.py     appendices, cover letter, figures
+  build_manuscript.py               renders the manuscript (--jmir for JMIR)
   gen_daftarpustaka.py              generates the thesis bibliography
 
 configs/    tests/    notebooks/    results/
@@ -142,6 +178,10 @@ python scripts/analyse_gland_size_effect.py
 - **PROSTATEx** (Litjens et al) with zonal annotations by Cuocolo et al,
   released CC BY 4.0 — external cohort, inference only. Underlying imaging from
   The Cancer Imaging Archive.
+- **NCI-ISBI 2013** (CC BY 3.0) — confirmatory external cohort for the
+  prespecified connected-component rule, inference only.
+- **Medical Segmentation Decathlon, Task05** (CC BY-SA 4.0) — fault injection
+  and the two-annotation comparison only.
 
 Neither dataset is redistributed here. `.gitignore` excludes `dataset/`,
 `*.nii*`, `*.npz` and checkpoints.
@@ -153,15 +193,17 @@ zone`, verified by multi-planar inspection rather than assumed.
 
 ## Reporting conventions
 
-- Standard deviations are population SD (ddof = 0); Bland–Altman limits of
-  agreement use ddof = 1, per that statistic's convention.
+- Standard deviations are population SD (ddof = 0) in the thesis and sample SD
+  (ddof = 1) in the JMIR manuscript; Bland–Altman limits of agreement use
+  ddof = 1, per that statistic's convention.
 - Macro Dice is the mean of CG and PZ only; background is reported separately.
 - Metrics are computed per case in original voxel space, then averaged across
   cases.
 - Every number in the manuscript is loaded programmatically from a result
   artifact. None is typed by hand.
 - The held-out split was used twice during earlier pipeline development, before
-  these four configurations were designed. That is disclosed rather than
+  these four configurations were designed, and once more for the single-seed
+  model before the seed extension was written. That is disclosed rather than
   described as pristine.
 
 ---

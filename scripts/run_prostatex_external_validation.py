@@ -241,9 +241,13 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
     work_dir = work_dir or os.path.join(output_dir, "_harmonized")
 
     # --- Gate 1: checkpoint identity. A filename proves nothing; the hash does.
+    # The final seed ensemble is passed as its selection.json; each member's
+    # hash is then checked against the selection record (src/ensemble.py).
+    from src.ensemble import is_selection_file, load_model_or_ensemble
+    ensemble_mode = is_selection_file(checkpoint_path)
     digest = sha256_of(checkpoint_path)
     print(f"checkpoint : {checkpoint_path}\nSHA-256    : {digest}")
-    if not skip_sha_check and digest != EXPECTED_E1_SHA256:
+    if not ensemble_mode and not skip_sha_check and digest != EXPECTED_E1_SHA256:
         raise RuntimeError(
             "SHA-256 MISMATCH -- this is not the frozen E1 checkpoint.\n"
             f"  expected {EXPECTED_E1_SHA256}\n  got      {digest}\n"
@@ -256,17 +260,14 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
     case_ids = [r["case_id"] for r in prep]
 
     device = device or get_device()
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    ckpt_cfg = checkpoint.get("config", {})
-    model = build_model(ckpt_cfg).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
-    model.eval()
+    model, ckpt_cfg, model_identity = load_model_or_ensemble(checkpoint_path, device)
+    del build_model  # loading goes through src/ensemble.py for both cases
 
     # --- Gate 3: architecture
-    epoch = checkpoint.get("epoch", "unknown")
+    epoch = model_identity.get("epoch", model_identity.get("epochs", "unknown"))
     exp_name = ckpt_cfg.get("experiment", {}).get("name")
     print(f"experiment : {exp_name}  epoch {epoch}")
-    if int(getattr(model, "out_channels", -1)) != 3:
+    if int(ckpt_cfg.get("model", {}).get("out_channels", -1)) != 3:
         raise RuntimeError("Expected a 3-class model (0=bg, 1=CG, 2=PZ).")
 
     preproc = PreprocessingConfig.from_dict(ckpt_cfg.get("preprocessing", {}))
@@ -363,6 +364,7 @@ def run(prostatex_root: str, checkpoint_path: str, output_dir: str,
         "checkpoint_path": checkpoint_path,
         "checkpoint_sha256": digest,
         "checkpoint_epoch": epoch,
+        "model_identity": model_identity,
         "experiment": exp_name,
         "usage": "inference only -- no training, tuning, threshold or model selection",
         "label_harmonization": "rest > 0 -> 1 (CG), pz > 0 -> 2 (PZ); disjointness re-measured per case",

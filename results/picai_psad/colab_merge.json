@@ -1,0 +1,78 @@
+{
+  "generated_utc": "2026-11-12T21:23:22.669154+00:00",
+  "n_cases": 1440,
+  "by_run": {
+    "Run 7": 577,
+    "Run 8": 291,
+    "Run 9": 572
+  },
+  "n_geometry_failed": 0,
+  "n_empty": 1,
+  "n_also_inferred_elsewhere": 90,
+  "n_also_inferred_identical": 90,
+  "runs": [
+    {
+      "name": "Run 7",
+      "dir": "G:/My Drive/Prostate158_PICAI",
+      "folds_assigned": [
+        0,
+        1
+      ],
+      "folds_done": [
+        0,
+        1
+      ],
+      "n_cached": 577,
+      "notebook": "Run 7 - PI-CAI PSA density, final ensemble.ipynb",
+      "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+      "bundle_ok_printed": true,
+      "gpu": "Tesla T4",
+      "torch": "2.14.1+cu130",
+      "folds_done_printed": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "Run 8",
+      "dir": "G:/My Drive/Prostate158_E1_seeds/picai_folds234",
+      "folds_assigned": [
+        2
+      ],
+      "folds_done": [
+        2
+      ],
+      "n_cached": 381,
+      "notebook": "Run 8 - PI-CAI folds 2-4, final ensemble.ipynb",
+      "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+      "bundle_ok_printed": true,
+      "gpu": "Tesla T4",
+      "torch": "2.14.1+cu130",
+      "folds_done_printed": [
+        2
+      ]
+    },
+    {
+      "name": "Run 9",
+      "dir": "D:\\1.AmadeusKuliah\\Skripsi\\thesis-project\\results/colab_picai/run9_folds34",
+      "folds_assigned": [
+        3,
+        4
+      ],
+      "folds_done": [
+        3,
+        4
+      ],
+      "n_cached": 572,
+      "notebook": "Run 9 - PI-CAI folds 3-4, final ensemble.ipynb",
+      "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+      "bundle_ok_printed": true,
+      "gpu": "Tesla T4",
+      "torch": "2.14.1+cu130",
+      "folds_done_printed": [
+        3,
+        4
+      ]
+    }
+  ]
+}

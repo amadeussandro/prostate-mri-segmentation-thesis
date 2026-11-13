@@ -1,0 +1,590 @@
+{
+  "case_root": "/content/drive/MyDrive/THESIS_PROSTATE158/dataset/test/extracted/prostate158_test/test",
+  "num_cases": 19,
+  "case_ids": [
+    "001",
+    "002",
+    "003",
+    "004",
+    "005",
+    "006",
+    "007",
+    "008",
+    "009",
+    "010",
+    "011",
+    "012",
+    "013",
+    "014",
+    "015",
+    "016",
+    "017",
+    "018",
+    "019"
+  ],
+  "num_with_t2": 19,
+  "num_with_gt": 19,
+  "gt_status": "A: t2_anatomy_reader1 present for ALL cases",
+  "unique_t2_shapes": [
+    [
+      232,
+      232,
+      23
+    ],
+    [
+      232,
+      232,
+      25
+    ],
+    [
+      232,
+      232,
+      26
+    ],
+    [
+      232,
+      232,
+      27
+    ],
+    [
+      232,
+      232,
+      28
+    ],
+    [
+      232,
+      232,
+      29
+    ]
+  ],
+  "unique_t2_orientations": [
+    "LPS"
+  ],
+  "unique_gt_label_sets": [
+    [
+      0,
+      1,
+      2
+    ]
+  ],
+  "overlap_with_train": [],
+  "overlap_with_val": [],
+  "loader_resolves_19_test_ids": true,
+  "loader_message": "load_official_split resolved 19 test ids (no leakage).",
+  "per_case": {
+    "001": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        23
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        23
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "002": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        23
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        23
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "003": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        23
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        23
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "004": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "005": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        27
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        27
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "006": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "007": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        29
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        29
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "008": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "009": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "010": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "011": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        28
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        28
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "012": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        23
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        23
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "013": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        23
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        23
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "014": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        28
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        28
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "015": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        23
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        23
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "016": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4948,
+        0.4948,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "017": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "018": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        26
+      ],
+      "t2_spacing": [
+        0.4688,
+        0.4688,
+        3.15
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        26
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    },
+    "019": {
+      "has_t2": true,
+      "has_gt": true,
+      "t2_shape": [
+        232,
+        232,
+        25
+      ],
+      "t2_spacing": [
+        0.4948,
+        0.4948,
+        3.0
+      ],
+      "t2_orientation": "LPS",
+      "gt_shape": [
+        232,
+        232,
+        25
+      ],
+      "gt_orientation": "LPS",
+      "gt_unique_labels": [
+        0,
+        1,
+        2
+      ],
+      "gt_matches_t2_geometry": true
+    }
+  },
+  "note": "READ-ONLY audit. No model, no evaluation, no training, no metrics."
+}

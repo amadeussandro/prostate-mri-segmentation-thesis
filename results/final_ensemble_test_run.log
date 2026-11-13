@@ -1,0 +1,37 @@
+==============================================================================
+RQ2 -- 3D RECONSTRUCTION FROM FROZEN 2D U-NET (inference only, no training)
+  checkpoint : results/e1_seed_selection/selection.json  (epoch -1)
+  split      : test  (19 cases)
+  data root  : G:/My Drive/THESIS_PROSTATE158/dataset/test/extracted/prostate158_test/test
+  output     : D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test
+  device     : cpu
+==============================================================================
+  001: recon=True  Dice CG=0.7370 PZ=0.7624 (mean FG 0.7497) -> pred_001.nii.gz
+  002: recon=True  Dice CG=0.8943 PZ=0.7938 (mean FG 0.8440) -> pred_002.nii.gz
+  003: recon=True  Dice CG=0.9089 PZ=0.7178 (mean FG 0.8134) -> pred_003.nii.gz
+  004: recon=True  Dice CG=0.8183 PZ=0.7534 (mean FG 0.7858) -> pred_004.nii.gz
+  005: recon=True  Dice CG=0.9204 PZ=0.7325 (mean FG 0.8264) -> pred_005.nii.gz
+  006: recon=True  Dice CG=0.8987 PZ=0.7967 (mean FG 0.8477) -> pred_006.nii.gz
+  007: recon=True  Dice CG=0.8957 PZ=0.7073 (mean FG 0.8015) -> pred_007.nii.gz
+  008: recon=True  Dice CG=0.8557 PZ=0.7315 (mean FG 0.7936) -> pred_008.nii.gz
+  009: recon=True  Dice CG=0.8949 PZ=0.7681 (mean FG 0.8315) -> pred_009.nii.gz
+  010: recon=True  Dice CG=0.8516 PZ=0.5446 (mean FG 0.6981) -> pred_010.nii.gz
+  011: recon=True  Dice CG=0.8859 PZ=0.8343 (mean FG 0.8601) -> pred_011.nii.gz
+  012: recon=True  Dice CG=0.8366 PZ=0.8220 (mean FG 0.8293) -> pred_012.nii.gz
+  013: recon=True  Dice CG=0.8432 PZ=0.7180 (mean FG 0.7806) -> pred_013.nii.gz
+  014: recon=True  Dice CG=0.8618 PZ=0.8567 (mean FG 0.8593) -> pred_014.nii.gz
+  015: recon=True  Dice CG=0.8748 PZ=0.7924 (mean FG 0.8336) -> pred_015.nii.gz
+  016: recon=True  Dice CG=0.7546 PZ=0.4267 (mean FG 0.5906) -> pred_016.nii.gz
+  017: recon=True  Dice CG=0.8899 PZ=0.8024 (mean FG 0.8462) -> pred_017.nii.gz
+  018: recon=True  Dice CG=0.8408 PZ=0.4064 (mean FG 0.6236) -> pred_018.nii.gz
+  019: recon=True  Dice CG=0.9183 PZ=0.5303 (mean FG 0.7243) -> pred_019.nii.gz
+
+RQ2 reconstruction complete.
+  reconstructions : D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test\reconstructions_3d
+  metrics (case)  : D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test\metrics_per_case.csv
+  metrics (summary): D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test\metrics_summary.csv
+  geometry valid. : D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test\reconstruction_validation.csv  (19/19 all_ok)
+  summary JSON    : D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test\summary.json
+  report          : D:\1.AmadeusKuliah\Skripsi\thesis-project\results\final_ensemble_test\report.md
+  CG_central_gland Dice: mean=0.8622 SD=0.0490 n=19
+  PZ_peripheral_zone Dice: mean=0.7104 SD=0.1299 n=19

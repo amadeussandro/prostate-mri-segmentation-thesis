@@ -1,0 +1,53 @@
+experiment:
+  name: exp_e1_dice_ce
+  description: 'RQ-1 E1 loss ablation: 1.0 x CrossEntropy + 1.0 x SoftDice (foreground
+    CG+PZ) vs baseline CrossEntropy'
+  output_dir: /content/drive/MyDrive/THESIS_PROSTATE158/results/test_e1_epoch88
+data:
+  dataset_root: dataset/prostate158_train/train
+  train_csv: dataset/prostate158_train/train.csv
+  valid_csv: dataset/prostate158_train/valid.csv
+  target_mask: t2_anatomy_reader1.nii.gz
+  slice_sampling: all
+  test_dir: /content/drive/MyDrive/THESIS_PROSTATE158/dataset/test/extracted/prostate158_test/test
+preprocessing:
+  normalization: per_volume
+  z_resample: false
+  spatial_mode: crop_pad
+  target_size:
+  - 442
+  - 442
+model:
+  architecture: ProstateUNet2D
+  in_channels: 1
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 42
+  optimizer: AdamW
+  weight_decay: 0.0001
+  amp: false
+loss:
+  name: dice_ce
+  ce_weight: 1.0
+  dice_weight: 1.0
+  dice_classes:
+  - 1
+  - 2
+  epsilon: 1.0e-06
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: val_dice
+evaluation:
+  aggregation: per_case
+  space: original_voxel
+  include_empty_slices: true
+  class_ids:
+  - 0
+  - 1
+  - 2
+  label_mapping_status: verified_multiplanar_2026_10_05

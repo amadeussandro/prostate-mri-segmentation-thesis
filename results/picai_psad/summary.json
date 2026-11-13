@@ -1,0 +1,349 @@
+{
+  "generated_utc": "2026-11-12T21:23:23.266744+00:00",
+  "prespec_sha256_lf": "6e1b6bab750d696aa8c4f05618a425c5c2bd00820137fc989553735263193c9c",
+  "model_identity": {
+    "kind": "softmax_ensemble",
+    "arm": "2d",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "epochs": [
+      88,
+      62,
+      98
+    ],
+    "member_sha256": [
+      "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+      "0ee59ac4c5511869c4910cfb6a385ae2f758623b8137f42a7052c15eab443179",
+      "427b134123b64ddfceab0a9043eb7937dd424db9c2ab2924975ab0512012cd98"
+    ],
+    "tta_flip_left_right": true,
+    "ensemble_id_sha256": "ec21408e3ecf80b87b152be89e742e73fc4b1160dedbb64289d61ab0398c3cef",
+    "device": "cuda",
+    "gpus": [
+      "Tesla T4"
+    ],
+    "torch": [
+      "2.14.1+cu130"
+    ],
+    "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+    "runs": [
+      {
+        "name": "Run 7",
+        "dir": "G:/My Drive/Prostate158_PICAI",
+        "folds_assigned": [
+          0,
+          1
+        ],
+        "folds_done": [
+          0,
+          1
+        ],
+        "n_cached": 577,
+        "notebook": "Run 7 - PI-CAI PSA density, final ensemble.ipynb",
+        "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+        "bundle_ok_printed": true,
+        "gpu": "Tesla T4",
+        "torch": "2.14.1+cu130",
+        "folds_done_printed": [
+          0,
+          1
+        ]
+      },
+      {
+        "name": "Run 8",
+        "dir": "G:/My Drive/Prostate158_E1_seeds/picai_folds234",
+        "folds_assigned": [
+          2
+        ],
+        "folds_done": [
+          2
+        ],
+        "n_cached": 381,
+        "notebook": "Run 8 - PI-CAI folds 2-4, final ensemble.ipynb",
+        "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+        "bundle_ok_printed": true,
+        "gpu": "Tesla T4",
+        "torch": "2.14.1+cu130",
+        "folds_done_printed": [
+          2
+        ]
+      },
+      {
+        "name": "Run 9",
+        "dir": "D:\\1.AmadeusKuliah\\Skripsi\\thesis-project\\results/colab_picai/run9_folds34",
+        "folds_assigned": [
+          3,
+          4
+        ],
+        "folds_done": [
+          3,
+          4
+        ],
+        "n_cached": 572,
+        "notebook": "Run 9 - PI-CAI folds 3-4, final ensemble.ipynb",
+        "bundle_sha256": "29021394e1c61b3f50420aa8315c3d43eca4e66f8a57398537c0a439361e50bd",
+        "bundle_ok_printed": true,
+        "gpu": "Tesla T4",
+        "torch": "2.14.1+cu130",
+        "folds_done_printed": [
+          3,
+          4
+        ]
+      }
+    ],
+    "note": "member hashes are checked against selection.json by load_final_model() at every load; all runs loaded them from the same bundle"
+  },
+  "labels_commit": "ce4a4723d7c46d882a6cbaacb40ed6c4be86282f",
+  "marksheet_sha256": "23eab23790886258440b4af2842733332003f2c59f0a007b1e7b6b44572cf0ae",
+  "n_studies": 1500,
+  "n_patients": 1476,
+  "n_inferred": 1440,
+  "n_primary": 1419,
+  "excluded": {
+    "later study of the same patient": 24,
+    "no PSA": 36,
+    "no csPCa label": 0,
+    "no reported prostate volume": 21
+  },
+  "share_of_patients_not_in_primary": 0.03861788617886175,
+  "n_empty_model": 1,
+  "geometry_ok": 1440,
+  "corner_max_diff_mm": 3.555084342110604e-05,
+  "over_20pct_removed": false,
+  "primary": {
+    "n": 1419,
+    "n_pos": 403,
+    "auc_a": 0.7322028682518904,
+    "auc_b": 0.7259004806471151,
+    "auc_a_ci95": [
+      0.7025067285711495,
+      0.7605901115648385
+    ],
+    "auc_b_ci95": [
+      0.6959355949961901,
+      0.7550154109923605
+    ],
+    "diff": 0.006302387604775306,
+    "diff_ci95": [
+      -0.006694439831187402,
+      0.01992960644575138
+    ],
+    "noninferior": true,
+    "superior": false,
+    "labels": [
+      "PSAD model",
+      "PSAD report"
+    ]
+  },
+  "volume_model_vs_report": {
+    "n": 1419,
+    "mean_x": 51.13231776292475,
+    "mean_ref": 64.7616490486258,
+    "bias": -13.629331285701031,
+    "sd": 17.901630862516416,
+    "loa95": [
+      -48.71652777623321,
+      21.457865204831148
+    ],
+    "median_rel_diff": -0.1971926765475152,
+    "spearman": 0.8666522350859663
+  },
+  "volume_model_vs_bosma": {
+    "n": 1440,
+    "mean_x": 51.13239331332141,
+    "mean_ref": 59.39524472932134,
+    "bias": -8.262851415999931,
+    "sd": 11.459845086250207,
+    "loa95": [
+      -30.724147785050334,
+      14.198444953050474
+    ],
+    "median_rel_diff": -0.11348317659561699,
+    "spearman": 0.9190029332586127
+  },
+  "dice_vs_bosma": {
+    "n": 1440,
+    "mean": 0.8404114352839716,
+    "median": 0.8800565160307551,
+    "q25_q75": [
+      0.8123527062836293,
+      0.9144646930250375
+    ]
+  },
+  "bosma_same_grid": 1440,
+  "reclassification": {
+    "threshold": 0.15,
+    "model": {
+      "sensitivity": 0.8213399503722084,
+      "specificity": 0.4744094488188976,
+      "n_positive": 865
+    },
+    "report": {
+      "sensitivity": 0.7220843672456576,
+      "specificity": 0.6082677165354331,
+      "n_positive": 689
+    },
+    "model_pos_report_neg": 191,
+    "model_neg_report_pos": 15,
+    "discordant": 206,
+    "bosma": {
+      "sensitivity": 0.771712158808933,
+      "specificity": 0.5590551181102362,
+      "n_positive": 759
+    }
+  },
+  "bosma_psad_vs_report": {
+    "n": 1419,
+    "n_pos": 403,
+    "auc_a": 0.7387653621461089,
+    "auc_b": 0.7259004806471151,
+    "auc_a_ci95": [
+      0.7093574153494461,
+      0.7672111599030891
+    ],
+    "auc_b_ci95": [
+      0.6959355949961901,
+      0.7550154109923605
+    ],
+    "diff": 0.012864881498993785,
+    "diff_ci95": [
+      0.001708092358492361,
+      0.024034095904730244
+    ],
+    "noninferior": true,
+    "superior": true
+  },
+  "by_center": {
+    "PCNN": {
+      "n": 323,
+      "n_pos": 96,
+      "auc_a": 0.5920521292217328,
+      "auc_b": 0.6066905286343612,
+      "auc_a_ci95": [
+        0.5214298825256976,
+        0.6604717327459618
+      ],
+      "auc_b_ci95": [
+        0.5374179744860499,
+        0.6742193236049926
+      ],
+      "diff": -0.014638399412628456,
+      "diff_ci95": [
+        -0.05598499449339209,
+        0.028360751651982367
+      ],
+      "noninferior": false,
+      "superior": false
+    },
+    "RUMC": {
+      "n": 761,
+      "n_pos": 230,
+      "auc_a": 0.7638499959060018,
+      "auc_b": 0.7577458445918284,
+      "auc_a_ci95": [
+        0.7262834684352739,
+        0.7998204781789895
+      ],
+      "auc_b_ci95": [
+        0.7198107549332678,
+        0.7932660894129206
+      ],
+      "diff": 0.006104151314173412,
+      "diff_ci95": [
+        -0.0075822893637927016,
+        0.019716900024563964
+      ],
+      "noninferior": true,
+      "superior": false
+    },
+    "ZGT": {
+      "n": 335,
+      "n_pos": 77,
+      "auc_a": 0.7899426155240109,
+      "auc_b": 0.7816369676834793,
+      "auc_a_ci95": [
+        0.729485049833887,
+        0.845514950166113
+      ],
+      "auc_b_ci95": [
+        0.7206005235075003,
+        0.8386942514849491
+      ],
+      "diff": 0.00830564784053156,
+      "diff_ci95": [
+        -0.015454797140843716,
+        0.031059347629115067
+      ],
+      "noninferior": true,
+      "superior": false
+    }
+  },
+  "sensitivity": {
+    "rule_R1": {
+      "n": 1419,
+      "n_pos": 403,
+      "auc_a": 0.7324031378831989,
+      "auc_b": 0.7259004806471151,
+      "auc_a_ci95": [
+        0.7029649674683965,
+        0.7607030074637072
+      ],
+      "auc_b_ci95": [
+        0.6959355949961901,
+        0.7550154109923605
+      ],
+      "diff": 0.006502657236083786,
+      "diff_ci95": [
+        -0.006614240391942389,
+        0.020195757458822575
+      ],
+      "noninferior": true,
+      "superior": false
+    },
+    "without_duplicates": {
+      "n_removed": 154,
+      "n": 1265,
+      "n_pos": 356,
+      "auc_a": 0.7254700189120036,
+      "auc_b": 0.7190779471205547,
+      "auc_a_ci95": [
+        0.6939550345483987,
+        0.7556464845922795
+      ],
+      "auc_b_ci95": [
+        0.6869567047996934,
+        0.7501919398400515
+      ],
+      "diff": 0.00639207179144885,
+      "diff_ci95": [
+        -0.00848587316596826,
+        0.021266849297289336
+      ],
+      "noninferior": true,
+      "superior": false
+    },
+    "without_geometry_failures": "no geometry failures"
+  },
+  "overlap": {
+    "method": "same RAS array shape and Pearson r >= 0.99",
+    "others": {
+      "PROSTATEx": 204,
+      "NCI-ISBI": 79,
+      "MSD": 48
+    },
+    "candidate_pairs": 39502,
+    "n_duplicates": 156,
+    "by_source": {
+      "PROSTATEx": 152,
+      "NCI-ISBI": 4
+    }
+  },
+  "roundtrip_bosma": {
+    "n_tested": 1440,
+    "passed": 1439,
+    "n_empty": 0
+  }
+}

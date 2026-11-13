@@ -1,0 +1,234 @@
+  1/20 020 CG 0.893 PZ 0.792
+  2/20 021 CG 0.911 PZ 0.797
+  3/20 022 CG 0.923 PZ 0.752
+  4/20 023 CG 0.901 PZ 0.636
+  5/20 038 CG 0.880 PZ 0.804
+=== resumed 2026-11-11 18:21 ===
+  6/20 041 CG 0.924 PZ 0.785
+  7/20 046 CG 0.903 PZ 0.734
+  8/20 047 CG 0.876 PZ 0.838
+  9/20 051 CG 0.812 PZ 0.745
+  10/20 056 CG 0.841 PZ 0.709
+  11/20 060 CG 0.844 PZ 0.601
+  12/20 061 CG 0.907 PZ 0.812
+  13/20 077 CG 0.633 PZ 0.626
+  14/20 084 CG 0.848 PZ 0.826
+  15/20 087 CG 0.930 PZ 0.818
+  16/20 099 CG 0.893 PZ 0.773
+  17/20 109 CG 0.880 PZ 0.828
+  18/20 114 CG 0.901 PZ 0.791
+  19/20 118 CG 0.866 PZ 0.833
+  20/20 127 CG 0.897 PZ 0.804
+{
+ "R1": {
+  "passed": true,
+  "cg": {
+   "dice": {
+    "n": 20,
+    "mean_diff": -0.0005249626044630529,
+    "n_changed": 4,
+    "wilcoxon_p": 1.0
+   },
+   "hd95": {
+    "n": 20,
+    "mean_diff": -0.4702812785059633,
+    "n_changed": 3,
+    "wilcoxon_p": 0.75
+   }
+  }
+ },
+ "R2": {
+  "passed": false,
+  "cg": {
+   "dice": {
+    "n": 20,
+    "mean_diff": -0.0005249626044630529,
+    "n_changed": 4,
+    "wilcoxon_p": 1.0
+   },
+   "hd95": {
+    "n": 20,
+    "mean_diff": -0.4702812785059633,
+    "n_changed": 3,
+    "wilcoxon_p": 0.75
+   }
+  },
+  "pz": {
+   "dice": {
+    "n": 20,
+    "mean_diff": -0.0010450274109775116,
+    "n_changed": 14,
+    "wilcoxon_p": 0.3909912109375
+   },
+   "hd95": {
+    "n": 20,
+    "mean_diff": 0.4135983097600059,
+    "n_changed": 4,
+    "wilcoxon_p": 0.125
+   }
+  }
+ }
+}
+  1/78 ProstateDx-01-0058 CG 0.823 PZ 0.693
+  2/78 ProstateDx-01-0075 CG 0.861 PZ 0.591
+  3/78 ProstateDx-01-0082 CG 0.891 PZ 0.726
+  4/78 ProstateDx-01-0060 CG 0.860 PZ 0.449
+  5/78 ProstateDx-01-0001 CG 0.816 PZ 0.649
+  6/78 ProstateDx-01-0071 CG 0.848 PZ 0.601
+  7/78 ProstateDx-01-0042 CG 0.892 PZ 0.589
+  8/78 ProstateDx-01-0043 CG 0.772 PZ 0.631
+  9/78 ProstateDx-01-0063 CG 0.853 PZ 0.470
+  10/78 ProstateDx-01-0054 CG 0.024 PZ 0.055
+  11/78 ProstateDx-01-0035 CG 0.806 PZ 0.678
+  12/78 ProstateDx-01-0006 CG 0.889 PZ 0.674
+  13/78 ProstateDx-01-0076 CG 0.648 PZ 0.295
+  14/78 ProstateDx-01-0059 CG 0.738 PZ 0.543
+  15/78 ProstateDx-01-0052 CG 0.780 PZ 0.662
+  16/78 ProstateDx-01-0019 CG 0.784 PZ 0.520
+  17/78 ProstateDx-01-0005 CG 0.793 PZ 0.696
+  18/78 ProstateDx-01-0013 CG 0.787 PZ 0.625
+  19/78 ProstateDx-01-0038 CG 0.831 PZ 0.500
+  20/78 ProstateDx-01-0023 CG 0.747 PZ 0.563
+  21/78 ProstateDx-01-0080 CG 0.754 PZ 0.518
+  22/78 ProstateDx-01-0056 CG 0.658 PZ 0.477
+  23/78 ProstateDx-01-0028 CG 0.793 PZ 0.821
+  24/78 ProstateDx-01-0073 CG 0.825 PZ 0.687
+  25/78 ProstateDx-01-0011 CG 0.806 PZ 0.626
+  26/78 ProstateDx-01-0074 CG 0.716 PZ 0.559
+  27/78 ProstateDx-01-0021 CG 0.838 PZ 0.719
+  28/78 ProstateDx-01-0044 CG 0.744 PZ 0.627
+  29/78 ProstateDx-01-0014 CG 0.901 PZ 0.474
+  30/78 ProstateDx-02-0001 CG 0.854 PZ 0.711
+  31/78 ProstateDx-02-0005 CG 0.809 PZ 0.657
+  32/78 ProstateDx-02-0004 CG 0.826 PZ 0.698
+  33/78 ProstateDx-02-0003 CG 0.902 PZ 0.325
+  34/78 ProstateDx-02-0002 CG 0.797 PZ 0.683
+  35/78 ProstateDx-03-0005 CG 0.860 PZ 0.730
+  36/78 ProstateDx-03-0004 CG 0.801 PZ 0.698
+  37/78 ProstateDx-03-0003 CG 0.729 PZ 0.362
+  38/78 ProstateDx-03-0001 CG 0.864 PZ 0.713
+  39/78 ProstateDx-03-0002 CG 0.867 PZ 0.660
+  40/78 Prostate3T-03-0002 CG 0.881 PZ 0.857
+  41/78 Prostate3T-03-0004 CG 0.913 PZ 0.838
+  42/78 Prostate3T-03-0003 CG 0.903 PZ 0.633
+  43/78 Prostate3T-03-0005 CG 0.887 PZ 0.806
+  44/78 Prostate3T-03-0001 CG 0.864 PZ 0.691
+  45/78 Prostate3T-01-0016 CG 0.887 PZ 0.693
+  46/78 Prostate3T-01-0015 CG 0.855 PZ 0.632
+  47/78 Prostate3T-01-0004 CG 0.885 PZ 0.686
+  48/78 Prostate3T-01-0023 CG 0.889 PZ 0.767
+  49/78 Prostate3T-01-0005 CG 0.863 PZ 0.857
+  50/78 Prostate3T-01-0027 CG 0.893 PZ 0.797
+  51/78 Prostate3T-01-0021 CG 0.897 PZ 0.685
+  52/78 Prostate3T-01-0009 CG 0.876 PZ 0.318
+  53/78 Prostate3T-01-0013 CG 0.862 PZ 0.488
+  54/78 Prostate3T-01-0012 CG 0.863 PZ 0.498
+  55/78 Prostate3T-01-0008 CG 0.628 PZ 0.469
+  56/78 Prostate3T-01-0011 CG 0.820 PZ 0.279
+  57/78 Prostate3T-01-0002 CG 0.836 PZ 0.667
+  58/78 Prostate3T-01-0025 CG 0.811 PZ 0.488
+  59/78 Prostate3T-01-0020 CG 0.785 PZ 0.598
+  60/78 Prostate3T-01-0026 CG 0.894 PZ 0.665
+  61/78 Prostate3T-01-0014 CG 0.715 PZ 0.623
+  62/78 Prostate3T-01-0030 CG 0.842 PZ 0.796
+  63/78 Prostate3T-01-0003 CG 0.897 PZ 0.769
+  64/78 Prostate3T-01-0001 CG 0.188 PZ 0.193
+  65/78 Prostate3T-01-0028 CG 0.891 PZ 0.763
+  66/78 Prostate3T-01-0010 CG 0.867 PZ 0.610
+  67/78 Prostate3T-01-0017 CG 0.932 PZ 0.604
+  68/78 Prostate3T-01-0006 CG 0.884 PZ 0.759
+  69/78 Prostate3T-01-0022 CG 0.871 PZ 0.758
+  70/78 Prostate3T-01-0029 CG 0.887 PZ 0.809
+  71/78 Prostate3T-01-0024 CG 0.880 PZ 0.261
+  72/78 Prostate3T-01-0018 CG 0.696 PZ 0.755
+  73/78 Prostate3T-01-0007 CG 0.376 PZ 0.179
+  74/78 Prostate3T-02-0002 CG 0.900 PZ 0.807
+  75/78 Prostate3T-02-0005 CG 0.882 PZ 0.457
+  76/78 Prostate3T-02-0004 CG 0.866 PZ 0.830
+  77/78 Prostate3T-02-0001 CG 0.650 PZ 0.855
+  78/78 Prostate3T-02-0003 CG 0.844 PZ 0.874
+{
+ "n_cases": 78,
+ "geometry_ok": 78,
+ "primary": {
+  "cg_dice_none": {
+   "n": 78,
+   "mean": 0.8057543157173448,
+   "sd": 0.1429804927034058,
+   "median": 0.8508686738262694,
+   "ci95": [
+    0.770732705389492,
+    0.8341614311802001
+   ]
+  },
+  "pz_dice_none": {
+   "n": 78,
+   "mean": 0.6162736830305633,
+   "sd": 0.17292948809552366,
+   "median": 0.65888806809327,
+   "ci95": [
+    0.576119384313783,
+    0.6532512374571524
+   ]
+  },
+  "cg_hd95_none": {
+   "n": 78,
+   "mean": 19.235128261672404,
+   "sd": 22.300113100011508,
+   "median": 9.0,
+   "ci95": [
+    14.555552426023183,
+    24.334533326339187
+   ]
+  },
+  "pz_hd95_none": {
+   "n": 78,
+   "mean": 9.532438455428661,
+   "sd": 6.850197508193616,
+   "median": 8.561805048343452,
+   "ci95": [
+    8.15487456018383,
+    11.152244279261218
+   ]
+  }
+ },
+ "secondary": {
+  "R1": {
+   "cg": {
+    "dice": {
+     "n": 78,
+     "mean_diff": 0.009138286550417752,
+     "n_changed": 53,
+     "wilcoxon_p": 2.887190471937464e-06
+    },
+    "hd95": {
+     "n": 78,
+     "mean_diff": -10.646624566603414,
+     "n_changed": 32,
+     "wilcoxon_p": 7.07909826169535e-05
+    },
+    "hd95_after": {
+     "n": 78,
+     "mean": 8.588503695068994,
+     "sd": 10.013862106157706,
+     "median": 6.481098890921685,
+     "ci95": [
+      6.8638235336329085,
+      11.160312804463526
+     ]
+    },
+    "dice_after": {
+     "n": 78,
+     "mean": 0.8148926022677626,
+     "sd": 0.14732402038185488,
+     "median": 0.8617163711623504,
+     "ci95": [
+      0.7791975014681598,
+      0.8438556052420821
+     ]
+    }
+   }
+  },
+  "R2": "not applied: failed the internal check"
+ }
+}

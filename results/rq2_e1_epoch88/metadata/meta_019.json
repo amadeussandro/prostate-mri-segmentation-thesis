@@ -1,0 +1,113 @@
+{
+  "patient_id": "019",
+  "original_shape": [
+    232,
+    232,
+    25
+  ],
+  "affine": [
+    [
+      -0.4947916567325592,
+      2.422994964390579e-12,
+      5.960684669880799e-16,
+      51.34256362915039
+    ],
+    [
+      -2.308263823136425e-12,
+      -0.4713689684867859,
+      0.9120992422103882,
+      9.71530532836914
+    ],
+    [
+      7.367642195117707e-13,
+      0.1504330337047577,
+      2.8579845428466797,
+      -100.7308120727539
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "spacing_mm": [
+    0.4947916567325592,
+    0.4947916567325592,
+    3.0
+  ],
+  "orientation": [
+    "L",
+    "P",
+    "S"
+  ],
+  "n_slices": 25,
+  "preprocessing": {
+    "normalization": "per_volume",
+    "z_resample": false,
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ]
+  },
+  "transform_meta": {
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ],
+    "pad_crop_h": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pad_crop_w": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pre_resample_depth": 25,
+    "post_resample_depth": 25
+  },
+  "geometry_validation": {
+    "shape_match": true,
+    "recon_shape": [
+      232,
+      232,
+      25
+    ],
+    "source_shape": [
+      232,
+      232,
+      25
+    ],
+    "depth_match": true,
+    "affine_match": true,
+    "affine_max_abs_diff": 0.0,
+    "spacing_match": true,
+    "recon_spacing_mm": [
+      0.494792,
+      0.494792,
+      3.0
+    ],
+    "source_spacing_mm": [
+      0.494792,
+      0.494792,
+      3.0
+    ],
+    "orientation_match": true,
+    "recon_orientation": "LPS",
+    "source_orientation": "LPS",
+    "labels_found": [
+      0,
+      1,
+      2
+    ],
+    "labels_valid": true,
+    "all_ok": true
+  },
+  "reconstruction_path": "/content/drive/MyDrive/THESIS_PROSTATE158/results/rq2_e1_epoch88/reconstructions_3d/pred_019.nii.gz"
+}

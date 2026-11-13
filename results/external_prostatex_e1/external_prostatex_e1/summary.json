@@ -1,0 +1,174 @@
+{
+  "task": "external_validation_prostatex",
+  "generated_utc": "2026-10-07T09:49:34.810597+00:00",
+  "cohort": "PROSTATEx (Cuocolo et al. annotations)",
+  "n_cases": 204,
+  "checkpoint_path": "/content/drive/MyDrive/THESIS_PROSTATE158/results/exp_e1_dice_ce/best_model.pt",
+  "checkpoint_sha256": "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+  "checkpoint_epoch": 88,
+  "experiment": "exp_e1_dice_ce",
+  "usage": "inference only -- no training, tuning, threshold or model selection",
+  "label_harmonization": "rest > 0 -> 1 (CG), pz > 0 -> 2 (PZ); disjointness re-measured per case",
+  "framing": "PROSTATEx is an independent cohort with different scanners, annotators and geometry. Lower scores than the Prostate158 test set are a finding about generalization, not a failure.",
+  "summary": {
+    "0": {
+      "class_name": "background",
+      "metrics": {
+        "dice": {
+          "mean": 0.9961395738554522,
+          "std": 0.0017207544661037122,
+          "ci95_low": 0.9958998846406856,
+          "ci95_high": 0.9963718791807186,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.9923146761067217,
+          "std": 0.0034053636337770935,
+          "ci95_low": 0.9918402275026098,
+          "ci95_high": 0.9927740664246911,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 0.3714199692690587,
+          "std": 0.7232557227639327,
+          "ci95_low": 0.28030378078060564,
+          "ci95_high": 0.4741234876539888,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 0.13658652275897662,
+          "std": 0.07467149427230611,
+          "ci95_low": 0.12693271963645086,
+          "ci95_high": 0.1470567968771381,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.9940236333603304,
+          "std": 0.0036241177682230733,
+          "ci95_low": 0.9935184180571467,
+          "ci95_high": 0.9944965944004278,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.9982734417961748,
+          "std": 0.0012174671439052613,
+          "ci95_low": 0.9981140401883498,
+          "ci95_high": 0.9984409258363309,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        }
+      }
+    },
+    "1": {
+      "class_name": "CG_central_gland",
+      "metrics": {
+        "dice": {
+          "mean": 0.8137380596195025,
+          "std": 0.09347271882803551,
+          "ci95_low": 0.7999029829671115,
+          "ci95_high": 0.8263426568961475,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.6954260363654439,
+          "std": 0.12065133523788292,
+          "ci95_low": 0.677723684535922,
+          "ci95_high": 0.7115886849264329,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 20.24539532808024,
+          "std": 18.542887309631862,
+          "ci95_low": 17.7051163945187,
+          "ci95_high": 22.956868184352654,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 3.144848791525411,
+          "std": 2.234366693625957,
+          "ci95_low": 2.843440443079791,
+          "ci95_high": 3.475335132591019,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.8192946795074115,
+          "std": 0.11531444430713428,
+          "ci95_low": 0.8032063093369092,
+          "ci95_high": 0.8343611004915353,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.8228574354037391,
+          "std": 0.11326003786588891,
+          "ci95_low": 0.8071915393385327,
+          "ci95_high": 0.8377258809544744,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        }
+      }
+    },
+    "2": {
+      "class_name": "PZ_peripheral_zone",
+      "metrics": {
+        "dice": {
+          "mean": 0.6246890969213799,
+          "std": 0.14601960396738314,
+          "ci95_low": 0.604543411040722,
+          "ci95_high": 0.6443047157162418,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.46893620197436364,
+          "std": 0.13977635045407175,
+          "ci95_low": 0.4501256251267498,
+          "ci95_high": 0.48776373521363564,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 11.082579030246453,
+          "std": 12.877713076044609,
+          "ci95_low": 9.341232467347137,
+          "ci95_high": 12.977588831287544,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 2.1072386277822535,
+          "std": 1.4123723097572716,
+          "ci95_low": 1.9224951369957168,
+          "ci95_high": 2.3101692264382594,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.8555367247748893,
+          "std": 0.11905376858534945,
+          "ci95_low": 0.8397460966767598,
+          "ci95_high": 0.8714600695593891,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.5075920385667887,
+          "std": 0.1483037829438456,
+          "ci95_low": 0.4875857726857041,
+          "ci95_high": 0.5276683654699658,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        }
+      }
+    }
+  }
+}

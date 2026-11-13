@@ -480,14 +480,16 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=None,
                     help="only the first N cases of each cohort (pilot runs)")
     ap.add_argument("--out-dir", default=OUT_DIR)
+    ap.add_argument("--external-recon", default=EXTERNAL_RECON)
+    ap.add_argument("--internal-recon", default=INTERNAL_RECON)
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
 
-    ext = run_cohort("external", EXTERNAL_RECON,
+    ext = run_cohort("external", args.external_recon,
                      lambda c: os.path.join(EXTERNAL_GT, c, "anatomy.nii.gz"),
                      args.limit)
-    internal = run_cohort("internal", INTERNAL_RECON,
+    internal = run_cohort("internal", args.internal_recon,
                           lambda c: f"{INTERNAL_GT}/{c}/t2_anatomy_reader1.nii.gz",
                           args.limit)
 

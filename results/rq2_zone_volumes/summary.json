@@ -1,0 +1,153 @@
+{
+  "task": "RQ2_zone_volumes_ml",
+  "generated_utc": "2026-10-07T09:21:07.120930+00:00",
+  "recon_dir": "/content/drive/MyDrive/THESIS_PROSTATE158/results/rq2_e1_epoch88/reconstructions_3d",
+  "gt_root": "/content/drive/MyDrive/THESIS_PROSTATE158/dataset/test/extracted/prostate158_test/test",
+  "mode": "prediction_vs_ground_truth",
+  "n_cases": 19,
+  "clinical_note": "Whole-gland volume is the denominator of PSA density (serum PSA / gland volume). Volumes are computed as voxel count x |det(affine)|, so they are only valid because the reconstruction restores the source affine exactly; see the reconstruction ablation for what the same voxels yield without it.",
+  "summary": {
+    "abs_error_cg_ml": {
+      "mean": 3.800634747769999,
+      "std": 3.038447212299572,
+      "min": 0.053393556794159025,
+      "median": 3.1937258022424615,
+      "max": 10.403537213639929
+    },
+    "abs_error_pz_ml": {
+      "mean": 5.178364467010193,
+      "std": 5.604189696439911,
+      "min": 0.6796142283208457,
+      "median": 3.2312990469747263,
+      "max": 24.781862029990783
+    },
+    "abs_error_whole_gland_ml": {
+      "mean": 7.090906926642695,
+      "std": 6.215321457611806,
+      "min": 0.046801755882384555,
+      "median": 5.433288101261965,
+      "max": 21.27964011310447
+    },
+    "error_cg_ml": {
+      "mean": -1.484353204614125,
+      "std": 4.633970383142251,
+      "min": -10.403537213639929,
+      "median": -0.3823242446440922,
+      "max": 5.645214610939771
+    },
+    "error_pz_ml": {
+      "mean": -5.095585372461226,
+      "std": 5.679560759322521,
+      "min": -24.781862029990783,
+      "median": -3.2312990469747263,
+      "max": 0.7864013982151885
+    },
+    "error_whole_gland_ml": {
+      "mean": -6.579938577075351,
+      "std": 6.7539314614285715,
+      "min": -21.27964011310447,
+      "median": -5.433288101261965,
+      "max": 2.0395018646214425
+    },
+    "gt_cg_ml": {
+      "mean": 35.71595376319896,
+      "std": 15.15102675898852,
+      "min": 14.635108413083,
+      "median": 29.603758544757735,
+      "max": 77.4371633611508
+    },
+    "gt_pz_fraction": {
+      "mean": 0.34663433837101365,
+      "std": 0.1150705680847935,
+      "min": 0.1511691425276543,
+      "median": 0.33232801286810193,
+      "max": 0.536091864285482
+    },
+    "gt_pz_ml": {
+      "mean": 17.883499340566804,
+      "std": 7.8631418810253795,
+      "min": 9.245337238912967,
+      "median": 14.973363761572239,
+      "max": 42.76560348237032
+    },
+    "gt_whole_gland_ml": {
+      "mean": 53.59945310376577,
+      "std": 16.946756536661557,
+      "min": 27.871437434554338,
+      "median": 46.33176078457775,
+      "max": 91.22802579508443
+    },
+    "pct_error_cg_ml": {
+      "mean": -3.299225505318701,
+      "std": 12.669981316400083,
+      "min": -27.619345117783254,
+      "median": -2.6123772633096105,
+      "max": 19.069249610331767
+    },
+    "pct_error_pz_ml": {
+      "mean": -25.595890141488407,
+      "std": 21.150124583545242,
+      "min": -81.20861333202531,
+      "median": -22.370511598347623,
+      "max": 5.552194350072142
+    },
+    "pct_error_whole_gland_ml": {
+      "mean": -11.472416964698345,
+      "std": 10.736739100636461,
+      "min": -33.45082433200681,
+      "median": -12.528728294177737,
+      "max": 5.261636311072582
+    },
+    "pred_cg_ml": {
+      "mean": 34.23160055858483,
+      "std": 14.278660535964947,
+      "min": 14.252784168438907,
+      "median": 28.4027354956379,
+      "max": 67.76314156746997
+    },
+    "pred_pz_fraction": {
+      "mean": 0.287961871161189,
+      "std": 0.12111977203877095,
+      "min": 0.10908935588587049,
+      "median": 0.2849473596256684,
+      "max": 0.48561616108854905
+    },
+    "pred_pz_ml": {
+      "mean": 12.787913968105578,
+      "std": 5.190110488026182,
+      "min": 2.8137026816394393,
+      "median": 11.533667773340836,
+      "max": 25.73925499972334
+    },
+    "pred_whole_gland_ml": {
+      "mean": 47.01951452669041,
+      "std": 14.019410172152531,
+      "min": 24.25781414293552,
+      "median": 45.95939578605005,
+      "max": 78.85881613100273
+    }
+  },
+  "agreement": {
+    "cg_ml": {
+      "bias_ml": -1.484353204614125,
+      "sd_ml": 4.760951986530934,
+      "loa_lower_ml": -10.815819098214755,
+      "loa_upper_ml": 7.847112688986504,
+      "note": "Bland-Altman bias and 95% limits of agreement (SD uses ddof=1, the standard convention for limits of agreement)."
+    },
+    "pz_ml": {
+      "bias_ml": -5.095585372461226,
+      "sd_ml": 5.83519397924681,
+      "loa_lower_ml": -16.53256557178497,
+      "loa_upper_ml": 6.341394826862521,
+      "note": "Bland-Altman bias and 95% limits of agreement (SD uses ddof=1, the standard convention for limits of agreement)."
+    },
+    "whole_gland_ml": {
+      "bias_ml": -6.579938577075351,
+      "sd_ml": 6.939004945987168,
+      "loa_lower_ml": -20.1803882712102,
+      "loa_upper_ml": 7.020511117059499,
+      "note": "Bland-Altman bias and 95% limits of agreement (SD uses ddof=1, the standard convention for limits of agreement)."
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "patient_id": "015",
+  "original_shape": [
+    232,
+    232,
+    23
+  ],
+  "affine": [
+    [
+      -0.46875,
+      2.2954687196180545e-12,
+      1.0092076620457318e-17,
+      33.91495132446289
+    ],
+    [
+      -2.247775099731286e-12,
+      -0.45901066064834595,
+      0.6387799382209778,
+      23.21730613708496
+    ],
+    [
+      4.654933122988369e-13,
+      0.09505653381347656,
+      3.0845518112182617,
+      -50.7210578918457
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "spacing_mm": [
+    0.46875,
+    0.46875,
+    3.1500000953674316
+  ],
+  "orientation": [
+    "L",
+    "P",
+    "S"
+  ],
+  "n_slices": 23,
+  "preprocessing": {
+    "normalization": "per_volume",
+    "z_resample": false,
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ]
+  },
+  "transform_meta": {
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ],
+    "pad_crop_h": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pad_crop_w": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pre_resample_depth": 23,
+    "post_resample_depth": 23
+  },
+  "geometry_validation": {
+    "shape_match": true,
+    "recon_shape": [
+      232,
+      232,
+      23
+    ],
+    "source_shape": [
+      232,
+      232,
+      23
+    ],
+    "depth_match": true,
+    "affine_match": true,
+    "affine_max_abs_diff": 0.0,
+    "spacing_match": true,
+    "recon_spacing_mm": [
+      0.46875,
+      0.46875,
+      3.15
+    ],
+    "source_spacing_mm": [
+      0.46875,
+      0.46875,
+      3.15
+    ],
+    "orientation_match": true,
+    "recon_orientation": "LPS",
+    "source_orientation": "LPS",
+    "labels_found": [
+      0,
+      1,
+      2
+    ],
+    "labels_valid": true,
+    "all_ok": true
+  },
+  "reconstruction_path": "D:\\1.AmadeusKuliah\\Skripsi\\thesis-project\\results\\final_ensemble_test\\reconstructions_3d\\pred_015.nii.gz"
+}

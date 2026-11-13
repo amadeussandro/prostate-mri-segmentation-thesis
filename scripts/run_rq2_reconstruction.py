@@ -532,14 +532,17 @@ def run(
         device = get_device()
 
     # --- Checkpoint (weights + the config that produced them) ---
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    if "model_state_dict" not in checkpoint:
-        raise KeyError(f"Checkpoint '{checkpoint_path}' has no 'model_state_dict'.")
-    ckpt_cfg = checkpoint.get("config", cfg)
-
-    model = build_model(ckpt_cfg).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
+    # A single checkpoint, or results/e1_seed_selection/selection.json for the
+    # frozen seed ensemble (src/ensemble.py); both yield (module, config, identity).
+    from src.ensemble import is_selection_file, load_model_or_ensemble
+    model, ckpt_cfg, model_identity = load_model_or_ensemble(checkpoint_path, device)
+    if is_selection_file(checkpoint_path):
+        checkpoint = {"epoch": -1, "best_metric": float("nan")}
+    else:
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        checkpoint.pop("optimizer_state_dict", None)
+        checkpoint.pop("model_state_dict", None)
+    del build_model
 
     # Step 2 -- checkpoint / architecture verification (fail loudly, never train).
     in_ch = int(getattr(model, "in_channels", ckpt_cfg.get("model", {}).get("in_channels", -1)))
@@ -659,6 +662,7 @@ def run(
         "task": "RQ2_3d_reconstruction",
         "checkpoint_path": checkpoint_path,
         "checkpoint_epoch": int(checkpoint.get("epoch", -1)),
+        "model_identity": model_identity,
         "training_loop_val_metric_slice_level": float(checkpoint.get("best_metric", float("nan"))),
         "config_path": config_path,
         "split": split,

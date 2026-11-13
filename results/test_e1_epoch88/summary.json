@@ -1,0 +1,175 @@
+{
+  "run": {
+    "experiment": "exp_e1_dice_ce",
+    "epoch": 88,
+    "checkpoint_sha256": "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+    "split": "test",
+    "n_cases": 19,
+    "is_official_held_out_test": true,
+    "generated_utc": "2026-10-06T08:53:26.863542Z",
+    "git_commit": "290fd935a4f4be4822e98bab5fcdae15dd153dfd"
+  },
+  "metrics": {
+    "Background": {
+      "dice": {
+        "mean": 0.9922641010750237,
+        "std": 0.003704135217032427
+      },
+      "iou": {
+        "mean": 0.9846722630495305,
+        "std": 0.0072630031367360995
+      },
+      "hd95_mm": {
+        "mean": 1.6972583366907852,
+        "std": 1.1328851084865743
+      },
+      "asd_mm": {
+        "mean": 0.20561592927321384,
+        "std": 0.10525736218886203
+      },
+      "precision": {
+        "mean": 0.9884789200631462,
+        "std": 0.007542904773268933
+      },
+      "recall": {
+        "mean": 0.9961113751765123,
+        "std": 0.0019624190601832707
+      }
+    },
+    "CG": {
+      "dice": {
+        "mean": 0.8441686558011655,
+        "std": 0.05062688948590106
+      },
+      "iou": {
+        "mean": 0.7333481759535412,
+        "std": 0.07220476651545933
+      },
+      "hd95_mm": {
+        "mean": 6.381191067114472,
+        "std": 3.194531138119657
+      },
+      "asd_mm": {
+        "mean": 1.5595973012990243,
+        "std": 0.6517283443209845
+      },
+      "precision": {
+        "mean": 0.8646108677893211,
+        "std": 0.055729678287980394
+      },
+      "recall": {
+        "mean": 0.8317566581515217,
+        "std": 0.08796649127337575
+      }
+    },
+    "PZ": {
+      "dice": {
+        "mean": 0.6852388294877079,
+        "std": 0.13215029715883347
+      },
+      "iou": {
+        "mean": 0.5339346500400857,
+        "std": 0.1348503502809201
+      },
+      "hd95_mm": {
+        "mean": 6.538341171169736,
+        "std": 4.151492873462363
+      },
+      "asd_mm": {
+        "mean": 1.4268659371764802,
+        "std": 0.8300420829782624
+      },
+      "precision": {
+        "mean": 0.829704089803002,
+        "std": 0.07666923799633382
+      },
+      "recall": {
+        "mean": 0.6090257732694792,
+        "std": 0.16286962560856214
+      }
+    }
+  },
+  "macro_dice": {
+    "definition": "mean of CG and PZ Dice; background excluded",
+    "test": 0.7647037426444367,
+    "validation": 0.8094,
+    "difference": -0.04469625735556326,
+    "per_case_mean": 0.7647037426444369,
+    "per_case_std": 0.07696042949223912,
+    "per_case_median": 0.7833428412800414
+  },
+  "validation_vs_test": {
+    "CG Dice": {
+      "validation": 0.8662,
+      "test": 0.8441686558011655,
+      "difference": -0.022031344198834457,
+      "higher_is_better": true
+    },
+    "PZ Dice": {
+      "validation": 0.7527,
+      "test": 0.6852388294877079,
+      "difference": -0.06746117051229217,
+      "higher_is_better": true
+    },
+    "Macro Dice": {
+      "validation": 0.8094,
+      "test": 0.7647037426444367,
+      "difference": -0.04469625735556326,
+      "higher_is_better": true
+    },
+    "CG precision": {
+      "validation": 0.8823,
+      "test": 0.8646108677893211,
+      "difference": -0.017689132210678915,
+      "higher_is_better": true
+    },
+    "CG recall": {
+      "validation": 0.8604,
+      "test": 0.8317566581515217,
+      "difference": -0.028643341848478387,
+      "higher_is_better": true
+    },
+    "PZ precision": {
+      "validation": 0.8073,
+      "test": 0.829704089803002,
+      "difference": 0.022404089803002014,
+      "higher_is_better": true
+    },
+    "PZ recall": {
+      "validation": 0.7161,
+      "test": 0.6090257732694792,
+      "difference": -0.1070742267305208,
+      "higher_is_better": true
+    },
+    "CG HD95 (mm)": {
+      "validation": 5.2467,
+      "test": 6.381191067114472,
+      "difference": 1.134491067114472,
+      "higher_is_better": false
+    },
+    "PZ HD95 (mm)": {
+      "validation": 5.4061,
+      "test": 6.538341171169736,
+      "difference": 1.1322411711697358,
+      "higher_is_better": false
+    },
+    "CG ASD (mm)": {
+      "validation": 1.1508,
+      "test": 1.5595973012990243,
+      "difference": 0.40879730129902425,
+      "higher_is_better": false
+    },
+    "PZ ASD (mm)": {
+      "validation": 0.9453,
+      "test": 1.4268659371764802,
+      "difference": 0.4815659371764802,
+      "higher_is_better": false
+    }
+  },
+  "label_mapping": {
+    "0": "Background",
+    "1": "CG",
+    "2": "PZ"
+  },
+  "scope_note": "RQ1 only. No reconstruction, mesh generation or RQ2 evaluation is performed in this notebook."
+}

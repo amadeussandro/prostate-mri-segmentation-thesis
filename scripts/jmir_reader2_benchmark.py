@@ -116,4 +116,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--pred-dir", default=str(PRED_DIR), help="model reconstructions (pred_<id>.nii.gz)")
+    ap.add_argument("--out-dir", default=str(OUT_DIR))
+    a = ap.parse_args()
+    PRED_DIR, OUT_DIR = Path(a.pred_dir), Path(a.out_dir)
     main()

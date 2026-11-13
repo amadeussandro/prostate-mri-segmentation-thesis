@@ -1,0 +1,1 @@
+{"case_id": "ProstateX-0174", "shape": [384, 384, 19], "spacing_mm": [0.5, 0.5, 3.0], "inplane_mm": 0.5, "scale_vs_prostate158": 0.9375, "orientation": "LAS", "cg_voxels": 71615, "pz_voxels": 27949, "pz_rest_overlap": 0, "stray_label_values_in_pz": []}

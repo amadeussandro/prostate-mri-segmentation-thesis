@@ -1,0 +1,113 @@
+{
+  "patient_id": "016",
+  "original_shape": [
+    232,
+    232,
+    25
+  ],
+  "affine": [
+    [
+      -0.49261361360549927,
+      -0.03185589611530304,
+      0.20433861017227173,
+      42.23871612548828
+    ],
+    [
+      0.040660176426172256,
+      -0.4696120321750641,
+      0.912099301815033,
+      2.2300848960876465
+    ],
+    [
+      0.02230137400329113,
+      0.15254031121730804,
+      2.850670576095581,
+      -74.6677474975586
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "spacing_mm": [
+    0.4947916567325592,
+    0.4947916567325592,
+    3.000000238418579
+  ],
+  "orientation": [
+    "L",
+    "P",
+    "S"
+  ],
+  "n_slices": 25,
+  "preprocessing": {
+    "normalization": "per_volume",
+    "z_resample": false,
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ]
+  },
+  "transform_meta": {
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ],
+    "pad_crop_h": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pad_crop_w": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pre_resample_depth": 25,
+    "post_resample_depth": 25
+  },
+  "geometry_validation": {
+    "shape_match": true,
+    "recon_shape": [
+      232,
+      232,
+      25
+    ],
+    "source_shape": [
+      232,
+      232,
+      25
+    ],
+    "depth_match": true,
+    "affine_match": true,
+    "affine_max_abs_diff": 0.0,
+    "spacing_match": true,
+    "recon_spacing_mm": [
+      0.494792,
+      0.494792,
+      3.0
+    ],
+    "source_spacing_mm": [
+      0.494792,
+      0.494792,
+      3.0
+    ],
+    "orientation_match": true,
+    "recon_orientation": "LPS",
+    "source_orientation": "LPS",
+    "labels_found": [
+      0,
+      1,
+      2
+    ],
+    "labels_valid": true,
+    "all_ok": true
+  },
+  "reconstruction_path": "/content/drive/MyDrive/THESIS_PROSTATE158/results/exp04_rq2_reconstruction/reconstructions_3d/pred_016.nii.gz"
+}

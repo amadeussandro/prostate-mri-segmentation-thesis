@@ -154,4 +154,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--test-model", default=str(TEST["E1"]),
+                    help="per-case test metrics of the reported model (default: frozen E1)")
+    ap.add_argument("--out-dir", default=str(OUT))
+    a = ap.parse_args()
+    TEST["E1"], OUT = Path(a.test_model), Path(a.out_dir)
     main()

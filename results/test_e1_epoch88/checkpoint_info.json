@@ -1,0 +1,34 @@
+{
+  "experiment": "exp_e1_dice_ce",
+  "checkpoint_path": "/content/drive/MyDrive/THESIS_PROSTATE158/results/exp_e1_dice_ce/best_model.pt",
+  "checkpoint_sha256": "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+  "checkpoint_size_bytes": 93272507,
+  "epoch": 88,
+  "selection": {
+    "split_used": "validation (20 official cases)",
+    "rule": "highest validation macro Dice (pre-committed)",
+    "validation_macro_dice": 0.8094,
+    "test_metrics_used_for_selection": false
+  },
+  "model": {
+    "architecture": "ProstateUNet2D",
+    "in_channels": 1,
+    "out_channels": 3,
+    "init_features": 32,
+    "dropout_rate": 0.2
+  },
+  "parameters": 7762531,
+  "loss": {
+    "name": "dice_ce",
+    "ce_weight": 1.0,
+    "dice_weight": 1.0,
+    "dice_classes": [
+      1,
+      2
+    ],
+    "epsilon": 1e-06,
+    "ce_class_weights": null
+  },
+  "architecture_matches_committed_config": true,
+  "verified_utc": "2026-10-06T08:53:26.863542Z"
+}

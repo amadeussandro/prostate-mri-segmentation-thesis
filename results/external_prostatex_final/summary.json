@@ -1,0 +1,200 @@
+{
+  "task": "external_validation_prostatex",
+  "generated_utc": "2026-11-11T09:42:06.766624+00:00",
+  "cohort": "PROSTATEx (Cuocolo et al. annotations)",
+  "n_cases": 204,
+  "checkpoint_path": "results/e1_seed_selection/selection.json",
+  "checkpoint_sha256": "39d5e14cb3d2b6a8c5e22ed28a8bcf2abe4d732c03ae86672ac06a7aaccfd6f1",
+  "checkpoint_epoch": [
+    88,
+    62,
+    98
+  ],
+  "model_identity": {
+    "kind": "softmax_ensemble",
+    "arm": "2d",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "epochs": [
+      88,
+      62,
+      98
+    ],
+    "member_sha256": [
+      "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+      "0ee59ac4c5511869c4910cfb6a385ae2f758623b8137f42a7052c15eab443179",
+      "427b134123b64ddfceab0a9043eb7937dd424db9c2ab2924975ab0512012cd98"
+    ],
+    "tta_flip_left_right": true,
+    "ensemble_id_sha256": "ec21408e3ecf80b87b152be89e742e73fc4b1160dedbb64289d61ab0398c3cef",
+    "selection_file": "results/e1_seed_selection/selection.json"
+  },
+  "experiment": "exp_e1_dice_ce",
+  "usage": "inference only -- no training, tuning, threshold or model selection",
+  "label_harmonization": "rest > 0 -> 1 (CG), pz > 0 -> 2 (PZ); disjointness re-measured per case",
+  "framing": "PROSTATEx is an independent cohort with different scanners, annotators and geometry. Lower scores than the Prostate158 test set are a finding about generalization, not a failure.",
+  "summary": {
+    "0": {
+      "class_name": "background",
+      "metrics": {
+        "dice": {
+          "mean": 0.9964566222152322,
+          "std": 0.0017147338490575295,
+          "ci95_low": 0.9962197890772213,
+          "ci95_high": 0.9966840101783101,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.9929440687491072,
+          "std": 0.003395577125077217,
+          "ci95_low": 0.9924743791866011,
+          "ci95_high": 0.9933941635828676,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 0.22718734736289842,
+          "std": 0.6017569325572213,
+          "ci95_low": 0.14866171738375997,
+          "ci95_high": 0.3149992827331491,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 0.10088875576633263,
+          "std": 0.05821399160289871,
+          "ci95_low": 0.09308257974837364,
+          "ci95_high": 0.10926440162082607,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.9941307643586547,
+          "std": 0.0036880578233956084,
+          "ci95_low": 0.9936233499724325,
+          "ci95_high": 0.9946191863892361,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.9988024566014355,
+          "std": 0.0010606708960827966,
+          "ci95_low": 0.9986587462796455,
+          "ci95_high": 0.9989426640907728,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        }
+      }
+    },
+    "1": {
+      "class_name": "CG_central_gland",
+      "metrics": {
+        "dice": {
+          "mean": 0.8270769812421906,
+          "std": 0.10066259581027649,
+          "ci95_low": 0.8122121482296951,
+          "ci95_high": 0.8404839453955182,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.7158253111661856,
+          "std": 0.1259570621427525,
+          "ci95_low": 0.6972946669157857,
+          "ci95_high": 0.7331150979370278,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 11.790282464650286,
+          "std": 13.396792588620686,
+          "ci95_low": 10.063504299833717,
+          "ci95_high": 13.662153633225126,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 2.251638411165065,
+          "std": 1.6458943871810328,
+          "ci95_low": 2.034283613361747,
+          "ci95_high": 2.497475855087792,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.8540826899855237,
+          "std": 0.10123822988483162,
+          "ci95_low": 0.8402231182459571,
+          "ci95_high": 0.8674810825234507,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.8174330801271884,
+          "std": 0.13251273386622367,
+          "ci95_low": 0.799041156814433,
+          "ci95_high": 0.8350369420560416,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        }
+      }
+    },
+    "2": {
+      "class_name": "PZ_peripheral_zone",
+      "metrics": {
+        "dice": {
+          "mean": 0.6456957978298903,
+          "std": 0.15887654672126325,
+          "ci95_low": 0.624305451952017,
+          "ci95_high": 0.6667699891654931,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.4944971898039976,
+          "std": 0.15259387228003968,
+          "ci95_low": 0.47396969245516196,
+          "ci95_high": 0.5150346708151379,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 8.052650779383868,
+          "std": 4.9351550040770595,
+          "ci95_low": 7.417485333131048,
+          "ci95_high": 8.751076715903995,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 1.8455528889031527,
+          "std": 1.3904613217889779,
+          "ci95_low": 1.6755511117382895,
+          "ci95_high": 2.0529157583457978,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.8774617519053469,
+          "std": 0.11362850101562705,
+          "ci95_low": 0.8624222227780278,
+          "ci95_high": 0.892944937782812,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.5308421151444975,
+          "std": 0.16166495535544761,
+          "ci95_low": 0.5089963922819017,
+          "ci95_high": 0.552838946517256,
+          "n_cases": 204,
+          "n_excluded_undefined": 0
+        }
+      }
+    }
+  }
+}

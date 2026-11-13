@@ -373,6 +373,9 @@ def main() -> None:
                          "supplementary results numbered S1, S2, ...")
     ap.add_argument("--jmir", action="store_true",
                     help="build the JMIR revision (manuscript_content_en_jmir, or _id_jmir with --lang id)")
+    ap.add_argument("--picai", action="store_true",
+                    help="with --jmir: add the PI-CAI PSA density analysis (v10); "
+                         "results still missing are printed as [[PENDING ...]] markers")
     args = ap.parse_args()
 
     if args.jmir:
@@ -381,7 +384,8 @@ def main() -> None:
             import manuscript_content_id_jmir as content
         else:
             import manuscript_content_en_jmir as content
-        blocks, cited = resolve_citations(content.build(jmir_numbers()), content.REFERENCES)
+        blocks, cited = resolve_citations(content.build(jmir_numbers(picai=args.picai)),
+                                          content.REFERENCES)
         if args.lang == "id":
             blocks = localize(blocks, to_indonesian_decimals)
         out = args.out or os.path.join(PROJECT, "JurnalJMIR-BenedictAmadeusSandro-JMIR-revision.docx")
@@ -391,6 +395,9 @@ def main() -> None:
         print(f"  {sum(1 for k, _ in blocks if k == 'p')} paragraphs, "
               f"{sum(1 for k, _ in blocks if k == 'fig')} figures, "
               f"{sum(1 for k, _ in blocks if k == 'tbl')} tables, {len(cited)} references")
+        pending = sum(str(v).count("[[PENDING") for _, v in blocks)
+        if pending:
+            print(f"  DRAFT: {pending} [[PENDING ...]] markers; not for submission")
         return
 
     from manuscript_numbers import all_numbers

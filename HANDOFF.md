@@ -4,13 +4,72 @@ Living state document for this thesis. A new session reads this before touching
 anything: it records what is decided, what is frozen, what is settled, and what
 is open, so nothing gets re-derived or re-litigated.
 
-**Last updated:** 2026-10-15 · check `git log -1` for the current HEAD
+**Last updated:** 2026-11-11 (§0 added; §1–§11 below are older and describe the
+thesis and the single-seed model) · check `git log -1` for the current HEAD
 
 > **Keep this current.** After any change that alters a result, a decision, or
 > what remains open, update the affected section here in the same commit. A
 > stale handoff is worse than none: it misleads the next session with
 > confidence. If a statement here contradicts an artifact, the artifact wins —
 > fix this file.
+
+---
+
+## 0. JMIR revision v7 and the final model — state on 2026-11-11
+
+**Two models now exist. Do not mix them up.**
+
+- **Single-seed model** (E1, seed 42, epoch 88, SHA `2366e3c6…d5d2`): used by the
+  thesis (Bab I–V) and by every result folder named `*_e1_*`, `rq2_*`,
+  `jmir_stats`, `jmir_reader2`. Its NCI-ISBI 2013 run is the **confirmatory**
+  test of the connected-component rule.
+- **Final model** (JMIR v7): softmax ensemble of E1 seeds 42/43/44 (2D) with
+  left-right flip averaging, chosen by `results/seed_25d_prespecification.md`
+  (SHA on LF bytes `83ba8e59…26f8`) and recorded in
+  `results/e1_seed_selection/selection.json` (validation only,
+  `test_split_read: false`). 2.5D input was not adopted (−0.0008 < 0.005).
+  Member SHAs are in the README and in Table S6 of Appendix 3.
+
+Where the final-model results live: `results/final_ensemble_test`,
+`final_ensemble_ablation`, `final_ensemble_zone_volumes`, `final_ensemble_stats`,
+`final_ensemble_reader2`, `external_prostatex_final`, `final_external_hd95_tail`,
+`final_external_anterior_stroma`, `final_gland_size_effect`,
+`external_nci_isbi_final`, `external_overlap_final`, figures in
+`results/figures_rq2_final` and `results/figures_jmir_final`.
+`scripts/manuscript_numbers_jmir.py` (`MODELS`) maps both models to their folders.
+
+Headline (final model, sample SD): held-out CG 0.862, PZ 0.710; +0.022 macro
+Dice over the single-seed model (P=.005); 98.8% / 95.1% of inter-reader Dice,
+no significant gap. PROSTATEx CG 0.827, PZ 0.646. NCI-ISBI CG 0.806, PZ 0.616.
+
+**NCI-ISBI repeat with the final model:** R1 passed the internal check and was
+applied (CG HD95 19.2 → 8.6 mm). **R2 failed** the internal check (validation PZ
+HD95 +0.4 mm), so it was not applied, as the LCC prespecification requires. The
+manuscript text and Appendix 2 say so, and their guards fail the build if this
+changes.
+
+**Literature audit (v9):** `results/literature_audit/` holds a protocol written
+before screening (its LF SHA-256 is recorded in `search.json`), the PMC search
+(57 open-access records, run 2026-11-11), `screening.csv` (22 included, reasons
+for every exclusion), `extraction.csv` (10 items per study, with quotations and
+flags) and `report.md`. Result: 0/22 described reassembly, 0/13 that resampled
+or cropped described undoing it, 0/22 reported a geometry check (95% CI
+0–15.4%). `manuscript_numbers_jmir.literature_audit()` loads it and checks the
+protocol hash; the text sits in Methods, Results, Discussion, Limitations and
+the abstract conclusion, guarded. Multimedia Appendix 4 is built from it. Full
+texts (`fulltext/`) are gitignored; `literature_audit.py search` refetches them.
+
+Built files (Journal-JMIR folder), latest first:
+`JurnalJMIR-BenedictAmadeusSandro-{EN,ID}-JMIRrevision-111126-v9.docx` and
+`JMIR_submission_111126-v9/` (adds the audit and Appendix 4); v8 and v7 kept.
+Rebuild with `build_manuscript.py --jmir [--lang id] --out <new file>` and
+`build_jmir_submission_pack.py --tag <new tag> --template <path>`; never
+overwrite an older version.
+
+Still open: Zenodo DOI (`[[TO FILL: Zenodo DOI]]`, after the final push and
+release); cover-letter placeholders (date, thesis status and link,
+confirmations); CLAIM form transfer; supervisor review. Nothing from this
+work is committed yet.
 
 ---
 
@@ -828,3 +887,33 @@ a targeted local run over a Colab round trip.
 | 2026-09-22 | Paper references for each tuning scenario | **done** — E2/E3 were null results, which vindicated her doubt |
 | 2026-09-22 | RQ2 needs a scientific explanation tied to medical conditions | **done** → zone volumes → PSA density |
 | 2026-09-22 | Dice "0.8 not 1" | **done** — see §5.4 |
+
+## PI-CAI: PSA density from the final model (v10, 2026-11-13)
+
+Prespecified analysis (results/picai_psad_prespecification.md, SHA-256 LF `6e1b6bab…3c9c`, locked
+before any PI-CAI file was downloaded; erratum 2026-11-12). Nothing is committed yet.
+
+- Data: PI-CAI v2.0 images in `D:/1.AmadeusKuliah/Skripsi/PICAI` (outside the repo), labels at
+  picai_labels commit `ce4a472`. 1500 studies, 1440 eligible, 1419 in the primary comparison.
+- Inference: frozen final ensemble on Colab T4, one bundle (`29021394…`), 3 runs: Run 7 folds 0-1
+  and Run 8 fold 2 (first Colab account), Run 9 folds 3-4 (second Colab account; results in
+  `results/colab_picai/run9_folds34`, zip in `results/colab_picai/zips`). 90 fold-3 studies were
+  inferred by both Run 8 and Run 9 and gave identical volumes.
+- Merge and analysis: `scripts/merge_picai_colab.py` then `scripts/run_picai_psad.py --phase analyze`
+  -> `results/picai_psad/summary.json`, `report.md`, `per_case.csv`, `colab_merge.json`.
+- Result: AUC 0.732 (model volume) vs 0.726 (reported volume), difference 0.006 (95% CI -0.007 to
+  0.020): noninferior (margin -0.05), not superior. Model volume is 13.6 mL smaller than the report
+  (-19.7% median), so at 0.15 ng/mL/mL sensitivity 0.821 vs 0.722 and specificity 0.474 vs 0.608.
+  At PCNN the lower bound (-0.056) is below the margin (descriptive, by center). 155 studies
+  duplicate PROSTATEx/NCI-ISBI images (all RUMC); without them the difference is 0.006.
+- Manuscript: `build_manuscript.py --jmir --picai [--lang id]` builds v10; without `--picai` the
+  v9 text is unchanged (checked block by block). v10 files:
+  `Journal-JMIR/JurnalJMIR-BenedictAmadeusSandro-{EN,ID}-JMIRrevision-131126-v10.docx`.
+  Figure 1 for v10: `JMIR_FIG_OUT=results/figures_jmir_v10 python scripts/make_jmir_workflow_figure.py --picai`.
+- Still open for v10: submission pack (CLAIM checklist item numbers, Multimedia Appendix 5 files,
+  cover letter), second reviewer for the literature audit, Bu Eunike's review, commit and push.
+- Target journal (decided 2026-11-13, supersedes "JMIR AI" in the table above and in §7): **JMIR
+  Formative Research**, as in Bu Eunike's link of 2026-11-06 (formative.jmir.org; example article
+  e82587 by Pak David and Pak Moeljono). APF listed as 2500 USD on acceptance (check before
+  submitting). The v10 cover letter names it; pack: `Journal-JMIR/JMIR_submission_131126-v10`,
+  built with `build_jmir_submission_pack.py --picai`.

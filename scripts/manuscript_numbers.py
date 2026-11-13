@@ -173,8 +173,8 @@ def test_vs_baseline() -> Dict[str, dict]:
 # Reconstruction: geometry, ablation, volumes
 # ---------------------------------------------------------------------------
 
-def geometry_validation() -> Dict[str, object]:
-    rows = _rows(f"{PROJECT}/results/rq2_e1_epoch88/reconstruction_validation.csv")
+def geometry_validation(path: str = None) -> Dict[str, object]:
+    rows = _rows(path or f"{PROJECT}/results/rq2_e1_epoch88/reconstruction_validation.csv")
     diffs = [float(r["affine_max_abs_diff"]) for r in rows]
     return {
         "n": len(rows),
@@ -185,8 +185,8 @@ def geometry_validation() -> Dict[str, object]:
     }
 
 
-def ablation() -> Dict[str, dict]:
-    rows = _rows(f"{PROJECT}/results/rq2_ablation_naive/ablation_summary.csv")
+def ablation(path: str = None) -> Dict[str, dict]:
+    rows = _rows(path or f"{PROJECT}/results/rq2_ablation_naive/ablation_summary.csv")
     out = {}
     for r in rows:
         v = out.setdefault(r["variant"], {})
@@ -292,20 +292,20 @@ def external(results_dir: str = None) -> Dict[str, object]:
 
 
 
-def hd95_tail() -> Dict[str, object]:
+def hd95_tail(path: str = None) -> Dict[str, object]:
     """Connected-component diagnosis of the external boundary-error tail.
 
     Produced by `scripts/analyse_external_hd95_tail.py`. Loaded rather than
     recomputed so the manuscript quotes the same summary the report does.
     """
-    path = f"{PROJECT}/results/external_hd95_tail/summary.json"
+    path = path or f"{PROJECT}/results/external_hd95_tail/summary.json"
     if not os.path.exists(path):
         raise FileNotFoundError(
             "No HD95 tail analysis found. Run scripts/analyse_external_hd95_tail.py first.")
     return json.load(open(path, encoding="utf-8"))
 
 
-def anterior_stroma() -> Dict[str, object]:
+def anterior_stroma(path: str = None) -> Dict[str, object]:
     """Where along the gland the external central-gland gap actually sits.
 
     Produced by `scripts/analyse_anterior_stroma.py`. It tests whether the
@@ -314,14 +314,14 @@ def anterior_stroma() -> Dict[str, object]:
     that it does not. Loaded rather than recomputed so the manuscript quotes the
     same summary the report does.
     """
-    path = f"{PROJECT}/results/external_anterior_stroma/summary.json"
+    path = path or f"{PROJECT}/results/external_anterior_stroma/summary.json"
     if not os.path.exists(path):
         raise FileNotFoundError(
             "No anterior-stroma analysis found. Run scripts/analyse_anterior_stroma.py first.")
     return json.load(open(path, encoding="utf-8"))
 
 
-def gland_size() -> Dict[str, object]:
+def gland_size(path: str = None) -> Dict[str, object]:
     """Does accuracy depend on how large the reference zone is?
 
     Produced by `scripts/analyse_gland_size_effect.py`. Answers a question put by
@@ -329,7 +329,7 @@ def gland_size() -> Dict[str, object]:
     model is markedly weaker on small glands. Loaded rather than recomputed so
     the manuscript quotes the same summary the report does.
     """
-    path = f"{PROJECT}/results/gland_size_effect/summary.json"
+    path = path or f"{PROJECT}/results/gland_size_effect/summary.json"
     if not os.path.exists(path):
         raise FileNotFoundError(
             "No gland-size analysis found. Run scripts/analyse_gland_size_effect.py first.")

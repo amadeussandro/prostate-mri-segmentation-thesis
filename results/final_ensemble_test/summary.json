@@ -1,0 +1,233 @@
+{
+  "metadata": {
+    "task": "RQ2_3d_reconstruction",
+    "checkpoint_path": "results/e1_seed_selection/selection.json",
+    "checkpoint_epoch": -1,
+    "model_identity": {
+      "kind": "softmax_ensemble",
+      "arm": "2d",
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "epochs": [
+        88,
+        62,
+        98
+      ],
+      "member_sha256": [
+        "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+        "0ee59ac4c5511869c4910cfb6a385ae2f758623b8137f42a7052c15eab443179",
+        "427b134123b64ddfceab0a9043eb7937dd424db9c2ab2924975ab0512012cd98"
+      ],
+      "tta_flip_left_right": true,
+      "ensemble_id_sha256": "ec21408e3ecf80b87b152be89e742e73fc4b1160dedbb64289d61ab0398c3cef",
+      "selection_file": "results/e1_seed_selection/selection.json"
+    },
+    "training_loop_val_metric_slice_level": null,
+    "config_path": "configs/experiments/exp_e1_dice_ce.yaml",
+    "split": "test",
+    "n_cases": 19,
+    "case_ids": [
+      "001",
+      "002",
+      "003",
+      "004",
+      "005",
+      "006",
+      "007",
+      "008",
+      "009",
+      "010",
+      "011",
+      "012",
+      "013",
+      "014",
+      "015",
+      "016",
+      "017",
+      "018",
+      "019"
+    ],
+    "is_official_held_out_test": true,
+    "class_ids": [
+      0,
+      1,
+      2
+    ],
+    "class_names": {
+      "0": "background",
+      "1": "CG_central_gland",
+      "2": "PZ_peripheral_zone"
+    },
+    "evaluation_space": "original_voxel",
+    "ground_truth_source": "original_on_disk_mask_untouched",
+    "aggregation": "per_case",
+    "label_mapping_status": "verified_multiplanar_2026_10_05 (0=background, 1=CG, 2=PZ; see results/label_mapping/label_mapping_verified.md)",
+    "reconstruction_geometry_all_ok": "19/19",
+    "roundtrip_fidelity_note": "Dice=1.0 in scripts/roundtrip_test.py is reconstruction-transform fidelity (no model), NOT model segmentation accuracy.",
+    "generated_utc": "2026-11-11T09:37:23.256394Z"
+  },
+  "per_class": {
+    "0": {
+      "class_name": "background",
+      "metrics": {
+        "dice": {
+          "mean": 0.9931040341656514,
+          "std": 0.003505626690261523,
+          "ci95_low": 0.9913764778687107,
+          "ci95_high": 0.9946113493268693,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.9863264851135799,
+          "std": 0.006881742016515119,
+          "ci95_low": 0.982941378905148,
+          "ci95_high": 0.9892893624949273,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 1.3888582661466544,
+          "std": 1.1775008284887387,
+          "ci95_low": 0.9212544797035661,
+          "ci95_high": 1.9757328747097744,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 0.17590528319927415,
+          "std": 0.09872611986917137,
+          "ci95_low": 0.13501791104198824,
+          "ci95_high": 0.2253989196383171,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.9893018620857855,
+          "std": 0.007090156872066451,
+          "ci95_low": 0.9857826000722741,
+          "ci95_high": 0.992265529647561,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.9969648387494345,
+          "std": 0.001511709682186321,
+          "ci95_low": 0.996277643950401,
+          "ci95_high": 0.9976222736108054,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        }
+      }
+    },
+    "1": {
+      "class_name": "CG_central_gland",
+      "metrics": {
+        "dice": {
+          "mean": 0.8621739566684671,
+          "std": 0.048972157261758326,
+          "ci95_low": 0.8385962412830078,
+          "ci95_high": 0.8829470567851402,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.760848063176403,
+          "std": 0.07235010864109208,
+          "ci95_low": 0.7266903494782319,
+          "ci95_high": 0.7919123564269318,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 5.789194227311026,
+          "std": 2.8840583485332916,
+          "ci95_low": 4.615164471092367,
+          "ci95_high": 7.289065444029111,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 1.3817078479289453,
+          "std": 0.652561592884209,
+          "ci95_low": 1.11480354429028,
+          "ci95_high": 1.7136833291097082,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.8845450495388516,
+          "std": 0.04622054341225219,
+          "ci95_low": 0.863379632895183,
+          "ci95_high": 0.9060585001786999,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.8458078498567573,
+          "std": 0.08030605980695231,
+          "ci95_low": 0.8090559432710207,
+          "ci95_high": 0.8788372017777205,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        }
+      }
+    },
+    "2": {
+      "class_name": "PZ_peripheral_zone",
+      "metrics": {
+        "dice": {
+          "mean": 0.7103775524543682,
+          "std": 0.1298924717805941,
+          "ci95_low": 0.6490013868430968,
+          "ci95_high": 0.7639542447235919,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "iou": {
+          "mean": 0.5650422109153744,
+          "std": 0.14151176770800844,
+          "ci95_low": 0.49734140885855055,
+          "ci95_high": 0.6250677527083773,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "hd95_mm": {
+          "mean": 5.9345232940100745,
+          "std": 3.623078788481732,
+          "ci95_low": 4.514436986452904,
+          "ci95_high": 7.808421258685104,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "asd_mm": {
+          "mean": 1.2372368848634976,
+          "std": 0.7764841540615174,
+          "ci95_low": 0.9239552250822509,
+          "ci95_high": 1.6282924004776076,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "precision": {
+          "mean": 0.8492538084912282,
+          "std": 0.06237344817195923,
+          "ci95_low": 0.8202793504279761,
+          "ci95_high": 0.876304458334987,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        },
+        "recall": {
+          "mean": 0.6303412752359149,
+          "std": 0.16440802982197075,
+          "ci95_low": 0.5517472342607443,
+          "ci95_high": 0.6990232155143533,
+          "n_cases": 19,
+          "n_excluded_undefined": 0
+        }
+      }
+    }
+  }
+}

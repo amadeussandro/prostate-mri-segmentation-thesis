@@ -1,0 +1,72 @@
+{
+ "n_records": 57,
+ "n_fulltext": 57,
+ "n_screened": 57,
+ "n_included": 22,
+ "exclusion_reasons": {
+  "all models 3D": 13,
+  "lesion-only": 5,
+  "input dimensionality not reported": 4,
+  "target not prostate": 6,
+  "not MRI": 3,
+  "review or non-original": 3,
+  "not a segmentation model": 1
+ },
+ "counts": {
+  "dimensionality": {
+   "2D": 17,
+   "2.5D": 1,
+   "2D+3D": 4
+  },
+  "target": {
+   "gland": 13,
+   "zones": 3,
+   "both": 6
+  },
+  "metric_level": {
+   "volume": 7,
+   "not stated": 14,
+   "both": 1
+  },
+  "metric_space": {
+   "not stated": 20,
+   "resampled or preprocessed grid": 2
+  },
+  "reassembly_described": {
+   "no": 22
+  },
+  "inverse_preprocessing_described": {
+   "no": 13,
+   "n/a": 9
+  },
+  "geometry_check_reported": {
+   "no": 22
+  },
+  "orientation_mentioned": {
+   "no": 21,
+   "yes": 1
+  },
+  "surface_metric_mm": {
+   "no": 16,
+   "yes": 6
+  },
+  "code_available": {
+   "no": 20,
+   "yes": 2
+  }
+ },
+ "geometry_check": {
+  "k": 0,
+  "n": 22,
+  "ci95": [
+   0.0,
+   0.15437251281557454
+  ]
+ },
+ "search_run_utc": "2026-11-11T15:49:15.328604+00:00",
+ "protocol_sha256_lf": "15e65d75f5701e17a48b7a92fc698da8608b6ee81a36c04daaac81ed6599c70a",
+ "inverse": {
+  "k": 0,
+  "n": 13
+ }
+}

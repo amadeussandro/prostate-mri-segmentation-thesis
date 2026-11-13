@@ -42,6 +42,7 @@ OUT = os.path.join(ROOT, "results/external_nci_isbi_e1")
 CG, PZ = 1, 2
 DICE_TOL = 0.005
 EXCLUDE = {"Prostate3T-01-0019"}  # whole-gland-only label (prespec Amendment 1)
+MODEL_IDENTITY: dict = {}
 
 
 def sha256(path: str) -> str:
@@ -87,19 +88,20 @@ def case_metrics(pred, gt, spacing, cid, extra=None) -> dict:
 
 
 def load_model(device="cpu"):
+    """The frozen E1 checkpoint, or the final seed ensemble when --model points
+    at results/e1_seed_selection/selection.json (member hashes checked there)."""
     import torch
-    from src.model import build_model
+    from src.ensemble import is_selection_file, load_model_or_ensemble
     from src.transforms import PreprocessingConfig
-    digest = sha256(CKPT)
-    if digest != E1_SHA:
-        raise RuntimeError(f"checkpoint SHA mismatch: {digest}")
+    if not is_selection_file(CKPT):
+        digest = sha256(CKPT)
+        if digest != E1_SHA:
+            raise RuntimeError(f"checkpoint SHA mismatch: {digest}")
     torch.set_num_threads(os.cpu_count() or 4)
-    ck = torch.load(CKPT, map_location=device, weights_only=False)
-    cfg = ck.get("config", {})
-    model = build_model(cfg).to(device)
-    model.load_state_dict(ck["model_state_dict"], strict=True)
-    model.eval()
-    return model, PreprocessingConfig.from_dict(cfg.get("preprocessing", {})), ck.get("epoch")
+    model, cfg, ident = load_model_or_ensemble(CKPT, device)
+    MODEL_IDENTITY.update(ident)
+    epoch = ident.get("epoch", ident.get("epochs"))
+    return model, PreprocessingConfig.from_dict(cfg.get("preprocessing", {})), epoch
 
 
 def infer(cases_root, ids, mask_name, out_dir, extra_of=None):
@@ -211,7 +213,8 @@ def phase_nci():
     out = os.path.join(OUT, "nci")
     rows, epoch = infer(work, ids, "anatomy.nii.gz", out, extra)
     s = {"generated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-         "checkpoint_sha256": E1_SHA, "epoch": epoch, "prespec_sha256": dec["prespec_sha256"],
+         "checkpoint_sha256": E1_SHA if not MODEL_IDENTITY.get("ensemble_id_sha256") else None,
+         "model_identity": MODEL_IDENTITY, "epoch": epoch, "prespec_sha256": dec["prespec_sha256"],
          "n_cases": len(rows), "geometry_ok": sum(r["geometry_ok"] for r in rows),
          "rules_passed_internal_check": {k: v["passed"] for k, v in dec["rules"].items()},
          "primary": {}, "by_site": {}, "secondary": {}}
@@ -235,5 +238,10 @@ def phase_nci():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--phase", choices=["valid", "nci"], required=True)
+    ap.add_argument("--model", default=CKPT,
+                    help="frozen E1 checkpoint (default) or the final ensemble's selection.json")
+    ap.add_argument("--out", default=OUT, help="output root (default results/external_nci_isbi_e1)")
     a = ap.parse_args()
+    CKPT = os.path.abspath(a.model)
+    OUT = os.path.abspath(a.out)
     phase_valid() if a.phase == "valid" else phase_nci()

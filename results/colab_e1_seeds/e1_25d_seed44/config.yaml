@@ -1,0 +1,53 @@
+experiment:
+  name: e1_25d_seed44
+  description: 'E1 (1.0 x CE + 1.0 x SoftDice on CG+PZ) with 2.5D input: slices s-1,
+    s, s+1 as 3 channels'
+  output_dir: /content/drive/MyDrive/Prostate158_E1_seeds/e1_25d_seed44
+data:
+  dataset_root: dataset/prostate158_train/train
+  train_csv: dataset/prostate158_train/train.csv
+  valid_csv: dataset/prostate158_train/valid.csv
+  target_mask: t2_anatomy_reader1.nii.gz
+  slice_sampling: all
+  context_slices: 1
+preprocessing:
+  normalization: per_volume
+  z_resample: false
+  spatial_mode: crop_pad
+  target_size:
+  - 442
+  - 442
+model:
+  architecture: ProstateUNet2D
+  in_channels: 3
+  out_channels: 3
+  init_features: 32
+  dropout_rate: 0.2
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  num_epochs: 100
+  seed: 44
+  optimizer: AdamW
+  weight_decay: 0.0001
+  amp: false
+loss:
+  name: dice_ce
+  ce_weight: 1.0
+  dice_weight: 1.0
+  dice_classes:
+  - 1
+  - 2
+  epsilon: 1.0e-06
+validation:
+  eval_every_n_epochs: 1
+  save_best_metric: val_dice
+evaluation:
+  aggregation: per_case
+  space: original_voxel
+  include_empty_slices: true
+  class_ids:
+  - 0
+  - 1
+  - 2
+  label_mapping_status: verified_multiplanar_2026_10_05

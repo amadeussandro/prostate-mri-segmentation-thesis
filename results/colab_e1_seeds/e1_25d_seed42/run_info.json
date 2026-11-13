@@ -1,0 +1,16 @@
+{
+  "run": "e1_25d_seed42",
+  "arm": "2.5d",
+  "seed": 42,
+  "smoke_test": false,
+  "commit": "e65c2fc1c1ff9bcc85654af40e740545b4199f5a",
+  "gpu": "Tesla T4",
+  "torch": "2.14.1+cu130",
+  "prespec_sha256": "83ba8e596ec4b0a671855276e583300c4e63119bb8cad33e003df71a7b3326f8",
+  "config_file": "exp_e1_25d.yaml",
+  "best_model_sha256": "f24d593844363b23b5396e4f4e5a5abeda08c098453b0440428391a6cf852cd4",
+  "val_cg_dice": 0.8723470831018577,
+  "val_pz_dice": 0.7467627839928579,
+  "val_macro_dice": 0.8095549335473577,
+  "seconds_per_epoch": 287.51774776000093
+}

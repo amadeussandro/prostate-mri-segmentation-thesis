@@ -1,0 +1,34 @@
+﻿{
+ "n_primary": 1419,
+ "primary": {
+  "n": 1419,
+  "n_pos": 403,
+  "auc_a": 0.7322028682518904,
+  "auc_b": 0.7259004806471151,
+  "auc_a_ci95": [
+   0.7025067285711495,
+   0.7605901115648385
+  ],
+  "auc_b_ci95": [
+   0.6959355949961901,
+   0.7550154109923605
+  ],
+  "diff": 0.006302387604775306,
+  "diff_ci95": [
+   -0.006694439831187402,
+   0.01992960644575138
+  ],
+  "noninferior": true,
+  "superior": false,
+  "labels": [
+   "PSAD model",
+   "PSAD report"
+  ]
+ },
+ "excluded": {
+  "later study of the same patient": 24,
+  "no PSA": 36,
+  "no csPCa label": 0,
+  "no reported prostate volume": 21
+ }
+}

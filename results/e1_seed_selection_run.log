@@ -1,0 +1,65 @@
+D:\1.AmadeusKuliah\Skripsi\thesis-project\scripts\e1_seed_selection.py:95: UserWarning: The official 19-case Prostate158 TEST archive (DOI 10.5281/zenodo.6592345) was not found locally. Proceeding with train/validation only. Final RQ-4 baseline comparison against the official test set cannot be completed until this archive is obtained.
+  val_ids = list(load_official_split(train_csv=DATA["train_csv"], valid_csv=DATA["valid_csv"]).val_ids)
+Step 1-2: 2D mean macro 0.8044, 2.5D 0.8036, diff -0.0008 (margin 0.005) -> adopt 2d
+  case 020 (1/20) done, 196 s
+  case 021 (2/20) done, 347 s
+  case 022 (3/20) done, 507 s
+  case 023 (4/20) done, 706 s
+  case 038 (5/20) done, 868 s
+  case 041 (6/20) done, 1030 s
+  case 046 (7/20) done, 1161 s
+  case 047 (8/20) done, 1290 s
+  case 051 (9/20) done, 1412 s
+  case 056 (10/20) done, 1575 s
+  case 060 (11/20) done, 1772 s
+  case 061 (12/20) done, 1935 s
+  case 077 (13/20) done, 2098 s
+  case 084 (14/20) done, 2212 s
+  case 087 (15/20) done, 2331 s
+  case 099 (16/20) done, 2464 s
+  case 109 (17/20) done, 2606 s
+  case 114 (18/20) done, 2745 s
+  case 118 (19/20) done, 2867 s
+  case 127 (20/20) done, 2995 s
+# E1 seed / 2.5D selection (validation only)
+
+Rule: `results/seed_25d_prespecification.md` (SHA-256 `83ba8e596ec4...`, checked before running). 20 validation cases; the test split was not read.
+
+## Step 1. Every seed (src/evaluate.run_evaluation, split=val)
+
+| Arm | Seed | Epoch | CG Dice | PZ Dice | Macro Dice |
+|---|---|---|---|---|---|
+| 2d | 42 | 88 | 0.8662 | 0.7527 | 0.8094 |
+| 2d | 43 | 62 | 0.8614 | 0.7438 | 0.8026 |
+| 2d | 44 | 98 | 0.8639 | 0.7384 | 0.8012 |
+| 2.5d | 42 | 74 | 0.8723 | 0.7468 | 0.8096 |
+| 2.5d | 43 | 86 | 0.8550 | 0.7249 | 0.7900 |
+| 2.5d | 44 | 57 | 0.8735 | 0.7488 | 0.8111 |
+| **2d** | mean (SD) | | 0.8638 (0.0024) | 0.7450 (0.0072) | 0.8044 (0.0044) |
+| **2.5d** | mean (SD) | | 0.8670 (0.0103) | 0.7402 (0.0132) | 0.8036 (0.0118) |
+
+## Step 2. Arm
+
+2.5D minus 2D mean macro Dice = -0.0008; the prespecified margin is 0.005. Adopted arm: **2d**.
+
+## Step 3. Ensemble and test-time augmentation
+
+| Model | CG Dice | PZ Dice | Macro Dice | CG HD95 (mm) | PZ HD95 (mm) |
+|---|---|---|---|---|---|
+| 2d seed42 | 0.8662 | 0.7527 | 0.8094 | 5.25 | 5.41 |
+| 2d seed43 | 0.8614 | 0.7438 | 0.8026 | 5.23 | 5.21 |
+| 2d seed44 | 0.8639 | 0.7384 | 0.8012 | 5.27 | 5.82 |
+| 2d ensemble | 0.8726 | 0.7578 | 0.8152 | 4.62 | 4.68 |
+| 2d ensemble + tta | 0.8732 | 0.7651 | 0.8192 | 4.30 | 4.92 |
+
+Left-right flip TTA is kept (0.8192 vs 0.8152).
+
+Reproducibility of step 1 (CPU re-score of the adopted seeds): seed42 |diff| 0.00000, seed43 |diff| 0.00000, seed44 |diff| 0.00000.
+
+## Final model (frozen)
+
+2d softmax ensemble of seeds 42, 43, 44 with left-right flip TTA. Member weights (SHA-256):
+
+- seed 42, epoch 88: `2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2`
+- seed 43, epoch 62: `0ee59ac4c5511869c4910cfb6a385ae2f758623b8137f42a7052c15eab443179`
+- seed 44, epoch 98: `427b134123b64ddfceab0a9043eb7937dd424db9c2ab2924975ab0512012cd98`

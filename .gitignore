@@ -115,3 +115,16 @@ results/exp_e3_dice_ce_pzweight/config_fingerprint.json
 results/exp_e3_dice_ce_pzweight/config_fingerprint.txt
 results/exp_e3_dice_ce_pzweight/e3_vs_e1_paired_cases.csv
 results/exp_e3_dice_ce_pzweight/state/training_state.json
+
+# Colab run archives (seed replicates and 2.5D, 2026-11). The unpacked folders
+# next to them hold the logs and metrics; the zips only duplicate them plus checkpoints.
+results/colab_e1_seeds/zips/
+
+# Literature audit: full texts are re-fetched from PMC by scripts/literature_audit.py search
+results/literature_audit/fulltext/
+
+# PI-CAI Colab run 9 (2026-11): the zip and the per-study JSON files only duplicate
+# per_case.csv and conversion.csv next to them.
+results/colab_picai/zips/
+results/colab_picai/run9_folds34/cache_infer/
+results/colab_picai/run9_folds34/conversions/

@@ -1,0 +1,27 @@
+==============================================================================
+EXPERIMENT CONFIGURATION FINGERPRINT
+==============================================================================
+  Experiment            : e1_2d_seed43
+  Architecture          : ProstateUNet2D (in=1, out=3, init_features=32, dropout=0.2)
+  Loss                  : 1 x CE + 1 x SoftDice (dice_classes=[1, 2], eps=1e-06)
+  Dice classes          : [1, 2] (1=CG, 2=PZ; background excluded)
+  Dice epsilon          : 1e-06
+  CE class weights      : unweighted (uniform)
+  Epochs (max)          : 100
+  Seed                  : 43
+  AMP                   : OFF
+  Precision             : FP32
+  Optimizer             : AdamW
+  Learning rate         : 0.001
+  Weight decay          : 0.0001
+  Batch size            : 8
+  DataLoader workers    : 0
+  Weighted sampling     : ON
+  Augmentation          : OFF (no augmentation)
+  Scheduler             : OFF (constant learning rate)
+  Preprocessing         : {'normalization': 'per_volume', 'z_resample': False, 'spatial_mode': 'crop_pad', 'target_size': [442, 442]}
+  Target mask           : t2_anatomy_reader1.nii.gz
+  Slice sampling        : all
+  Test split referenced : NO
+  Device                : cuda
+==============================================================================

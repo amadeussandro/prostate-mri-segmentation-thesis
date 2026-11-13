@@ -1,0 +1,794 @@
+{
+  "generated_utc": "2026-11-12T11:29:33.613603+00:00",
+  "method": "same RAS array shape and Pearson r >= 0.99",
+  "picai_checked": 1440,
+  "others": {
+    "PROSTATEx": 204,
+    "NCI-ISBI": 79,
+    "MSD": 48
+  },
+  "candidate_pairs": 39502,
+  "duplicates": [
+    {
+      "case": "10005_1000005",
+      "other": "PROSTATEx:ProstateX-0095",
+      "r": 1.0
+    },
+    {
+      "case": "10016_1000016",
+      "other": "PROSTATEx:ProstateX-0073",
+      "r": 1.0
+    },
+    {
+      "case": "10019_1000019",
+      "other": "PROSTATEx:ProstateX-0193",
+      "r": 1.0
+    },
+    {
+      "case": "10021_1000021",
+      "other": "PROSTATEx:ProstateX-0055",
+      "r": 1.0
+    },
+    {
+      "case": "10025_1000025",
+      "other": "PROSTATEx:ProstateX-0030",
+      "r": 1.0
+    },
+    {
+      "case": "10028_1000028",
+      "other": "PROSTATEx:ProstateX-0138",
+      "r": 1.0
+    },
+    {
+      "case": "10037_1000037",
+      "other": "PROSTATEx:ProstateX-0011",
+      "r": 1.0
+    },
+    {
+      "case": "10040_1000040",
+      "other": "PROSTATEx:ProstateX-0105",
+      "r": 1.0
+    },
+    {
+      "case": "10048_1000048",
+      "other": "PROSTATEx:ProstateX-0092",
+      "r": 1.0
+    },
+    {
+      "case": "10052_1000052",
+      "other": "PROSTATEx:ProstateX-0016",
+      "r": 1.0
+    },
+    {
+      "case": "10060_1000060",
+      "other": "PROSTATEx:ProstateX-0134",
+      "r": 1.0
+    },
+    {
+      "case": "10063_1000063",
+      "other": "PROSTATEx:ProstateX-0028",
+      "r": 1.0
+    },
+    {
+      "case": "10069_1000069",
+      "other": "NCI-ISBI:Prostate3T-03-0003",
+      "r": 1.0
+    },
+    {
+      "case": "10075_1000075",
+      "other": "PROSTATEx:ProstateX-0032",
+      "r": 1.0
+    },
+    {
+      "case": "10077_1000077",
+      "other": "PROSTATEx:ProstateX-0087",
+      "r": 1.0
+    },
+    {
+      "case": "10081_1000081",
+      "other": "PROSTATEx:ProstateX-0089",
+      "r": 1.0
+    },
+    {
+      "case": "10118_1000118",
+      "other": "PROSTATEx:ProstateX-0078",
+      "r": 1.0
+    },
+    {
+      "case": "10123_1000123",
+      "other": "PROSTATEx:ProstateX-0154",
+      "r": 1.0
+    },
+    {
+      "case": "10159_1000162",
+      "other": "PROSTATEx:ProstateX-0130",
+      "r": 1.0
+    },
+    {
+      "case": "10160_1000163",
+      "other": "PROSTATEx:ProstateX-0039",
+      "r": 1.0
+    },
+    {
+      "case": "10185_1000188",
+      "other": "PROSTATEx:ProstateX-0140",
+      "r": 1.0
+    },
+    {
+      "case": "10186_1000189",
+      "other": "PROSTATEx:ProstateX-0108",
+      "r": 1.0
+    },
+    {
+      "case": "10196_1000200",
+      "other": "PROSTATEx:ProstateX-0176",
+      "r": 1.0
+    },
+    {
+      "case": "10198_1000202",
+      "other": "PROSTATEx:ProstateX-0159",
+      "r": 1.0
+    },
+    {
+      "case": "10206_1000210",
+      "other": "PROSTATEx:ProstateX-0019",
+      "r": 1.0
+    },
+    {
+      "case": "10207_1000211",
+      "other": "PROSTATEx:ProstateX-0068",
+      "r": 1.0
+    },
+    {
+      "case": "10237_1000241",
+      "other": "PROSTATEx:ProstateX-0024",
+      "r": 1.0
+    },
+    {
+      "case": "10256_1000260",
+      "other": "PROSTATEx:ProstateX-0070",
+      "r": 1.0
+    },
+    {
+      "case": "10260_1000264",
+      "other": "PROSTATEx:ProstateX-0021",
+      "r": 1.0
+    },
+    {
+      "case": "10261_1000265",
+      "other": "PROSTATEx:ProstateX-0051",
+      "r": 1.0
+    },
+    {
+      "case": "10268_1000272",
+      "other": "PROSTATEx:ProstateX-0187",
+      "r": 1.0
+    },
+    {
+      "case": "10287_1000293",
+      "other": "PROSTATEx:ProstateX-0086",
+      "r": 1.0
+    },
+    {
+      "case": "10298_1000304",
+      "other": "PROSTATEx:ProstateX-0027",
+      "r": 1.0
+    },
+    {
+      "case": "10306_1000312",
+      "other": "NCI-ISBI:Prostate3T-02-0002",
+      "r": 1.0
+    },
+    {
+      "case": "10310_1000316",
+      "other": "PROSTATEx:ProstateX-0003",
+      "r": 1.0
+    },
+    {
+      "case": "10322_1000328",
+      "other": "PROSTATEx:ProstateX-0195",
+      "r": 1.0
+    },
+    {
+      "case": "10325_1000331",
+      "other": "PROSTATEx:ProstateX-0013",
+      "r": 1.0
+    },
+    {
+      "case": "10327_1000333",
+      "other": "PROSTATEx:ProstateX-0008",
+      "r": 1.0
+    },
+    {
+      "case": "10340_1000346",
+      "other": "PROSTATEx:ProstateX-0169",
+      "r": 1.0
+    },
+    {
+      "case": "10346_1000352",
+      "other": "PROSTATEx:ProstateX-0065",
+      "r": 1.0
+    },
+    {
+      "case": "10348_1000354",
+      "other": "PROSTATEx:ProstateX-0098",
+      "r": 1.0
+    },
+    {
+      "case": "10350_1000356",
+      "other": "PROSTATEx:ProstateX-0014",
+      "r": 1.0
+    },
+    {
+      "case": "10378_1000384",
+      "other": "PROSTATEx:ProstateX-0043",
+      "r": 1.0
+    },
+    {
+      "case": "10398_1000404",
+      "other": "PROSTATEx:ProstateX-0104",
+      "r": 1.0
+    },
+    {
+      "case": "10405_1000412",
+      "other": "PROSTATEx:ProstateX-0111",
+      "r": 1.0
+    },
+    {
+      "case": "10407_1000414",
+      "other": "PROSTATEx:ProstateX-0107",
+      "r": 1.0
+    },
+    {
+      "case": "10414_1000421",
+      "other": "PROSTATEx:ProstateX-0048",
+      "r": 1.0
+    },
+    {
+      "case": "10418_1000426",
+      "other": "PROSTATEx:ProstateX-0194",
+      "r": 1.0
+    },
+    {
+      "case": "10450_1000458",
+      "other": "PROSTATEx:ProstateX-0168",
+      "r": 1.0
+    },
+    {
+      "case": "10451_1000459",
+      "other": "PROSTATEx:ProstateX-0106",
+      "r": 1.0
+    },
+    {
+      "case": "10463_1000471",
+      "other": "PROSTATEx:ProstateX-0198",
+      "r": 1.0
+    },
+    {
+      "case": "10476_1000484",
+      "other": "PROSTATEx:ProstateX-0017",
+      "r": 1.0
+    },
+    {
+      "case": "10479_1000487",
+      "other": "PROSTATEx:ProstateX-0191",
+      "r": 1.0
+    },
+    {
+      "case": "10529_1000539",
+      "other": "PROSTATEx:ProstateX-0115",
+      "r": 1.0
+    },
+    {
+      "case": "10530_1000540",
+      "other": "PROSTATEx:ProstateX-0081",
+      "r": 1.0
+    },
+    {
+      "case": "10533_1000543",
+      "other": "PROSTATEx:ProstateX-0141",
+      "r": 1.0
+    },
+    {
+      "case": "10558_1000570",
+      "other": "PROSTATEx:ProstateX-0183",
+      "r": 1.0
+    },
+    {
+      "case": "10566_1000578",
+      "other": "PROSTATEx:ProstateX-0165",
+      "r": 1.0
+    },
+    {
+      "case": "10568_1000580",
+      "other": "PROSTATEx:ProstateX-0082",
+      "r": 1.0
+    },
+    {
+      "case": "10568_1000580",
+      "other": "NCI-ISBI:Prostate3T-03-0001",
+      "r": 1.0
+    },
+    {
+      "case": "10570_1000582",
+      "other": "PROSTATEx:ProstateX-0199",
+      "r": 1.0
+    },
+    {
+      "case": "10575_1000587",
+      "other": "PROSTATEx:ProstateX-0163",
+      "r": 1.0
+    },
+    {
+      "case": "10583_1000597",
+      "other": "PROSTATEx:ProstateX-0080",
+      "r": 1.0
+    },
+    {
+      "case": "10602_1000616",
+      "other": "PROSTATEx:ProstateX-0023",
+      "r": 1.0
+    },
+    {
+      "case": "10614_1000628",
+      "other": "PROSTATEx:ProstateX-0135",
+      "r": 1.0
+    },
+    {
+      "case": "10620_1000634",
+      "other": "PROSTATEx:ProstateX-0018",
+      "r": 1.0
+    },
+    {
+      "case": "10621_1000635",
+      "other": "PROSTATEx:ProstateX-0120",
+      "r": 1.0
+    },
+    {
+      "case": "10641_1000657",
+      "other": "PROSTATEx:ProstateX-0197",
+      "r": 1.0
+    },
+    {
+      "case": "10643_1000659",
+      "other": "PROSTATEx:ProstateX-0188",
+      "r": 1.0
+    },
+    {
+      "case": "10655_1000671",
+      "other": "PROSTATEx:ProstateX-0038",
+      "r": 1.0
+    },
+    {
+      "case": "10657_1000673",
+      "other": "PROSTATEx:ProstateX-0049",
+      "r": 1.0
+    },
+    {
+      "case": "10662_1000678",
+      "other": "PROSTATEx:ProstateX-0177",
+      "r": 1.0
+    },
+    {
+      "case": "10677_1000693",
+      "other": "PROSTATEx:ProstateX-0100",
+      "r": 1.0
+    },
+    {
+      "case": "10707_1000723",
+      "other": "PROSTATEx:ProstateX-0040",
+      "r": 1.0
+    },
+    {
+      "case": "10715_1000731",
+      "other": "PROSTATEx:ProstateX-0075",
+      "r": 1.0
+    },
+    {
+      "case": "10725_1000741",
+      "other": "PROSTATEx:ProstateX-0167",
+      "r": 1.0
+    },
+    {
+      "case": "10726_1000742",
+      "other": "PROSTATEx:ProstateX-0127",
+      "r": 1.0
+    },
+    {
+      "case": "10732_1000748",
+      "other": "PROSTATEx:ProstateX-0161",
+      "r": 1.0
+    },
+    {
+      "case": "10738_1000754",
+      "other": "PROSTATEx:ProstateX-0091",
+      "r": 1.0
+    },
+    {
+      "case": "10740_1000756",
+      "other": "PROSTATEx:ProstateX-0144",
+      "r": 1.0
+    },
+    {
+      "case": "10787_1000803",
+      "other": "PROSTATEx:ProstateX-0004",
+      "r": 1.0
+    },
+    {
+      "case": "10795_1000811",
+      "other": "PROSTATEx:ProstateX-0001",
+      "r": 1.0
+    },
+    {
+      "case": "10817_1000833",
+      "other": "PROSTATEx:ProstateX-0189",
+      "r": 1.0
+    },
+    {
+      "case": "10820_1000836",
+      "other": "PROSTATEx:ProstateX-0072",
+      "r": 1.0
+    },
+    {
+      "case": "10833_1000849",
+      "other": "PROSTATEx:ProstateX-0126",
+      "r": 1.0
+    },
+    {
+      "case": "10839_1000855",
+      "other": "PROSTATEx:ProstateX-0076",
+      "r": 1.0
+    },
+    {
+      "case": "10840_1000856",
+      "other": "PROSTATEx:ProstateX-0158",
+      "r": 1.0
+    },
+    {
+      "case": "10854_1000870",
+      "other": "PROSTATEx:ProstateX-0062",
+      "r": 1.0
+    },
+    {
+      "case": "10869_1000885",
+      "other": "PROSTATEx:ProstateX-0145",
+      "r": 1.0
+    },
+    {
+      "case": "10876_1000892",
+      "other": "PROSTATEx:ProstateX-0007",
+      "r": 1.0
+    },
+    {
+      "case": "10879_1000895",
+      "other": "PROSTATEx:ProstateX-0088",
+      "r": 1.0
+    },
+    {
+      "case": "10880_1000896",
+      "other": "PROSTATEx:ProstateX-0035",
+      "r": 1.0
+    },
+    {
+      "case": "10893_1000909",
+      "other": "PROSTATEx:ProstateX-0142",
+      "r": 1.0
+    },
+    {
+      "case": "10895_1000911",
+      "other": "PROSTATEx:ProstateX-0190",
+      "r": 1.0
+    },
+    {
+      "case": "10911_1000928",
+      "other": "PROSTATEx:ProstateX-0117",
+      "r": 1.0
+    },
+    {
+      "case": "10919_1000936",
+      "other": "PROSTATEx:ProstateX-0044",
+      "r": 1.0
+    },
+    {
+      "case": "10937_1000956",
+      "other": "PROSTATEx:ProstateX-0109",
+      "r": 1.0
+    },
+    {
+      "case": "10940_1000959",
+      "other": "PROSTATEx:ProstateX-0180",
+      "r": 1.0
+    },
+    {
+      "case": "10946_1000965",
+      "other": "PROSTATEx:ProstateX-0185",
+      "r": 1.0
+    },
+    {
+      "case": "10961_1000980",
+      "other": "PROSTATEx:ProstateX-0041",
+      "r": 1.0
+    },
+    {
+      "case": "10962_1000981",
+      "other": "PROSTATEx:ProstateX-0136",
+      "r": 1.0
+    },
+    {
+      "case": "10978_1000997",
+      "other": "PROSTATEx:ProstateX-0009",
+      "r": 1.0
+    },
+    {
+      "case": "10980_1000999",
+      "other": "PROSTATEx:ProstateX-0064",
+      "r": 1.0
+    },
+    {
+      "case": "10985_1001004",
+      "other": "NCI-ISBI:Prostate3T-02-0001",
+      "r": 1.0
+    },
+    {
+      "case": "10994_1001013",
+      "other": "PROSTATEx:ProstateX-0162",
+      "r": 1.0
+    },
+    {
+      "case": "10996_1001015",
+      "other": "PROSTATEx:ProstateX-0170",
+      "r": 1.0
+    },
+    {
+      "case": "10999_1001018",
+      "other": "PROSTATEx:ProstateX-0057",
+      "r": 1.0
+    },
+    {
+      "case": "11012_1001032",
+      "other": "PROSTATEx:ProstateX-0133",
+      "r": 1.0
+    },
+    {
+      "case": "11019_1001039",
+      "other": "PROSTATEx:ProstateX-0060",
+      "r": 1.0
+    },
+    {
+      "case": "11031_1001051",
+      "other": "PROSTATEx:ProstateX-0045",
+      "r": 1.0
+    },
+    {
+      "case": "11033_1001053",
+      "other": "PROSTATEx:ProstateX-0050",
+      "r": 1.0
+    },
+    {
+      "case": "11060_1001082",
+      "other": "PROSTATEx:ProstateX-0058",
+      "r": 1.0
+    },
+    {
+      "case": "11063_1001085",
+      "other": "PROSTATEx:ProstateX-0071",
+      "r": 1.0
+    },
+    {
+      "case": "11064_1001086",
+      "other": "PROSTATEx:ProstateX-0137",
+      "r": 1.0
+    },
+    {
+      "case": "11074_1001096",
+      "other": "PROSTATEx:ProstateX-0203",
+      "r": 1.0
+    },
+    {
+      "case": "11076_1001098",
+      "other": "PROSTATEx:ProstateX-0097",
+      "r": 1.0
+    },
+    {
+      "case": "11119_1001142",
+      "other": "PROSTATEx:ProstateX-0172",
+      "r": 1.0
+    },
+    {
+      "case": "11120_1001143",
+      "other": "PROSTATEx:ProstateX-0093",
+      "r": 1.0
+    },
+    {
+      "case": "11141_1001164",
+      "other": "PROSTATEx:ProstateX-0166",
+      "r": 1.0
+    },
+    {
+      "case": "11142_1001165",
+      "other": "PROSTATEx:ProstateX-0178",
+      "r": 1.0
+    },
+    {
+      "case": "11149_1001172",
+      "other": "PROSTATEx:ProstateX-0002",
+      "r": 1.0
+    },
+    {
+      "case": "11150_1001173",
+      "other": "PROSTATEx:ProstateX-0022",
+      "r": 1.0
+    },
+    {
+      "case": "11165_1001188",
+      "other": "PROSTATEx:ProstateX-0094",
+      "r": 1.0
+    },
+    {
+      "case": "11175_1001198",
+      "other": "PROSTATEx:ProstateX-0033",
+      "r": 1.0
+    },
+    {
+      "case": "11181_1001204",
+      "other": "PROSTATEx:ProstateX-0103",
+      "r": 1.0
+    },
+    {
+      "case": "11189_1001212",
+      "other": "PROSTATEx:ProstateX-0036",
+      "r": 1.0
+    },
+    {
+      "case": "11194_1001217",
+      "other": "PROSTATEx:ProstateX-0181",
+      "r": 1.0
+    },
+    {
+      "case": "11198_1001221",
+      "other": "PROSTATEx:ProstateX-0121",
+      "r": 1.0
+    },
+    {
+      "case": "11212_1001235",
+      "other": "PROSTATEx:ProstateX-0157",
+      "r": 1.0
+    },
+    {
+      "case": "11213_1001236",
+      "other": "PROSTATEx:ProstateX-0110",
+      "r": 1.0
+    },
+    {
+      "case": "11231_1001254",
+      "other": "PROSTATEx:ProstateX-0005",
+      "r": 1.0
+    },
+    {
+      "case": "11233_1001256",
+      "other": "PROSTATEx:ProstateX-0029",
+      "r": 1.0
+    },
+    {
+      "case": "11237_1001260",
+      "other": "PROSTATEx:ProstateX-0056",
+      "r": 1.0
+    },
+    {
+      "case": "11254_1001277",
+      "other": "PROSTATEx:ProstateX-0146",
+      "r": 1.0
+    },
+    {
+      "case": "11256_1001279",
+      "other": "PROSTATEx:ProstateX-0015",
+      "r": 1.0
+    },
+    {
+      "case": "11269_1001292",
+      "other": "PROSTATEx:ProstateX-0164",
+      "r": 1.0
+    },
+    {
+      "case": "11277_1001300",
+      "other": "PROSTATEx:ProstateX-0124",
+      "r": 1.0
+    },
+    {
+      "case": "11307_1001330",
+      "other": "PROSTATEx:ProstateX-0059",
+      "r": 1.0
+    },
+    {
+      "case": "11323_1001346",
+      "other": "PROSTATEx:ProstateX-0069",
+      "r": 1.0
+    },
+    {
+      "case": "11327_1001350",
+      "other": "PROSTATEx:ProstateX-0083",
+      "r": 1.0
+    },
+    {
+      "case": "11330_1001353",
+      "other": "PROSTATEx:ProstateX-0143",
+      "r": 1.0
+    },
+    {
+      "case": "11342_1001365",
+      "other": "PROSTATEx:ProstateX-0020",
+      "r": 1.0
+    },
+    {
+      "case": "11347_1001370",
+      "other": "PROSTATEx:ProstateX-0066",
+      "r": 1.0
+    },
+    {
+      "case": "11362_1001385",
+      "other": "PROSTATEx:ProstateX-0160",
+      "r": 1.0
+    },
+    {
+      "case": "11368_1001391",
+      "other": "PROSTATEx:ProstateX-0090",
+      "r": 1.0
+    },
+    {
+      "case": "11373_1001396",
+      "other": "PROSTATEx:ProstateX-0000",
+      "r": 1.0
+    },
+    {
+      "case": "11376_1001399",
+      "other": "PROSTATEx:ProstateX-0063",
+      "r": 1.0
+    },
+    {
+      "case": "11383_1001406",
+      "other": "PROSTATEx:ProstateX-0096",
+      "r": 1.0
+    },
+    {
+      "case": "11405_1001429",
+      "other": "PROSTATEx:ProstateX-0175",
+      "r": 1.0
+    },
+    {
+      "case": "11423_1001447",
+      "other": "PROSTATEx:ProstateX-0099",
+      "r": 1.0
+    },
+    {
+      "case": "11428_1001452",
+      "other": "PROSTATEx:ProstateX-0131",
+      "r": 1.0
+    },
+    {
+      "case": "11444_1001468",
+      "other": "PROSTATEx:ProstateX-0046",
+      "r": 1.0
+    },
+    {
+      "case": "11449_1001473",
+      "other": "PROSTATEx:ProstateX-0112",
+      "r": 1.0
+    },
+    {
+      "case": "11456_1001480",
+      "other": "PROSTATEx:ProstateX-0128",
+      "r": 1.0
+    },
+    {
+      "case": "11459_1001483",
+      "other": "PROSTATEx:ProstateX-0156",
+      "r": 1.0
+    },
+    {
+      "case": "11471_1001495",
+      "other": "PROSTATEx:ProstateX-0139",
+      "r": 1.0
+    }
+  ],
+  "note": "PROSTATEx = the 204 T2 images used in the study (Cuocolo et al. subset)"
+}

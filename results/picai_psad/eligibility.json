@@ -1,0 +1,17 @@
+{
+  "generated_utc": "2026-11-12T03:08:44.496368+00:00",
+  "prespec_sha256_lf": "6e1b6bab750d696aa8c4f05618a425c5c2bd00820137fc989553735263193c9c",
+  "labels_repo": "https://github.com/DIAGNijmegen/picai_labels",
+  "labels_commit": "ce4a4723d7c46d882a6cbaacb40ed6c4be86282f",
+  "marksheet_sha256": "23eab23790886258440b4af2842733332003f2c59f0a007b1e7b6b44572cf0ae",
+  "n_studies": 1500,
+  "n_patients": 1476,
+  "excluded": {
+    "later study of the same patient": 24,
+    "no PSA": 36,
+    "no csPCa label": 0
+  },
+  "n_eligible": 1440,
+  "n_with_report_volume": 1419,
+  "n_cspca": 411
+}

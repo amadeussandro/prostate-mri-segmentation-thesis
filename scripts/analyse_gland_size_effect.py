@@ -245,6 +245,16 @@ def write_report(path: str, s: dict) -> str:
 
 
 def main() -> None:
+    import argparse
+    global INTERNAL_VOL, INTERNAL_MET, EXTERNAL_MET, OUT_DIR
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--internal-vol", default=INTERNAL_VOL)
+    ap.add_argument("--internal-met", default=INTERNAL_MET)
+    ap.add_argument("--external-met", default=EXTERNAL_MET)
+    ap.add_argument("--out-dir", default=OUT_DIR)
+    a = ap.parse_args()
+    INTERNAL_VOL, INTERNAL_MET, EXTERNAL_MET, OUT_DIR = (
+        a.internal_vol, a.internal_met, a.external_met, a.out_dir)
     os.makedirs(OUT_DIR, exist_ok=True)
     print("internal...")
     i = internal()

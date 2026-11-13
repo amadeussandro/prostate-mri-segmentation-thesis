@@ -1,0 +1,70 @@
+{
+  "experiment": "e1_25d_seed43",
+  "output_dir": "/content/drive/MyDrive/Prostate158_E1_seeds/e1_25d_seed43",
+  "architecture": "ProstateUNet2D",
+  "in_channels": 3,
+  "out_channels": 3,
+  "init_features": 32,
+  "dropout_rate": 0.2,
+  "loss": "1 x CE + 1 x SoftDice (dice_classes=[1, 2], eps=1e-06)",
+  "loss_spec": {
+    "name": "dice_ce",
+    "ce_weight": 1.0,
+    "dice_weight": 1.0,
+    "dice_classes": [
+      1,
+      2
+    ],
+    "epsilon": 1e-06,
+    "ce_class_weights": null
+  },
+  "dice_classes": [
+    1,
+    2
+  ],
+  "dice_epsilon": 1e-06,
+  "ce_class_weights": null,
+  "ce_class_weights_description": "unweighted (uniform)",
+  "num_epochs": 100,
+  "seed": 43,
+  "amp": false,
+  "precision": "FP32",
+  "optimizer": "AdamW",
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "batch_size": 8,
+  "num_workers": 0,
+  "use_weighted_sampling": true,
+  "augmentation": "OFF (no augmentation)",
+  "augmentation_spec": {
+    "enabled": false,
+    "seed": 43,
+    "rotation_degrees": 10.0,
+    "rotation_p": 0.5,
+    "scale_min": 0.9,
+    "scale_max": 1.1,
+    "scale_p": 0.3,
+    "hflip_p": 0.5,
+    "gamma_min": 0.7,
+    "gamma_max": 1.5,
+    "gamma_p": 0.3,
+    "image_interpolation_order": 1,
+    "mask_interpolation_order": 0,
+    "applied_to": "none"
+  },
+  "augmentation_enabled": false,
+  "scheduler": "OFF (constant learning rate)",
+  "preprocessing": {
+    "normalization": "per_volume",
+    "z_resample": false,
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ]
+  },
+  "target_mask": "t2_anatomy_reader1.nii.gz",
+  "slice_sampling": "all",
+  "references_test_split": false,
+  "device": "cuda"
+}

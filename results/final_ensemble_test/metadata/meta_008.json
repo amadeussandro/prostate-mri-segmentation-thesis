@@ -1,0 +1,113 @@
+{
+  "patient_id": "008",
+  "original_shape": [
+    232,
+    232,
+    25
+  ],
+  "affine": [
+    [
+      -0.4682740867137909,
+      0.019626498222351074,
+      0.04987870529294014,
+      53.986141204833984
+    ],
+    [
+      -0.016331985592842102,
+      -0.44626128673553467,
+      0.9120992422103882,
+      8.436572074890137
+    ],
+    [
+      0.013386749662458897,
+      0.1420992761850357,
+      2.8575491905212402,
+      -91.404052734375
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "spacing_mm": [
+    0.46875,
+    0.46875,
+    3.0
+  ],
+  "orientation": [
+    "L",
+    "P",
+    "S"
+  ],
+  "n_slices": 25,
+  "preprocessing": {
+    "normalization": "per_volume",
+    "z_resample": false,
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ]
+  },
+  "transform_meta": {
+    "spatial_mode": "crop_pad",
+    "target_size": [
+      442,
+      442
+    ],
+    "pad_crop_h": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pad_crop_w": {
+      "op": "pad",
+      "native_size": 232,
+      "target_size": 442,
+      "start": 105
+    },
+    "pre_resample_depth": 25,
+    "post_resample_depth": 25
+  },
+  "geometry_validation": {
+    "shape_match": true,
+    "recon_shape": [
+      232,
+      232,
+      25
+    ],
+    "source_shape": [
+      232,
+      232,
+      25
+    ],
+    "depth_match": true,
+    "affine_match": true,
+    "affine_max_abs_diff": 0.0,
+    "spacing_match": true,
+    "recon_spacing_mm": [
+      0.46875,
+      0.46875,
+      3.0
+    ],
+    "source_spacing_mm": [
+      0.46875,
+      0.46875,
+      3.0
+    ],
+    "orientation_match": true,
+    "recon_orientation": "LPS",
+    "source_orientation": "LPS",
+    "labels_found": [
+      0,
+      1,
+      2
+    ],
+    "labels_valid": true,
+    "all_ok": true
+  },
+  "reconstruction_path": "D:\\1.AmadeusKuliah\\Skripsi\\thesis-project\\results\\final_ensemble_test\\reconstructions_3d\\pred_008.nii.gz"
+}

@@ -1,0 +1,38 @@
+{
+  "n_cases": 204,
+  "tail_threshold_mm": 30.0,
+  "tail": {
+    "label": "HD95 > 30 mm",
+    "n": 26,
+    "hd95_mean": 43.51052476169624,
+    "hd95_after_mean": 7.921675946319916,
+    "dice_mean": 0.7704447388150929,
+    "dice_after_mean": 0.7959392650623341,
+    "components_mean": 4.5,
+    "multi_component_frac": 1.0,
+    "satellite_vol_frac_mean": 0.09942344869145818,
+    "max_satellite_dist_mean": 69.22683799498124
+  },
+  "rest": {
+    "label": "HD95 <= 30 mm",
+    "n": 178,
+    "hd95_mean": 7.156988645980651,
+    "hd95_after_mean": 6.264668441814884,
+    "dice_mean": 0.8353491065405307,
+    "dice_after_mean": 0.835458216447556,
+    "components_mean": 1.8258426966292134,
+    "multi_component_frac": 0.3651685393258427,
+    "satellite_vol_frac_mean": 0.005005434485436392,
+    "max_satellite_dist_mean": 17.523106664001975
+  },
+  "overall": {
+    "hd95_mean": 11.790282464650286,
+    "hd95_median": 6.0,
+    "hd95_after_mean": 6.47585567278121,
+    "hd95_after_median": 6.0,
+    "dice_mean": 0.8270769812421909,
+    "dice_after_mean": 0.8304214873494393,
+    "multi_component_frac": 0.44607843137254904,
+    "corr_components_hd95": 0.473631294491252
+  }
+}

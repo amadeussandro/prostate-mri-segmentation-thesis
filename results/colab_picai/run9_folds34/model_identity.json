@@ -1,0 +1,25 @@
+{
+  "kind": "softmax_ensemble",
+  "arm": "2d",
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "epochs": [
+    88,
+    62,
+    98
+  ],
+  "member_sha256": [
+    "2366e3c68f5ec616b19c0e7df39f9135898fd287b9436ce5dfab7baf8528d5d2",
+    "0ee59ac4c5511869c4910cfb6a385ae2f758623b8137f42a7052c15eab443179",
+    "427b134123b64ddfceab0a9043eb7937dd424db9c2ab2924975ab0512012cd98"
+  ],
+  "tta_flip_left_right": true,
+  "ensemble_id_sha256": "ec21408e3ecf80b87b152be89e742e73fc4b1160dedbb64289d61ab0398c3cef",
+  "selection_file": "/content/bundle/results/e1_seed_selection/selection.json",
+  "device": "cuda",
+  "torch": "2.14.1+cu130",
+  "gpu": "Tesla T4"
+}

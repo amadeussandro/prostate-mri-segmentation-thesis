@@ -14,7 +14,10 @@ from matplotlib.patches import FancyBboxPatch
 from PIL import Image
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(PROJECT, "results/figures_jmir")
+# JMIR_FIG_OUT / JMIR_FIG_SRC let a later model version write a new figure set
+# next to the old one instead of over it.
+OUT = os.path.join(PROJECT, os.environ.get("JMIR_FIG_OUT", "results/figures_jmir"))
+SRC_RQ2 = os.environ.get("JMIR_FIG_SRC", "results/figures_rq2")
 INK, MUTED, EDGE = "#1f2933", "#52606d", "#3e4c59"
 FILL = {"data": "#dceaf7", "step": "#f5f7fa", "chk": "#e3f1e6", "l3": "#fdf0dc"}
 
@@ -111,7 +114,7 @@ def strip_embedded_text() -> list:
             "F3_external_validation.png": (0.0, 0.905)}
     done = []
     for name, (t, b) in jobs.items():
-        im = Image.open(os.path.join(PROJECT, "results/figures_rq2", name))
+        im = Image.open(os.path.join(PROJECT, SRC_RQ2, name))
         w, h = im.size
         out = os.path.join(OUT, "jmir_" + name)
         im.crop((0, int(h * t), w, int(h * b))).save(out)
